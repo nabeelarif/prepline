@@ -12,6 +12,12 @@ Collect the articles, videos and courses you plan to get through, and Prepline t
 - Timeline that schedules unfinished work in priority order and shows whether you'll make your date
 - Data saved in the browser (localStorage), with JSON export and import for backups
 
+## Architecture
+
+Prepline runs entirely in the browser. It has four layers (UI, state, domain and storage), one-way data flow and a core of pure functions.
+
+![Prepline architecture and data flow](docs/architecture.png)
+
 ## Development
 
 Requires Node 22 or newer.

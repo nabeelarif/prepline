@@ -289,11 +289,18 @@ test('the theme switch overrides the system setting and is remembered', async ({
   await page.getByRole('radio', { name: 'Light' }).click();
   await expect(page.getByRole('radio', { name: 'Light' })).toHaveAttribute('aria-checked', 'true');
   await expect.poll(bg).not.toBe(darkBg);
+  const lightBg = await bg();
 
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 
   await page.getByRole('radio', { name: 'Auto' }).click();
   await expect(page.locator('html')).not.toHaveAttribute('data-theme', /.+/);
+  await expect.poll(bg).toBe(darkBg);
+
+  // Auto follows OS changes live, without a reload.
+  await page.emulateMedia({ colorScheme: 'light' });
+  await expect.poll(bg).toBe(lightBg);
+  await page.emulateMedia({ colorScheme: 'dark' });
   await expect.poll(bg).toBe(darkBg);
 });

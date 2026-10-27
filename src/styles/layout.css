@@ -94,6 +94,37 @@
 .store-note.off i {
   background: var(--warn);
 }
+.theme-switch {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2px;
+  padding: 3px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.06);
+}
+.theme-switch button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  height: 28px;
+  padding: 0 2px;
+  font-size: 12px;
+  font-weight: 500;
+  border: none;
+  border-radius: 7px;
+  background: none;
+  color: var(--side-fg);
+  cursor: pointer;
+  transition: background-color 150ms;
+}
+.theme-switch button:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+.theme-switch button[aria-checked='true'] {
+  background: var(--side-active);
+  color: #fff;
+}
 .side-scrim {
   display: none;
 }

@@ -279,3 +279,21 @@ test('on a phone the journey is a vertical stepper and the list is stacked cards
   const width = await page.evaluate(() => document.documentElement.scrollWidth);
   expect(width).toBeLessThanOrEqual(390);
 });
+
+test('the theme switch overrides the system setting and is remembered', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.goto('./');
+  const bg = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  const darkBg = await bg();
+
+  await page.getByRole('radio', { name: 'Light' }).click();
+  await expect(page.getByRole('radio', { name: 'Light' })).toHaveAttribute('aria-checked', 'true');
+  await expect.poll(bg).not.toBe(darkBg);
+
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+
+  await page.getByRole('radio', { name: 'Auto' }).click();
+  await expect(page.locator('html')).not.toHaveAttribute('data-theme', /.+/);
+  await expect.poll(bg).toBe(darkBg);
+});

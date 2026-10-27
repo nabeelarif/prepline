@@ -12,6 +12,8 @@
 @media (max-width: 860px) {
   .app {
     grid-template-columns: minmax(0, 1fr);
+    /* Short pages would otherwise stretch the top bar's row. */
+    align-content: start;
   }
   .topbar {
     display: flex;

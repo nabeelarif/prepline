@@ -1,5 +1,11 @@
-/* Design tokens. Light by default; dark follows the OS unless [data-theme] overrides it. */
+/*
+ * Design tokens. The base :root is the light theme. Dark overrides it when
+ * [data-theme='dark'] is set, or when the OS is dark and [data-theme='light']
+ * is not. With no data-theme (Auto) the media query decides, and browsers
+ * re-evaluate it live when the OS setting changes, so no JS listener is needed.
+ */
 :root {
+  color-scheme: light;
   --bg: #f6f8fc;
   --surface: #ffffff;
   --surface-2: #f1f5f9;

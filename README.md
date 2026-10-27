@@ -13,7 +13,7 @@ Collect the articles, videos, courses and practice you plan to get through, and 
 - **Continue Learning:** a card that points to the first resource in progress, or the next one to start.
 - **Resource list:** filter by type and status, change status from each row, reorder, and move resources between phases.
 - **Backups:** data is saved in the browser (localStorage). You can export it as JSON, and importing checks the file and shows a preview before anything is replaced.
-- **Responsive design** with dark mode.
+- **Responsive design** with light and dark themes. The sidebar switch follows your system setting or keeps the one you pick.
 
 ## Architecture
 

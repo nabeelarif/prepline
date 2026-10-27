@@ -1,6 +1,7 @@
 import { House, LayoutList } from 'lucide-react';
 import { useStore, type Page } from '../state/store';
 import { Logo } from './icons';
+import { ThemeSwitch } from './ThemeSwitch';
 
 const NAV: [Page, string, typeof House][] = [
   ['dashboard', 'Dashboard', House],
@@ -38,6 +39,7 @@ export function Sidebar() {
           </ul>
         </nav>
         <div className="side-foot">
+          <ThemeSwitch />
           <p className={`store-note${storageOK ? '' : ' off'}`}>
             <i />
             {storageOK ? 'Saved in this browser' : 'Not saving: browser storage is blocked'}

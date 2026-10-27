@@ -1,0 +1,125 @@
+/* Overlay */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: color-mix(in srgb, var(--fg) 38%, transparent);
+  display: grid;
+  place-items: center;
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px))
+    max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  overflow-y: auto;
+}
+.sheet {
+  width: min(560px, 100%);
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 22px 22px 18px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  max-height: 100%;
+  overflow-y: auto;
+}
+.sheet h2 {
+  font-family: var(--f-display);
+  font-size: 23px;
+  letter-spacing: -0.02em;
+  margin: 0 0 16px;
+}
+.sheet h3 {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 20px 0 8px;
+}
+.sheet p {
+  margin: 0 0 10px;
+  font-size: 14px;
+}
+.field {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 14px;
+  min-width: 0;
+}
+.field > span {
+  font-size: 13px;
+  font-weight: 600;
+}
+.field small {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 400;
+}
+input[type='text'],
+input[type='date'],
+input[type='number'],
+select,
+textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+}
+input:disabled {
+  opacity: 0.5;
+}
+textarea {
+  resize: vertical;
+  font-family: var(--f-mono);
+  font-size: 13px;
+  line-height: 1.5;
+}
+textarea.plain {
+  font-family: var(--f-body);
+  font-size: 14px;
+}
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+.row2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.dur {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.dur input {
+  width: 76px;
+}
+.sheet-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+.spacer {
+  flex: 1;
+}
+.btn-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.msg {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.msg.err {
+  color: var(--bad);
+}
+.msg:empty {
+  display: none;
+}

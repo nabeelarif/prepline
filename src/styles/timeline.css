@@ -1,0 +1,118 @@
+/* Timeline */
+.legend {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin: -2px 0 16px;
+}
+.route {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  position: relative;
+}
+.route::before {
+  content: '';
+  position: absolute;
+  left: 7px;
+  top: 12px;
+  bottom: 14px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--accent-soft);
+}
+.stop {
+  position: relative;
+  padding: 0 0 18px 32px;
+}
+.stop:last-child {
+  padding-bottom: 0;
+}
+.stop .dot {
+  position: absolute;
+  left: 1px;
+  top: 4px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 3px solid var(--accent);
+}
+.stop.is-today .dot {
+  border-color: var(--marker);
+  background: var(--marker);
+}
+.stop.is-late .dot {
+  border-color: var(--bad);
+}
+.stop-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+}
+.stop-date {
+  font-weight: 600;
+}
+.stop.is-today .stop-date {
+  background: var(--marker);
+  color: var(--marker-fg);
+  padding: 0 7px;
+  border-radius: 4px;
+}
+.stop-items {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 3px;
+  font-size: 13.5px;
+  color: var(--muted);
+}
+.stop-items li {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  min-width: 0;
+}
+.stop-items li span {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.stop-items .tdot {
+  transform: translateY(-1px);
+}
+.stop-items .tdot.t-course {
+  transform: translateY(-1px) rotate(45deg) scale(0.82);
+}
+.stop-items em {
+  font-style: normal;
+  font-family: var(--f-mono);
+  font-size: 11.5px;
+}
+.stop-note {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.stop.more .dot {
+  border-style: dashed;
+  border-color: var(--muted);
+}
+.stop.finish .dot {
+  background: var(--good);
+  border-color: var(--good);
+}
+.stop.finish.late .dot {
+  background: var(--bad);
+  border-color: var(--bad);
+}
+.stop.target .dot {
+  border-radius: 2px;
+  transform: rotate(45deg) scale(0.9);
+  background: var(--fg);
+  border-color: var(--fg);
+}
+.stop.target.late .stop-date {
+  color: var(--bad);
+}

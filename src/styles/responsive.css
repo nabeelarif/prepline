@@ -1,0 +1,69 @@
+/* Breakpoints, kept last so they override the rules above. */
+@media (max-width: 1180px) {
+  .board {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 860px) {
+  .app {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .side {
+    position: static;
+    height: auto;
+    overflow: visible;
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+    padding: 18px 0 16px;
+  }
+  .goal-list {
+    flex-direction: row;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .goal-list li {
+    flex: 0 0 210px;
+  }
+  .side-foot {
+    margin-top: 0;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    padding-top: 0;
+  }
+  .side-foot .btn {
+    width: auto;
+  }
+}
+@media (max-width: 680px) {
+  .stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .goal-head {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .gh-side {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .row2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 520px) {
+  .res {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .res-actions {
+    grid-column: 2;
+    margin-left: -6px;
+  }
+  .card {
+    padding: 16px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}

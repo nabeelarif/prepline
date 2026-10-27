@@ -1,0 +1,29 @@
+# Dependencies and build output
+node_modules
+dist
+coverage
+
+# Test output
+playwright-report
+test-results
+blob-report
+playwright/.cache
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment and local overrides
+.env
+.env.*
+!.env.example
+*.local
+
+# Editors and OS
+.DS_Store
+.idea
+.vscode/*
+!.vscode/extensions.json
+
+# Personal Claude Code settings (shared .claude/settings.json is committed)
+.claude/settings.local.json

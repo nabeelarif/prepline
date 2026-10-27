@@ -11,7 +11,7 @@ Collect the articles, videos, courses and practice you plan to get through, and 
 - **Preparation journey:** a winding roadmap with a step for each resource, showing which are done or in progress and which comes next. It becomes a vertical list on phones.
 - **Optional phases:** group resources into milestones such as "Foundations" or "System Design", with a description and colour. The Phases view shows progress per phase, weighted by hours. Resources without a phase stay under "Unorganized".
 - **Continue Learning:** a card that points to the first resource in progress, or the next one to start.
-- **Resource list:** filter by type and status, change status from each row, reorder, and move resources between phases.
+- **Resource list:** filter by type and status, change status from each row, drag rows by their handle to reorder (or use the arrow keys on the handle), and move resources between phases.
 - **Backups:** data is saved in the browser (localStorage). You can export it as JSON, and importing checks the file and shows a preview before anything is replaced.
 - **Responsive design** with light and dark themes. The sidebar switch follows your system setting or keeps the one you pick.
 

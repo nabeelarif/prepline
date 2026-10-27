@@ -127,7 +127,7 @@
   /* First cell of the second line lines up with the title. */
   .res-row .c-type {
     display: block;
-    margin-left: 32px;
+    margin-left: 36px;
   }
   .res-row .c-time {
     font-size: 12.5px;

@@ -9,6 +9,7 @@ import type { Goal, ResourceStatus, ResourceType } from '../domain/types';
 import { useStore } from '../state/store';
 import { TypeIcon } from './icons';
 import { ResourceRow } from './ResourceRow';
+import { useReorderDrag } from './useReorderDrag';
 
 const PLURAL: Record<ResourceType, string> = {
   article: 'Articles',
@@ -73,6 +74,7 @@ export function ResourceList({ goal }: { goal: Goal }) {
   const setTypeFilter = useStore((s) => s.setTypeFilter);
   const statusFilter = useStore((s) => s.ui.statusFilter);
   const setStatusFilter = useStore((s) => s.setStatusFilter);
+  const placeResource = useStore((s) => s.placeResource);
 
   const all = goal.resources;
   const inPhase = phaseFilter === null ? all : all.filter((r) => (r.phaseId ?? '') === phaseFilter);
@@ -88,6 +90,10 @@ export function ResourceList({ goal }: { goal: Goal }) {
         (statusFilter === 'all' || resStatus(r) === statusFilter),
     );
   const filtered = typeFilter !== 'all' || statusFilter !== 'all';
+  const reorder = useReorderDrag(
+    rows.map(({ r }) => r.id),
+    placeResource,
+  );
 
   return (
     <section className="card resources" aria-labelledby="resH">
@@ -125,11 +131,11 @@ export function ResourceList({ goal }: { goal: Goal }) {
         </p>
       ) : (
         <div className="table-scroll">
-          <table className="res-table">
+          <table className={`res-table${reorder.active ? ' is-reordering' : ''}`}>
             <thead>
               <tr>
-                <th className="c-check">
-                  <span className="sr-only">Done</span>
+                <th className="c-drag">
+                  <span className="sr-only">Order</span>
                 </th>
                 <th>Title</th>
                 <th className="c-type">Type</th>
@@ -150,6 +156,8 @@ export function ResourceList({ goal }: { goal: Goal }) {
                   count={all.length}
                   phases={goal.phases}
                   selected={r.id === selected}
+                  handle={reorder.handleProps(r.id)}
+                  drag={reorder.rowState(r.id)}
                 />
               ))}
             </tbody>

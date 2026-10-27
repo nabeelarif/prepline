@@ -1,4 +1,4 @@
-import { useEffect, useRef, type CSSProperties } from 'react';
+import { useEffect, useRef, type CSSProperties, type HTMLAttributes } from 'react';
 import {
   ArrowDown,
   ArrowUp,
@@ -6,6 +6,7 @@ import {
   Ellipsis,
   FolderInput,
   Gauge,
+  GripVertical,
   Pencil,
   Play,
   RotateCcw,
@@ -28,9 +29,12 @@ interface Props {
   count: number;
   phases: Phase[];
   selected: boolean;
+  /** Pointer and key handlers for the drag handle, from `useReorderDrag`. */
+  handle: HTMLAttributes<HTMLButtonElement>;
+  drag: { dragging?: boolean; dy?: number; dropLine?: 'before' | 'after' };
 }
 
-export function ResourceRow({ r, index, count, phases, selected }: Props) {
+export function ResourceRow({ r, index, count, phases, selected, handle, drag }: Props) {
   const a = useStore.getState();
   const row = useRef<HTMLTableRowElement>(null);
   const status = resStatus(r);
@@ -109,15 +113,22 @@ export function ResourceRow({ r, index, count, phases, selected }: Props) {
     <tr
       ref={row}
       id={`res-${r.id}`}
-      className={`res-row${r.done ? ' done' : ''}${selected ? ' is-selected' : ''}`}
+      data-reorder-id={r.id}
+      className={`res-row${r.done ? ' done' : ''}${selected ? ' is-selected' : ''}${
+        drag.dragging ? ' dragging' : ''
+      }${drag.dropLine ? ` drop-${drag.dropLine}` : ''}`}
+      style={drag.dragging ? { transform: `translateY(${drag.dy ?? 0}px)` } : undefined}
     >
-      <td className="c-check">
-        <input
-          type="checkbox"
-          checked={r.done}
-          aria-label={`${r.done ? 'Reopen' : 'Mark complete'}: ${r.title}`}
-          onChange={() => changeStatus(r, r.done ? 'in_progress' : 'completed')}
-        />
+      <td className="c-drag">
+        <button
+          type="button"
+          className="icon-btn drag-handle"
+          aria-label={`Reorder ${r.title}`}
+          title="Drag to reorder, or use the arrow keys"
+          {...handle}
+        >
+          <GripVertical size={16} aria-hidden="true" />
+        </button>
       </td>
       <td className="c-title">
         <div className="res-title">

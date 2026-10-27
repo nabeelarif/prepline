@@ -22,6 +22,9 @@ async function addResource(page: Page, title: string, hours: string, url = '') {
 const summary = (page: Page) => page.getByRole('region', { name: 'Progress summary' });
 const journey = (page: Page) => page.getByRole('region', { name: 'Your Preparation Journey' });
 const resources = (page: Page) => page.getByRole('region', { name: /^Resources/ });
+const statusOf = (page: Page, title: string) =>
+  resources(page).getByRole('button', { name: new RegExp(`Change status of ${title}`) });
+const titles = (page: Page) => resources(page).locator('.res-name > :first-child').allInnerTexts();
 
 test('first run invites the user to create a plan', async ({ page }) => {
   await page.goto('./');
@@ -42,7 +45,8 @@ test('add resources, track weighted progress, and keep it after reload', async (
   await expect(resources(page).getByText('Video', { exact: true })).toBeVisible();
 
   // Finishing the 1h video is 25% of 4h, though it is half of the resources.
-  await resources(page).getByRole('checkbox', { name: 'Mark complete: Caching talk' }).check();
+  await statusOf(page, 'Caching talk').click();
+  await page.getByRole('menuitemradio', { name: 'Completed' }).click();
   await expect(summary(page).getByText('25%', { exact: true })).toBeVisible();
   await expect(summary(page).getByText('1 / 2')).toBeVisible();
 
@@ -57,9 +61,7 @@ test('add resources, track weighted progress, and keep it after reload', async (
 
   await page.reload();
   await expect(summary(page).getByText('63%', { exact: true })).toBeVisible();
-  await expect(
-    resources(page).getByRole('checkbox', { name: 'Reopen: Caching talk' }),
-  ).toBeChecked();
+  await expect(statusOf(page, 'Caching talk')).toHaveText('Completed');
 });
 
 test('selecting a journey step highlights its resource', async ({ page }) => {
@@ -71,9 +73,7 @@ test('selecting a journey step highlights its resource', async ({ page }) => {
     .click();
   await expect(page.locator('.res-row.is-selected')).toContainText('Second');
   // Picking a step never completes it.
-  await expect(
-    resources(page).getByRole('checkbox', { name: 'Mark complete: Second' }),
-  ).not.toBeChecked();
+  await expect(statusOf(page, 'Second')).toHaveText('Not Started');
 });
 
 test('phases are optional, group resources, and deleting one keeps its resources', async ({
@@ -303,4 +303,40 @@ test('the theme switch overrides the system setting and is remembered', async ({
   await expect.poll(bg).toBe(lightBg);
   await page.emulateMedia({ colorScheme: 'dark' });
   await expect.poll(bg).toBe(darkBg);
+});
+
+test('drag a resource to reorder the list, or move it with the arrow keys', async ({ page }) => {
+  await createPlan(page, 'Prep');
+  for (const t of ['One', 'Two', 'Three']) await addResource(page, t, '1');
+  await expect(resources(page).getByRole('checkbox')).toHaveCount(0);
+
+  // Drag "Three" above "One".
+  const handle = resources(page).getByRole('button', { name: 'Reorder Three' });
+  // Centre the table so the drag stays clear of the auto-scroll edges.
+  await resources(page)
+    .getByRole('table')
+    .evaluate((t) => t.scrollIntoView({ block: 'center' }));
+  const first = await resources(page).getByRole('row').nth(1).boundingBox();
+  const from = await handle.boundingBox();
+  await page.mouse.move(from!.x + from!.width / 2, from!.y + from!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(from!.x + from!.width / 2, first!.y + 4, { steps: 8 });
+  await page.mouse.up();
+  await expect.poll(() => titles(page)).toEqual(['Three', 'One', 'Two']);
+  // The journey follows the new priority order.
+  await expect(
+    journey(page)
+      .getByRole('button', { name: /^(One|Two|Three)/ })
+      .first(),
+  ).toContainText('Three');
+
+  // Keyboard: focus the handle and press ArrowDown twice.
+  await handle.focus();
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('ArrowDown');
+  await expect.poll(() => titles(page)).toEqual(['One', 'Two', 'Three']);
+  await expect(handle).toBeFocused();
+
+  await page.reload();
+  await expect.poll(() => titles(page)).toEqual(['One', 'Two', 'Three']);
 });

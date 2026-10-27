@@ -57,6 +57,8 @@ export interface Store {
   updateResource(id: string, input: ResourceInput): void;
   deleteResource(id: string): void;
   moveResource(id: string, dir: -1 | 1): void;
+  /** Drag and drop: puts a resource right before or after another one. */
+  placeResource(id: string, targetId: string, after: boolean): void;
   /** Completes a resource (full credit), or reopens a completed one as In Progress. */
   toggleResource(id: string): void;
   /** Moves a resource to a status; see `statusPatch()` for what each move changes. */
@@ -129,6 +131,14 @@ function move<T extends { id: string }>(list: T[], id: string, dir: -1 | 1) {
   const j = i + dir;
   if (i < 0 || j < 0 || j >= list.length) return;
   [list[i], list[j]] = [list[j]!, list[i]!];
+}
+
+function place<T extends { id: string }>(list: T[], id: string, targetId: string, after: boolean) {
+  const i = list.findIndex((x) => x.id === id);
+  if (i < 0 || id === targetId || !list.some((x) => x.id === targetId)) return;
+  const [item] = list.splice(i, 1);
+  const j = list.findIndex((x) => x.id === targetId);
+  list.splice(after ? j + 1 : j, 0, item!);
 }
 
 let toastSeq = 0;
@@ -264,6 +274,12 @@ export function createAppStore(storage: StorageAdapter = createLocalStorageAdapt
         commit((d) => {
           const g = activeOf(d);
           if (g) move(g.resources, id, dir);
+        }),
+
+      placeResource: (id, targetId, after) =>
+        commit((d) => {
+          const g = activeOf(d);
+          if (g) place(g.resources, id, targetId, after);
         }),
 
       toggleResource: (id) =>

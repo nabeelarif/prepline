@@ -60,7 +60,7 @@ export function statusPatch(r: Resource, to: ResourceStatus, today: ISODate): Pr
 
 /**
  * Fields to change when recording completed minutes. Recording the full estimate
- * completes the resource the same way the checkbox does, keeping any earlier
+ * completes the resource the same way Mark completed does, keeping any earlier
  * partial progress so a later reopen can restore it.
  */
 export function progressPatch(r: Resource, minutes: number, today: ISODate): Progress {

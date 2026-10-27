@@ -165,6 +165,24 @@ describe('store', () => {
     expect(titles()).toEqual(['B', 'A']);
   });
 
+  it('places a dragged resource before or after another', () => {
+    const { s, g, add } = setup();
+    const a = add({ title: 'A' });
+    const b = add({ title: 'B' });
+    const c = add({ title: 'C' });
+    const titles = () => g().resources.map((r) => r.title);
+    s().placeResource(c.id, a.id, false);
+    expect(titles()).toEqual(['C', 'A', 'B']);
+    s().placeResource(c.id, b.id, true);
+    expect(titles()).toEqual(['A', 'B', 'C']);
+    s().placeResource(a.id, c.id, false);
+    expect(titles()).toEqual(['B', 'A', 'C']);
+    // Unknown target or dropping on itself changes nothing.
+    s().placeResource(a.id, 'missing', true);
+    s().placeResource(a.id, a.id, true);
+    expect(titles()).toEqual(['B', 'A', 'C']);
+  });
+
   describe('phases', () => {
     it('adds, edits and reorders phases, and switches to the phases view', () => {
       const { s, g } = setup();

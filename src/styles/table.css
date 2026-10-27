@@ -34,15 +34,36 @@
 .res-row.is-selected {
   background: var(--accent-soft);
 }
-.c-check {
+.res-table .c-drag {
   width: 36px;
+  padding-inline: 4px 0;
 }
-.c-check input {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--good);
-  cursor: pointer;
-  display: block;
+.drag-handle {
+  width: 28px;
+  cursor: grab;
+  /* Let the handle, not the page, receive touch moves. */
+  touch-action: none;
+}
+.res-row:not(:hover) .drag-handle:not(:focus-visible) {
+  color: color-mix(in srgb, var(--muted) 60%, transparent);
+}
+.is-reordering,
+.is-reordering .drag-handle {
+  cursor: grabbing;
+  user-select: none;
+}
+.res-row.dragging {
+  position: relative;
+  z-index: 2;
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  transition: none;
+}
+.res-row.drop-before td {
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+.res-row.drop-after td {
+  box-shadow: inset 0 -2px 0 var(--accent);
 }
 .c-title {
   min-width: 170px;

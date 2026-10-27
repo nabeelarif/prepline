@@ -27,6 +27,8 @@ export function hostOf(u: string): string {
 }
 
 const VIDEO_HOSTS = /(^|\.)(youtube\.com|youtu\.be|vimeo\.com|loom\.com|twitch\.tv)$/;
+const PRACTICE_HOSTS =
+  /(^|\.)(hackerrank\.com|codewars\.com|exercism\.org|neetcode\.io|codesignal\.com|pramp\.com|interviewing\.io)$/;
 const COURSE_HOSTS =
   /(^|\.)(udemy\.com|coursera\.org|edx\.org|pluralsight\.com|educative\.io|frontendmasters\.com|kodeco\.com|skillshare\.com|datacamp\.com|codecademy\.com|egghead\.io|designcode\.io|teachable\.com|thinkific\.com|domestika\.org|objc\.io)$/;
 
@@ -46,6 +48,7 @@ export function detectType(url: string): ResourceType {
   if (/(^|\.)linkedin\.com$/.test(h) && p.startsWith('/learning')) return 'course';
   if (/(^|\.)leetcode\.com$/.test(h) && (p.startsWith('/studyplan') || p.startsWith('/explore')))
     return 'course';
+  if (/(^|\.)leetcode\.com$/.test(h) || PRACTICE_HOSTS.test(h)) return 'practice';
   return 'article';
 }
 

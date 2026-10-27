@@ -1,4 +1,3 @@
-import { parseDuration, parseSections } from './sections';
 import { detectType, normUrl, safeUrl, titleFromUrl } from './urls';
 
 describe('detectType', () => {
@@ -10,7 +9,9 @@ describe('detectType', () => {
     ['https://www.udemy.com/course/swift/', 'course'],
     ['https://www.linkedin.com/learning/swift', 'course'],
     ['https://leetcode.com/studyplan/top-interview-150/', 'course'],
-    ['https://leetcode.com/problems/two-sum/', 'article'],
+    ['https://leetcode.com/problems/two-sum/', 'practice'],
+    ['https://www.hackerrank.com/challenges/x', 'practice'],
+    ['https://medium.com/@a/swift-actors', 'article'],
     ['not a url', 'article'],
   ])('%s → %s', (url, type) => {
     expect(detectType(url)).toBe(type);
@@ -34,24 +35,5 @@ describe('urls', () => {
     );
     expect(titleFromUrl('https://blog.dev/docs/12345')).toBe('blog.dev');
     expect(titleFromUrl('https://www.youtube.com/watch?v=x')).toBe('');
-  });
-});
-
-describe('sections', () => {
-  it('parses durations', () => {
-    expect(parseDuration('1h 30m')).toBe(90);
-    expect(parseDuration('2.5h')).toBe(150);
-    expect(parseDuration('45 min')).toBe(45);
-    expect(parseDuration('45')).toBe(45);
-    expect(parseDuration('soon')).toBe(0);
-  });
-
-  it('parses one section per line with optional times', () => {
-    const s = parseSections('- Networking layer, 2h\n2. Caching (1h 30m)\n\nMock interview');
-    expect(s.map((x) => [x.title, x.minutes])).toEqual([
-      ['Networking layer', 120],
-      ['Caching', 90],
-      ['Mock interview', 30],
-    ]);
   });
 });

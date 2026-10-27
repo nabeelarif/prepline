@@ -1,24 +1,24 @@
-import { useStore } from '../state/store';
+import type { ReactNode } from 'react';
 
-export function EmptyState() {
-  const openOverlay = useStore((s) => s.openOverlay);
-  const loadSample = useStore((s) => s.loadSample);
+interface Props {
+  icon: ReactNode;
+  title: string;
+  children: ReactNode;
+  action?: ReactNode;
+  /** Heading level: 1 when the empty state is the whole page. */
+  level?: 1 | 2 | 3;
+}
+
+export function EmptyState({ icon, title, children, action, level = 3 }: Props) {
+  const H = `h${level}` as const;
   return (
-    <section className="empty">
-      <p className="eyebrow">Prepline</p>
-      <h1>What are you preparing for?</h1>
-      <p>
-        Create a goal, add the articles, videos and courses you plan to get through, and Prepline
-        turns them into a day-by-day plan with a target date.
-      </p>
-      <div className="btn-row">
-        <button className="btn primary" onClick={() => openOverlay({ kind: 'goal', goalId: null })}>
-          Create a goal
-        </button>
-        <button className="btn ghost" onClick={loadSample}>
-          Load the sample goal
-        </button>
+    <div className="empty">
+      <div className="empty-icon" aria-hidden="true">
+        {icon}
       </div>
-    </section>
+      <H>{title}</H>
+      <p>{children}</p>
+      {action}
+    </div>
   );
 }

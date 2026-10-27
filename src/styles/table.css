@@ -1,0 +1,140 @@
+/* Resource table */
+.table-scroll {
+  overflow-x: auto;
+  margin-inline: -4px;
+  padding-inline: 4px;
+}
+.res-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+.res-table th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--muted);
+  font-size: 12.5px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+}
+.res-table td {
+  padding: 10px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+.res-table tr:last-child td {
+  border-bottom: none;
+}
+.res-row {
+  transition: background-color 300ms;
+}
+.res-row:hover {
+  background: color-mix(in srgb, var(--surface-2) 60%, transparent);
+}
+.res-row.is-selected {
+  background: var(--accent-soft);
+}
+.c-check {
+  width: 36px;
+}
+.c-check input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--good);
+  cursor: pointer;
+  display: block;
+}
+.c-title {
+  min-width: 170px;
+}
+.res-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.res-name {
+  display: grid;
+  min-width: 0;
+}
+.res-name a,
+.res-name span {
+  font-weight: 500;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.res-name a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.res-name small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.res-row.done .res-name a,
+.res-row.done .res-name span {
+  color: var(--muted);
+}
+.c-time {
+  white-space: nowrap;
+}
+.c-actions {
+  width: 44px;
+  text-align: right;
+}
+
+/* Selected phase, above the table */
+.phase-panel {
+  --ph: var(--ph-gray);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--ph) 9%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--ph) 30%, var(--line));
+}
+.phase-panel p {
+  margin: 0;
+}
+.phase-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+}
+
+/* Status dropdown in each row */
+.status-btn {
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+}
+.status-btn:hover {
+  filter: brightness(0.96);
+}
+.status-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  margin: 5px 3px 0;
+  flex: none;
+  background: var(--muted);
+}
+.status-dot.s-in_progress {
+  background: var(--accent);
+}
+.status-dot.s-completed {
+  background: var(--good);
+}
+.status-filter {
+  width: auto;
+  padding: 4px 8px;
+  font-size: 12.5px;
+  border-radius: 8px;
+}

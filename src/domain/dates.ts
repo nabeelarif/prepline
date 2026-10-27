@@ -30,12 +30,14 @@ export function validISO(s: unknown): s is ISODate {
   return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(fromISO(s).getTime());
 }
 
-export function fmtDate(s: ISODate): string {
-  return fromISO(s).toLocaleDateString(undefined, {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-  });
+/** "Mon, Apr 20", or "Apr 20, 2027" when `long`. */
+export function fmtDate(s: ISODate, long = false): string {
+  return fromISO(s).toLocaleDateString(
+    undefined,
+    long
+      ? { month: 'short', day: 'numeric', year: 'numeric' }
+      : { weekday: 'short', month: 'short', day: 'numeric' },
+  );
 }
 
 export function relDay(s: ISODate, today: ISODate = todayISO()): string {

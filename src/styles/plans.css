@@ -1,0 +1,77 @@
+/* My Plans */
+.plan-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+.plan-card {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+.plan-card.is-active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.plan-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.plan-top .pring-body strong {
+  font-size: 13px;
+}
+.plan-title {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+}
+.plan-title h2 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.3;
+}
+.plan-desc {
+  margin: 0;
+  color: var(--muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.plan-facts {
+  margin: 0;
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+}
+.plan-facts div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.plan-facts dt {
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.plan-facts dd {
+  margin: 0;
+  text-align: right;
+}
+.plan-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.plan-foot .pace {
+  border: none;
+  padding: 0;
+}

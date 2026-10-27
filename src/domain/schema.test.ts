@@ -1,4 +1,4 @@
-import { parseAppData } from './schema';
+import { parseAppData, previewImport } from './schema';
 
 describe('parseAppData', () => {
   it('rejects data without a goals list', () => {
@@ -12,13 +12,14 @@ describe('parseAppData', () => {
     expect(data.activeGoalId).toBe(data.goals[0]!.id);
     expect(data.goals[0]).toMatchObject({
       name: 'Prep',
-      hoursPerDay: 2,
-      sample: false,
+      description: '',
+      hoursPerDay: null,
       resources: [],
+      phases: [],
     });
   });
 
-  it('fills defaults and clamps bad values, like the old normalize()', () => {
+  it('fills defaults and clamps bad values', () => {
     const data = parseAppData({
       activeGoalId: 'missing',
       goals: [
@@ -29,35 +30,29 @@ describe('parseAppData', () => {
           targetDate: 'tomorrow',
           hoursPerDay: 99,
           resources: [
-            { id: 'r1', type: 'podcast', minutes: -5, rating: 7, doneAt: '2026-01-02' },
+            { id: 'r1', type: 'podcast', minutes: -5, doneMinutes: 999, doneAt: '2026-01-02' },
             'junk',
-            { sections: [{ title: 'S', minutes: '45' }, 3] },
           ],
         },
       ],
     })!;
     expect(data.version).toBe(1);
     expect(data.activeGoalId).toBe('g1');
-    expect(data.goals).toHaveLength(1);
     const g = data.goals[0]!;
     expect(g.name).toHaveLength(120);
     expect(g.targetDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(g.hoursPerDay).toBe(16);
-    expect(g.resources).toHaveLength(2);
+    expect(g.resources).toHaveLength(1);
     expect(g.resources[0]).toMatchObject({
       id: 'r1',
       title: 'Untitled',
       type: 'article',
-      minutes: 15,
-      rating: null,
+      minutes: 30,
+      doneMinutes: 30,
       done: false,
-      doneAt: '2026-01-02',
-      sections: [],
+      doneAt: null,
+      phaseId: null,
     });
-    expect(g.resources[1]!.id).toEqual(expect.any(String));
-    expect(g.resources[1]!.sections).toEqual([
-      { id: expect.any(String), title: 'S', minutes: 45, done: false, doneAt: null },
-    ]);
   });
 
   it('round-trips valid data unchanged', () => {
@@ -68,27 +63,144 @@ describe('parseAppData', () => {
         {
           id: 'g',
           name: 'Prep',
+          description: 'Senior iOS',
           targetDate: '2026-05-01',
           hoursPerDay: 1.5,
-          sample: false,
           createdAt: '2026-04-01',
           resources: [
             {
               id: 'r',
               title: 'T',
               url: 'https://a.dev',
-              type: 'course',
-              minutes: 60,
+              type: 'practice',
+              minutes: 600,
+              doneMinutes: 120,
               notes: 'n',
               done: false,
               doneAt: null,
-              rating: 4,
-              sections: [{ id: 's', title: 'S', minutes: 60, done: true, doneAt: '2026-04-02' }],
+              startedAt: '2026-04-02',
+              phaseId: 'p',
+              createdAt: '2026-04-01',
             },
           ],
+          phases: [{ id: 'p', name: 'Foundations', description: 'Basics', color: 'green' }],
         },
       ],
     };
     expect(parseAppData(input)).toEqual(input);
+  });
+
+  it('migrates data from earlier versions: sections become partial progress, ratings go', () => {
+    const g = parseAppData({
+      version: 1,
+      activeGoalId: 'g',
+      goals: [
+        {
+          id: 'g',
+          name: 'Prep',
+          hoursPerDay: 2,
+          sample: true,
+          resources: [
+            { id: 'a', title: 'A', minutes: 45, done: true, doneAt: '2026-01-02', rating: 4 },
+            {
+              id: 'c',
+              title: 'Course',
+              type: 'course',
+              minutes: 15,
+              sections: [
+                { title: 'S1', minutes: 90, done: true, doneAt: '2026-01-03' },
+                { title: 'S2', minutes: 30, done: false },
+              ],
+            },
+            {
+              id: 'd',
+              type: 'course',
+              sections: [{ title: 'S', minutes: 60, done: true }],
+            },
+          ],
+        },
+      ],
+    })!.goals[0]!;
+    expect(g).not.toHaveProperty('sample');
+    expect(g.hoursPerDay).toBe(2);
+    expect(g.resources[0]).toMatchObject({ minutes: 45, done: true, doneAt: '2026-01-02' });
+    expect(g.resources[0]).not.toHaveProperty('rating');
+    expect(g.resources[1]).toMatchObject({ minutes: 120, doneMinutes: 90, done: false });
+    expect(g.resources[1]).not.toHaveProperty('sections');
+    expect(g.resources[2]).toMatchObject({ minutes: 60, done: true });
+  });
+
+  it('repairs phases: drops duplicates and junk, detaches dangling references', () => {
+    const g = parseAppData({
+      goals: [
+        {
+          phases: [
+            { id: 'a', name: 'A', color: 'teal' },
+            { id: 'a', name: 'Again' },
+            'junk',
+            { name: '' },
+          ],
+          resources: [
+            { id: 'r1', phaseId: 'a' },
+            { id: 'r2', phaseId: 'gone' },
+          ],
+        },
+      ],
+    })!.goals[0]!;
+    expect(g.phases).toHaveLength(2);
+    expect(g.phases[0]).toEqual({ id: 'a', name: 'A', description: '', color: 'blue' });
+    expect(g.phases[1]).toMatchObject({ name: 'Phase' });
+    expect(g.resources.map((r) => r.phaseId)).toEqual(['a', null]);
+  });
+});
+
+describe('previewImport', () => {
+  it('rejects anything that is not a Prepline backup', () => {
+    expect(previewImport('hello')).toMatchObject({ ok: false });
+    expect(previewImport({ plans: [] })).toMatchObject({ ok: false });
+    expect(previewImport({ version: 2, goals: [] })).toMatchObject({
+      ok: false,
+      error: expect.stringContaining('version 2'),
+    });
+    expect(previewImport({ goals: ['x', 3] })).toMatchObject({ ok: false });
+  });
+
+  it('accepts a clean backup with counts and no notes', () => {
+    const r = previewImport({
+      version: 1,
+      goals: [
+        {
+          name: 'A',
+          phases: [{ id: 'p', name: 'P' }],
+          resources: [{ title: 'r', phaseId: 'p' }],
+        },
+      ],
+    });
+    expect(r.ok && r.preview).toMatchObject({ plans: 1, resources: 1, phases: 1, notes: [] });
+  });
+
+  it('lists what an older or damaged backup will lose or convert', () => {
+    const r = previewImport({
+      goals: [
+        'junk',
+        {
+          resources: [
+            null,
+            { title: 'c', sections: [{ minutes: 30, done: true }] },
+            { title: 'a', rating: 3, phaseId: 'gone' },
+          ],
+        },
+      ],
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.preview.notes).toEqual([
+      '1 invalid plan will be skipped.',
+      '1 invalid resource will be skipped.',
+      '1 course with sections will be converted to hours completed.',
+      'Self-ratings from an older version are not kept.',
+      '1 resource pointing to a missing phase will have no phase.',
+    ]);
+    expect(r.preview.data.goals[0]!.resources[0]).toMatchObject({ minutes: 30, done: true });
   });
 });

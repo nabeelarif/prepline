@@ -2,33 +2,44 @@ import { produce, type Draft } from 'immer';
 import { create } from 'zustand';
 import { todayISO } from '../domain/dates';
 import { uid } from '../domain/format';
-import { isDone } from '../domain/resources';
-import { sampleGoal } from '../domain/sample';
+import type { RoadmapView } from '../domain/roadmap';
+import { progressPatch, statusPatch } from '../domain/resources';
 import { parseAppData } from '../domain/schema';
-import type { AppData, Goal, Rating, Resource } from '../domain/types';
+import type { AppData, Goal, Phase, Resource, ResourceStatus, ResourceType } from '../domain/types';
 import { createLocalStorageAdapter } from '../storage/localStorageAdapter';
 import type { StorageAdapter } from '../storage/StorageAdapter';
 
-export type Filter = 'all' | 'todo' | 'done';
+export type Page = 'dashboard' | 'plans';
 export type Overlay =
   | { kind: 'goal'; goalId: string | null }
-  | { kind: 'resource'; resourceId: string | null }
+  | { kind: 'resource'; resourceId: string | null; phaseId?: string | null }
+  | { kind: 'phase'; phaseId: string | null }
+  | { kind: 'details'; resourceId: string }
   | { kind: 'data' };
 
-export type GoalInput = Pick<Goal, 'name' | 'targetDate' | 'hoursPerDay'>;
+export type GoalInput = Pick<Goal, 'name' | 'description' | 'targetDate' | 'hoursPerDay'>;
 export type ResourceInput = Pick<
   Resource,
-  'url' | 'title' | 'type' | 'minutes' | 'notes' | 'sections'
+  'url' | 'title' | 'type' | 'minutes' | 'notes' | 'phaseId'
 >;
+export type PhaseInput = Pick<Phase, 'name' | 'description' | 'color'>;
 
 /** Per-session view state; never persisted. */
 export interface UiState {
-  filter: Filter;
-  /** Resource just finished, shown in the rating banner. */
-  ratingFor: string | null;
-  collapsed: Record<string, true>;
-  showAllDays: boolean;
+  page: Page;
+  /** Journey shows resources (simple) or phases. */
+  view: RoadmapView;
+  typeFilter: ResourceType | 'all';
+  statusFilter: ResourceStatus | 'all';
+  /** Resource list limited to one phase; '' means resources in no phase. */
+  phaseFilter: string | null;
+  /** Resource picked on the journey, highlighted in the list. */
+  selectedResourceId: string | null;
+  showFullJourney: boolean;
+  /** Mobile navigation drawer. */
+  navOpen: boolean;
   overlay: Overlay | null;
+  toast: { id: number; text: string } | null;
 }
 
 export interface Store {
@@ -40,45 +51,87 @@ export interface Store {
   createGoal(input: GoalInput): void;
   updateGoal(id: string, input: GoalInput): void;
   deleteGoal(id: string): void;
+  duplicateGoal(id: string): void;
 
   addResource(input: ResourceInput): void;
   updateResource(id: string, input: ResourceInput): void;
   deleteResource(id: string): void;
   moveResource(id: string, dir: -1 | 1): void;
+  /** Completes a resource (full credit), or reopens a completed one as In Progress. */
   toggleResource(id: string): void;
-  toggleSection(resId: string, secId: string): void;
-  rate(id: string, rating: Rating): void;
-  skipRating(): void;
+  /** Moves a resource to a status; see `statusPatch()` for what each move changes. */
+  setStatus(id: string, status: ResourceStatus): void;
+  /** Records completed minutes; the full estimate completes the resource. */
+  setProgress(id: string, minutes: number): void;
+  setResourcePhase(id: string, phaseId: string | null): void;
 
-  setFilter(f: Filter): void;
-  toggleCollapsed(id: string): void;
-  toggleShowAllDays(): void;
+  addPhase(input: PhaseInput): void;
+  updatePhase(id: string, input: PhaseInput): void;
+  deletePhase(id: string): void;
+  movePhase(id: string, dir: -1 | 1): void;
+
+  setPage(p: Page): void;
+  setView(v: RoadmapView): void;
+  setTypeFilter(f: UiState['typeFilter']): void;
+  setStatusFilter(f: UiState['statusFilter']): void;
+  setPhaseFilter(id: string | null): void;
+  selectResource(id: string | null): void;
+  toggleFullJourney(): void;
+  setNavOpen(open: boolean): void;
   openOverlay(o: Overlay): void;
   closeOverlay(): void;
+  showToast(text: string): void;
+  dismissToast(): void;
 
   importData(data: AppData): void;
-  loadSample(): void;
   resetAll(): void;
 }
 
 const freshUi = (): UiState => ({
-  filter: 'all',
-  ratingFor: null,
-  collapsed: {},
-  showAllDays: false,
+  page: 'dashboard',
+  view: 'simple',
+  typeFilter: 'all',
+  statusFilter: 'all',
+  phaseFilter: null,
+  selectedResourceId: null,
+  showFullJourney: false,
+  navOpen: false,
+  overlay: null,
+  toast: null,
+});
+
+/** UI state that belongs to one plan and is reset when the plan changes. */
+const planUi = (): Partial<UiState> => ({
+  page: 'dashboard',
+  typeFilter: 'all',
+  statusFilter: 'all',
+  phaseFilter: null,
+  selectedResourceId: null,
+  showFullJourney: false,
+  navOpen: false,
   overlay: null,
 });
 
-function initialData(storage: StorageAdapter): AppData {
-  const saved = parseAppData(storage.load());
-  if (saved) return saved;
-  const g = sampleGoal();
-  return { version: 1, activeGoalId: g.id, goals: [g] };
-}
+const emptyData = (): AppData => ({ version: 1, activeGoalId: null, goals: [] });
 
 function activeOf(d: Draft<AppData>): Draft<Goal> | undefined {
   return d.goals.find((g) => g.id === d.activeGoalId);
 }
+
+/** A phase id that exists in the goal, or null. */
+function validPhase(g: Draft<Goal>, id: string | null | undefined): string | null {
+  return id && g.phases.some((p) => p.id === id) ? id : null;
+}
+
+/** Swaps an item with its neighbour; does nothing at either end. */
+function move<T extends { id: string }>(list: T[], id: string, dir: -1 | 1) {
+  const i = list.findIndex((x) => x.id === id);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= list.length) return;
+  [list[i], list[j]] = [list[j]!, list[i]!];
+}
+
+let toastSeq = 0;
 
 export function createAppStore(storage: StorageAdapter = createLocalStorageAdapter()) {
   return create<Store>()((set, get) => {
@@ -96,20 +149,19 @@ export function createAppStore(storage: StorageAdapter = createLocalStorageAdapt
       set((s) => ({ data, storageOK, ui: patch ? { ...s.ui, ...patch } : s.ui }));
     };
     const setUi = (ui: Partial<UiState>) => set((s) => ({ ui: { ...s.ui, ...ui } }));
-    const ratingFor = () => get().ui.ratingFor;
+    const toast = (text: string) => ({ toast: { id: ++toastSeq, text } });
+    const resource = (d: Draft<AppData>, id: string) =>
+      activeOf(d)?.resources.find((x) => x.id === id);
 
     return {
-      data: initialData(storage),
+      data: parseAppData(storage.load()) ?? emptyData(),
       ui: freshUi(),
       storageOK: storage.available,
 
       selectGoal: (id) =>
-        commit(
-          (d) => {
-            d.activeGoalId = id;
-          },
-          { showAllDays: false, ratingFor: null, filter: 'all' },
-        ),
+        commit((d) => {
+          d.activeGoalId = id;
+        }, planUi()),
 
       createGoal: (input) =>
         commit(
@@ -117,43 +169,71 @@ export function createAppStore(storage: StorageAdapter = createLocalStorageAdapt
             const g: Goal = {
               id: uid(),
               ...input,
-              sample: false,
               createdAt: todayISO(),
               resources: [],
+              phases: [],
             };
             d.goals.push(g);
             d.activeGoalId = g.id;
           },
-          { filter: 'all', showAllDays: false, ratingFor: null, overlay: null },
+          { ...planUi(), ...toast('Plan created') },
         ),
 
       updateGoal: (id, input) =>
         commit(
           (d) => {
             const g = d.goals.find((x) => x.id === id);
-            if (g) Object.assign(g, input, { sample: false });
+            if (g) Object.assign(g, input);
           },
-          { overlay: null },
+          { overlay: null, ...toast('Plan saved') },
         ),
 
       deleteGoal: (id) =>
         commit(
           (d) => {
             d.goals = d.goals.filter((g) => g.id !== id);
-            d.activeGoalId = d.goals[0]?.id ?? null;
+            if (d.activeGoalId === id) d.activeGoalId = d.goals[0]?.id ?? null;
           },
-          { ratingFor: null, filter: 'all', showAllDays: false, overlay: null },
+          { overlay: null, selectedResourceId: null, phaseFilter: null },
         ),
+
+      // A full copy, progress included, with fresh ids so the two plans never share data.
+      duplicateGoal: (id) =>
+        commit((d) => {
+          const src = get().data.goals.find((g) => g.id === id);
+          if (!src) return;
+          const phaseIds = new Map(src.phases.map((p) => [p.id, uid()]));
+          d.goals.push({
+            ...src,
+            id: uid(),
+            name: `${src.name} (copy)`.slice(0, 120),
+            createdAt: todayISO(),
+            phases: src.phases.map((p) => ({ ...p, id: phaseIds.get(p.id)! })),
+            resources: src.resources.map((r) => ({
+              ...r,
+              id: uid(),
+              phaseId: r.phaseId ? (phaseIds.get(r.phaseId) ?? null) : null,
+            })),
+          });
+        }, toast('Plan duplicated')),
 
       addResource: (input) =>
         commit(
           (d) => {
             const g = activeOf(d);
             if (!g) return;
-            g.resources.push({ id: uid(), done: false, doneAt: null, rating: null, ...input });
-            g.sample = false;
+            g.resources.push({
+              id: uid(),
+              doneMinutes: 0,
+              done: false,
+              doneAt: null,
+              startedAt: null,
+              createdAt: todayISO(),
+              ...input,
+              phaseId: validPhase(g, input.phaseId),
+            });
           },
-          { overlay: null },
+          { overlay: null, ...toast('Resource added') },
         ),
 
       updateResource: (id, input) =>
@@ -162,10 +242,10 @@ export function createAppStore(storage: StorageAdapter = createLocalStorageAdapt
             const g = activeOf(d);
             const r = g?.resources.find((x) => x.id === id);
             if (!g || !r) return;
-            Object.assign(r, input);
-            g.sample = false;
+            Object.assign(r, input, { phaseId: validPhase(g, input.phaseId) });
+            r.doneMinutes = Math.min(r.doneMinutes, r.minutes);
           },
-          { overlay: null },
+          { overlay: null, ...toast('Resource saved') },
         ),
 
       deleteResource: (id) =>
@@ -174,91 +254,103 @@ export function createAppStore(storage: StorageAdapter = createLocalStorageAdapt
             const g = activeOf(d);
             if (g) g.resources = g.resources.filter((x) => x.id !== id);
           },
-          ratingFor() === id ? { ratingFor: null } : undefined,
+          () => ({
+            overlay: null,
+            ...(get().ui.selectedResourceId === id ? { selectedResourceId: null } : {}),
+          }),
         ),
 
       moveResource: (id, dir) =>
         commit((d) => {
           const g = activeOf(d);
-          if (!g) return;
-          const i = g.resources.findIndex((x) => x.id === id);
-          const j = i + dir;
-          if (i < 0 || j < 0 || j >= g.resources.length) return;
-          [g.resources[i], g.resources[j]] = [g.resources[j]!, g.resources[i]!];
+          if (g) move(g.resources, id, dir);
         }),
 
-      // Finishing a resource (or its last section) opens the rating banner for it.
-      toggleResource: (id) => {
-        let next = ratingFor();
-        commit(
-          (d) => {
-            const r = activeOf(d)?.resources.find((x) => x.id === id);
-            if (!r) return;
-            r.done = !r.done;
-            r.doneAt = r.done ? todayISO() : null;
-            if (r.done) next = r.id;
-            else if (next === r.id) next = null;
-          },
-          () => ({ ratingFor: next }),
-        );
-      },
+      toggleResource: (id) =>
+        commit((d) => {
+          const r = resource(d, id);
+          if (r) Object.assign(r, statusPatch(r, r.done ? 'in_progress' : 'completed', todayISO()));
+        }),
 
-      toggleSection: (resId, secId) => {
-        let next = ratingFor();
-        commit(
-          (d) => {
-            const r = activeOf(d)?.resources.find((x) => x.id === resId);
-            const s = r?.sections.find((x) => x.id === secId);
-            if (!r || !s) return;
-            s.done = !s.done;
-            s.doneAt = s.done ? todayISO() : null;
-            if (s.done && isDone(r)) next = r.id;
-            else if (!s.done && next === r.id) next = null;
-          },
-          () => ({ ratingFor: next }),
-        );
-      },
+      setStatus: (id, status) =>
+        commit((d) => {
+          const r = resource(d, id);
+          if (r) Object.assign(r, statusPatch(r, status, todayISO()));
+        }),
 
-      rate: (id, rating) =>
+      setProgress: (id, minutes) =>
+        commit((d) => {
+          const r = resource(d, id);
+          if (r) Object.assign(r, progressPatch(r, minutes, todayISO()));
+        }),
+
+      setResourcePhase: (id, phaseId) =>
+        commit((d) => {
+          const g = activeOf(d);
+          const r = g?.resources.find((x) => x.id === id);
+          if (g && r) r.phaseId = validPhase(g, phaseId);
+        }),
+
+      addPhase: (input) =>
         commit(
           (d) => {
-            const r = activeOf(d)?.resources.find((x) => x.id === id);
-            if (r) r.rating = rating;
+            activeOf(d)?.phases.push({ id: uid(), ...input });
           },
-          ratingFor() === id ? { ratingFor: null } : undefined,
+          { overlay: null, view: 'phases', ...toast('Phase added') },
         ),
 
-      skipRating: () => setUi({ ratingFor: null }),
+      updatePhase: (id, input) =>
+        commit(
+          (d) => {
+            const p = activeOf(d)?.phases.find((x) => x.id === id);
+            if (p) Object.assign(p, input);
+          },
+          { overlay: null, ...toast('Phase saved') },
+        ),
 
-      setFilter: (filter) => setUi({ filter }),
-      toggleCollapsed: (id) => {
-        const collapsed = { ...get().ui.collapsed };
-        if (collapsed[id]) delete collapsed[id];
-        else collapsed[id] = true;
-        setUi({ collapsed });
-      },
-      toggleShowAllDays: () => setUi({ showAllDays: !get().ui.showAllDays }),
+      // Resources in the phase stay in the plan, just without a phase.
+      deletePhase: (id) =>
+        commit(
+          (d) => {
+            const g = activeOf(d);
+            if (!g) return;
+            g.phases = g.phases.filter((p) => p.id !== id);
+            for (const r of g.resources) if (r.phaseId === id) r.phaseId = null;
+          },
+          () => ({
+            overlay: null,
+            ...(get().ui.phaseFilter === id ? { phaseFilter: null } : {}),
+          }),
+        ),
+
+      movePhase: (id, dir) =>
+        commit((d) => {
+          const g = activeOf(d);
+          if (g) move(g.phases, id, dir);
+        }),
+
+      setPage: (page) => setUi({ page, navOpen: false }),
+      setView: (view) => setUi({ view }),
+      setTypeFilter: (typeFilter) => setUi({ typeFilter }),
+      setStatusFilter: (statusFilter) => setUi({ statusFilter }),
+      setPhaseFilter: (phaseFilter) => setUi({ phaseFilter, selectedResourceId: null }),
+      // Clears list filters so the picked resource's row is visible.
+      selectResource: (selectedResourceId) =>
+        setUi(
+          selectedResourceId
+            ? { selectedResourceId, typeFilter: 'all', statusFilter: 'all', phaseFilter: null }
+            : { selectedResourceId },
+        ),
+      toggleFullJourney: () => setUi({ showFullJourney: !get().ui.showFullJourney }),
+      setNavOpen: (navOpen) => setUi({ navOpen }),
       openOverlay: (overlay) => setUi({ overlay }),
       closeOverlay: () => setUi({ overlay: null }),
+      showToast: (text) => setUi(toast(text)),
+      dismissToast: () => setUi({ toast: null }),
 
-      importData: (data) =>
-        commit(() => data, { ratingFor: null, filter: 'all', showAllDays: false, overlay: null }),
+      importData: (data) => commit(() => data, { ...planUi(), ...toast('Backup imported') }),
 
-      loadSample: () =>
-        commit(
-          (d) => {
-            const s = sampleGoal();
-            d.goals.push(s);
-            d.activeGoalId = s.id;
-          },
-          { ratingFor: null, filter: 'all', overlay: null },
-        ),
-
-      resetAll: () =>
-        commit(() => ({ version: 1, activeGoalId: null, goals: [] }), {
-          ratingFor: null,
-          overlay: null,
-        }),
+      resetAll: () => commit(emptyData, planUi()),
     };
   });
 }

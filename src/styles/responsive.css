@@ -1,69 +1,166 @@
 /* Breakpoints, kept last so they override the rules above. */
-@media (max-width: 1180px) {
-  .board {
-    grid-template-columns: minmax(0, 1fr);
+@media (max-width: 1100px) {
+  /* The type icon next to each title already shows the type. */
+  .res-table .c-type {
+    display: none;
+  }
+  .metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 12px;
   }
 }
 @media (max-width: 860px) {
   .app {
     grid-template-columns: minmax(0, 1fr);
   }
-  .side {
-    position: static;
-    height: auto;
-    overflow: visible;
-    border-right: none;
-    border-bottom: 1px solid var(--line);
-    padding: 18px 0 16px;
-  }
-  .goal-list {
-    flex-direction: row;
-    overflow-x: auto;
-    padding-bottom: 4px;
-  }
-  .goal-list li {
-    flex: 0 0 210px;
-  }
-  .side-foot {
-    margin-top: 0;
-    grid-template-columns: auto 1fr;
+  .topbar {
+    display: flex;
     align-items: center;
-    padding-top: 0;
+    gap: 8px;
+    padding: 10px 12px;
+    background: var(--side-bg);
+    position: sticky;
+    top: 0;
+    z-index: 20;
   }
-  .side-foot .btn {
-    width: auto;
+  .topbar .icon-btn {
+    color: #fff;
+  }
+  .topbar .icon-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+  .topbar .brand {
+    font-size: 18px;
+  }
+  .topbar .logo {
+    width: 26px;
+    height: 26px;
+  }
+  .side {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: 250px;
+    z-index: 41;
+    transform: translateX(-100%);
+    transition: transform 200ms ease;
+  }
+  .side.open {
+    transform: none;
+    box-shadow: var(--shadow-lg);
+  }
+  .side-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    background: rgba(15, 23, 42, 0.45);
+  }
+  .main {
+    padding: 16px 16px 56px;
   }
 }
 @media (max-width: 680px) {
-  .stats {
+  .summary {
     grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
   }
-  .goal-head {
-    grid-template-columns: minmax(0, 1fr);
+  .metrics {
+    width: 100%;
   }
-  .gh-side {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .row2 {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-@media (max-width: 520px) {
-  .res {
-    grid-template-columns: auto minmax(0, 1fr);
-  }
-  .res-actions {
-    grid-column: 2;
-    margin-left: -6px;
+  .metrics li {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin: 0 4px;
   }
   .card {
     padding: 16px;
   }
+  .target {
+    order: 3;
+  }
+  .dash-head > .menu-wrap {
+    margin-left: auto;
+  }
+
+  /* Resource table becomes stacked cards. */
+  .res-table thead {
+    display: none;
+  }
+  .res-table,
+  .res-table tbody {
+    display: block;
+  }
+  .res-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 0;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .res-row:last-child {
+    border-bottom: none;
+  }
+  .res-table td {
+    display: block;
+    border: none;
+    padding: 0 4px;
+  }
+  .res-row .c-title {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .res-row .c-type,
+  .res-row .c-time,
+  .res-row .c-status,
+  .res-row .c-phase {
+    order: 1;
+  }
+  .res-row::after {
+    content: '';
+    flex-basis: 100%;
+    order: 0;
+  }
+  /* First cell of the second line lines up with the title. */
+  .res-row .c-type {
+    display: block;
+    margin-left: 32px;
+  }
+  .res-row .c-time {
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  .res-row .c-phase .muted {
+    display: none;
+  }
+}
+@media (max-width: 560px) {
+  .overlay {
+    padding: 0;
+    place-items: end stretch;
+  }
+  .sheet {
+    width: 100%;
+    max-height: 94vh;
+    border-radius: 16px 16px 0 0;
+    padding: 20px 16px max(20px, env(safe-area-inset-bottom, 0px));
+  }
+  .row2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .type-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .plan-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  * {
+  *,
+  *::before,
+  *::after {
     transition: none !important;
+    animation: none !important;
   }
 }

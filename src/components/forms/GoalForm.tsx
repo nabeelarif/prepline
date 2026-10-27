@@ -1,15 +1,18 @@
 import { useState, type FormEvent } from 'react';
+import { Target } from 'lucide-react';
 import { addDays, todayISO, validISO } from '../../domain/dates';
 import type { Goal } from '../../domain/types';
 import { useStore } from '../../state/store';
 import { ConfirmButton } from '../ConfirmButton';
+import { DIALOG_TITLE } from '../Overlay';
 
-/** Create a goal (goal is null) or edit an existing one. */
+/** Create a plan (goal is null) or edit one. */
 export function GoalForm({ goal }: { goal: Goal | null }) {
   const { createGoal, updateGoal, deleteGoal, closeOverlay } = useStore.getState();
   const [name, setName] = useState(goal?.name ?? '');
-  const [date, setDate] = useState(goal?.targetDate ?? addDays(todayISO(), 30));
-  const [hours, setHours] = useState(String(goal?.hoursPerDay ?? 2));
+  const [date, setDate] = useState(goal?.targetDate ?? addDays(todayISO(), 42));
+  const [hours, setHours] = useState(goal?.hoursPerDay == null ? '' : String(goal.hoursPerDay));
+  const [description, setDescription] = useState(goal?.description ?? '');
   const [error, setError] = useState('');
 
   const submit = (e: FormEvent<HTMLFormElement>) => {
@@ -17,23 +20,24 @@ export function GoalForm({ goal }: { goal: Goal | null }) {
     const form = e.currentTarget;
     const focus = (id: string) => form.querySelector<HTMLElement>(`#${id}`)?.focus();
     const trimmed = name.trim();
-    const hrs = parseFloat(hours);
+    const hrs = hours.trim() ? parseFloat(hours) : null;
     if (!trimmed) {
-      setError('Give the goal a name.');
+      setError('Give the plan a title.');
       return focus('gName');
     }
     if (!validISO(date)) {
       setError('Pick a target date.');
       return focus('gDate');
     }
-    if (!(hrs > 0)) {
-      setError('Enter the hours you can spend each day, for example 1.5.');
+    if (hrs !== null && !(hrs > 0)) {
+      setError('Daily study hours must be more than 0, for example 1.5. Or leave it empty.');
       return focus('gHours');
     }
     const input = {
       name: trimmed,
+      description: description.trim(),
       targetDate: date,
-      hoursPerDay: Math.min(16, Math.max(0.25, hrs)),
+      hoursPerDay: hrs === null ? null : Math.min(16, Math.max(0.25, hrs)),
     };
     if (goal) updateGoal(goal.id, input);
     else createGoal(input);
@@ -41,37 +45,58 @@ export function GoalForm({ goal }: { goal: Goal | null }) {
 
   return (
     <form noValidate onSubmit={submit}>
-      <h2>{goal ? 'Edit goal' : 'New goal'}</h2>
+      <h2 id={DIALOG_TITLE} className="sheet-title">
+        <Target aria-hidden="true" />
+        {goal ? 'Edit Plan' : 'Create New Plan'}
+      </h2>
       <label className="field">
-        <span>What are you preparing for?</span>
+        <span>Plan Title</span>
         <input
           id="gName"
           type="text"
           maxLength={120}
           value={name}
-          placeholder="Senior iOS interview prep"
+          placeholder="e.g. Senior iOS Developer Interview Prep"
           onChange={(e) => setName(e.target.value)}
         />
       </label>
       <div className="row2">
         <label className="field">
-          <span>Target date</span>
+          <span>Target Date</span>
           <input id="gDate" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </label>
         <label className="field">
-          <span>Hours per day</span>
-          <input
-            id="gHours"
-            type="number"
-            min={0.25}
-            max={16}
-            step={0.25}
-            value={hours}
-            onChange={(e) => setHours(e.target.value)}
-          />
-          <small>The timeline fills each day up to this.</small>
+          <span>
+            Daily Study Hours <small>(optional)</small>
+          </span>
+          <span className="suffixed">
+            <input
+              id="gHours"
+              type="number"
+              inputMode="decimal"
+              min={0.25}
+              max={16}
+              step={0.25}
+              value={hours}
+              placeholder="1.5"
+              onChange={(e) => setHours(e.target.value)}
+            />
+            <span aria-hidden="true">hours</span>
+          </span>
         </label>
       </div>
+      <label className="field">
+        <span>
+          Description <small>(optional)</small>
+        </span>
+        <textarea
+          rows={3}
+          maxLength={1000}
+          value={description}
+          placeholder="Briefly describe your goal…"
+          onChange={(e) => setDescription(e.target.value)}
+        />
+      </label>
       <p className="msg err" role="alert">
         {error}
       </p>
@@ -79,18 +104,18 @@ export function GoalForm({ goal }: { goal: Goal | null }) {
         {goal && (
           <ConfirmButton
             className="btn danger"
-            confirmText="Delete goal and its resources?"
+            confirmText="Delete plan, phases and resources?"
             onConfirm={() => deleteGoal(goal.id)}
           >
-            Delete goal
+            Delete plan
           </ConfirmButton>
         )}
         <span className="spacer" />
-        <button type="button" className="btn ghost" onClick={closeOverlay}>
+        <button type="button" className="btn" onClick={closeOverlay}>
           Cancel
         </button>
         <button type="submit" className="btn primary">
-          {goal ? 'Save' : 'Create goal'}
+          {goal ? 'Save' : 'Create Plan'}
         </button>
       </div>
     </form>

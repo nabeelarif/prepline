@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { todayISO } from '../../domain/dates';
-import { parseAppData } from '../../domain/schema';
+import { previewImport, type ImportPreview } from '../../domain/schema';
+import { pl } from '../../domain/format';
 import { useStore } from '../../state/store';
 import { ConfirmButton } from '../ConfirmButton';
+import { DIALOG_TITLE } from '../Overlay';
 
 interface Msg {
   text: string;
@@ -12,11 +14,12 @@ interface Msg {
 /** Export, import, and reset. Importing replaces all saved data. */
 export function DataPanel() {
   const data = useStore((s) => s.data);
-  const { importData, loadSample, resetAll, closeOverlay } = useStore.getState();
+  const { importData, resetAll, closeOverlay } = useStore.getState();
   const json = JSON.stringify(data, null, 2);
   const [copyMsg, setCopyMsg] = useState('');
   const [importText, setImportText] = useState('');
   const [importMsg, setImportMsg] = useState<Msg>({ text: '' });
+  const [preview, setPreview] = useState<ImportPreview | null>(null);
 
   const copy = (box: HTMLTextAreaElement | null) => {
     const fallback = () => {
@@ -53,7 +56,8 @@ export function DataPanel() {
     const rd = new FileReader();
     rd.onload = () => {
       setImportText(String(rd.result ?? ''));
-      setImportMsg({ text: `Loaded ${f.name}. Press Import to use it.` });
+      setImportMsg({ text: `Loaded ${f.name}. Press Check backup to review it.` });
+      setPreview(null);
     };
     rd.onerror = () =>
       setImportMsg({
@@ -63,7 +67,9 @@ export function DataPanel() {
     rd.readAsText(f);
   };
 
-  const doImport = () => {
+  // Step one: check the backup and show what it holds. Step two replaces the data.
+  const check = () => {
+    setPreview(null);
     let raw: unknown;
     try {
       raw = JSON.parse(importText);
@@ -73,21 +79,19 @@ export function DataPanel() {
         err: true,
       });
     }
-    const parsed = parseAppData(raw);
-    if (!parsed)
-      return setImportMsg({
-        text: 'This JSON has no "goals" list, so it is not a Prepline backup.',
-        err: true,
-      });
-    importData(parsed);
+    const r = previewImport(raw);
+    if (!r.ok) return setImportMsg({ text: r.error, err: true });
+    setImportMsg({ text: '' });
+    setPreview(r.preview);
   };
 
   return (
     <>
-      <h2>Backup and restore</h2>
+      <h2 id={DIALOG_TITLE}>Backup and restore</h2>
       <p className="muted">
-        Prepline keeps your data in this browser only. Export a backup now and then, and use it to
-        move your plan to another browser or device.
+        Prepline saves your plans in this browser's local storage. It is not synced across devices,
+        and clearing site data erases it, so export a backup now and then. A backup also moves your
+        plans to another browser.
       </p>
 
       <h3>Export</h3>
@@ -121,25 +125,55 @@ export function DataPanel() {
         placeholder='{ "version": 1, "goals": [ … ] }'
         aria-label="Paste backup JSON"
         value={importText}
-        onChange={(e) => setImportText(e.target.value)}
+        onChange={(e) => {
+          setImportText(e.target.value);
+          setPreview(null);
+        }}
       />
       <div className="btn-row" style={{ marginTop: 8 }}>
-        <ConfirmButton className="btn sm" confirmText="Replace all data?" onConfirm={doImport}>
-          Import
-        </ConfirmButton>
+        <button className="btn sm" onClick={check} disabled={!importText.trim()}>
+          Check backup
+        </button>
         <p className={`msg${importMsg.err ? ' err' : ''}`} role="alert">
           {importMsg.text}
         </p>
       </div>
+      {preview && (
+        <div className="import-preview" role="region" aria-label="Backup contents">
+          <p>
+            <strong>
+              {pl(preview.plans, 'plan')}, {pl(preview.resources, 'resource')},{' '}
+              {pl(preview.phases, 'phase')}
+            </strong>
+          </p>
+          {preview.notes.length > 0 && (
+            <ul>
+              {preview.notes.map((n) => (
+                <li key={n}>{n}</li>
+              ))}
+            </ul>
+          )}
+          <p className="muted">This replaces everything saved in this browser.</p>
+          <div className="btn-row">
+            <ConfirmButton
+              className="btn sm primary"
+              confirmText="Click again to replace"
+              onConfirm={() => importData(preview.data)}
+            >
+              Replace all data
+            </ConfirmButton>
+            <button className="btn sm ghost" onClick={() => setPreview(null)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       <h3>Start over</h3>
       <div className="btn-row">
-        <button className="btn sm" onClick={loadSample}>
-          Add the sample goal
-        </button>
         <ConfirmButton
           className="btn danger sm"
-          confirmText="Erase every goal?"
+          confirmText="Erase every plan?"
           onConfirm={resetAll}
         >
           Erase all data

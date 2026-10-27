@@ -1,81 +1,55 @@
-import { diffDays, todayISO } from '../domain/dates';
-import { pl } from '../domain/format';
-import { metrics } from '../domain/metrics';
-import type { Goal } from '../domain/types';
-import { useStore } from '../state/store';
+import { House, LayoutList } from 'lucide-react';
+import { useStore, type Page } from '../state/store';
 import { Logo } from './icons';
 
-function goalStatus(g: Goal, today: string): { pct: number; sub: string } {
-  const m = metrics(g, today);
-  const dl = diffDays(today, g.targetDate);
-  const sub =
-    m.total && m.remaining === 0
-      ? 'Complete'
-      : dl < 0
-        ? 'Past target'
-        : dl === 0
-          ? 'Due today'
-          : `${pl(dl, 'day')} left`;
-  return { pct: m.pct, sub };
-}
+const NAV: [Page, string, typeof House][] = [
+  ['dashboard', 'Dashboard', House],
+  ['plans', 'My Plans', LayoutList],
+];
 
 export function Sidebar() {
-  const goals = useStore((s) => s.data.goals);
-  const activeId = useStore((s) => s.data.activeGoalId);
+  const page = useStore((s) => s.ui.page);
+  const navOpen = useStore((s) => s.ui.navOpen);
   const storageOK = useStore((s) => s.storageOK);
-  const selectGoal = useStore((s) => s.selectGoal);
-  const openOverlay = useStore((s) => s.openOverlay);
-  const today = todayISO();
+  const setPage = useStore((s) => s.setPage);
+  const setNavOpen = useStore((s) => s.setNavOpen);
 
   return (
-    <aside className="side">
-      <div className="brand">
-        <Logo />
-        <span>Prepline</span>
-      </div>
-      {goals.length > 0 && (
-        <>
-          <p className="side-label">Goals</p>
-          <ul className="goal-list">
-            {goals.map((g) => {
-              const { pct, sub } = goalStatus(g, today);
-              return (
-                <li key={g.id}>
-                  <button
-                    className="goal-btn"
-                    aria-current={g.id === activeId}
-                    onClick={() => selectGoal(g.id)}
-                  >
-                    <span className="goal-name">{g.name}</span>
-                    <span className="goal-row">
-                      <span className="mini">
-                        <i style={{ width: `${pct}%` }} />
-                      </span>
-                      <span className="mono">{pct}%</span>
-                    </span>
-                    <span className="goal-row">{sub}</span>
-                  </button>
-                </li>
-              );
-            })}
+    <>
+      <aside className={`side${navOpen ? ' open' : ''}`} id="sidebar">
+        <div className="brand">
+          <Logo />
+          <span>Prepline</span>
+        </div>
+        <nav aria-label="Main">
+          <ul className="nav">
+            {NAV.map(([p, label, Icon]) => (
+              <li key={p}>
+                <button
+                  className="nav-btn"
+                  aria-current={page === p ? 'page' : undefined}
+                  onClick={() => setPage(p)}
+                >
+                  <Icon size={19} aria-hidden="true" />
+                  {label}
+                </button>
+              </li>
+            ))}
           </ul>
-        </>
-      )}
-      <button
-        className="btn ghost full"
-        onClick={() => openOverlay({ kind: 'goal', goalId: null })}
-      >
-        + New goal
-      </button>
-      <div className="side-foot">
-        <button className="btn ghost full" onClick={() => openOverlay({ kind: 'data' })}>
-          Backup and restore
-        </button>
-        <p className={`store-note${storageOK ? '' : ' off'}`}>
-          <i />
-          {storageOK ? 'Saved in this browser' : 'Not saving: browser storage is blocked'}
-        </p>
-      </div>
-    </aside>
+        </nav>
+        <div className="side-foot">
+          <p className={`store-note${storageOK ? '' : ' off'}`}>
+            <i />
+            {storageOK ? 'Saved in this browser' : 'Not saving: browser storage is blocked'}
+          </p>
+          <p className="tagline">
+            Prepare today,
+            <br />
+            perform tomorrow.
+          </p>
+        </div>
+      </aside>
+      {navOpen && <div className="side-scrim" onClick={() => setNavOpen(false)} />}
+    </>
   );
 }

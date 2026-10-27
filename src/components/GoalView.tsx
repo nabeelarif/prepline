@@ -1,37 +1,34 @@
 import { todayISO } from '../domain/dates';
 import { metrics } from '../domain/metrics';
 import { pace } from '../domain/pace';
-import { schedule } from '../domain/schedule';
+import { roadmap } from '../domain/roadmap';
 import type { Goal } from '../domain/types';
-import { RatingBanner, SampleBanner } from './Banners';
-import { GoalHeader } from './GoalHeader';
+import { useStore } from '../state/store';
+import { ContinueCard } from './ContinueCard';
+import { DashboardHeader } from './DashboardHeader';
+import { Journey } from './Journey';
+import { ProgressSummary } from './ProgressSummary';
 import { ResourceList } from './ResourceList';
-import { Stats } from './Stats';
-import { Timeline } from './Timeline';
-import { TodayPlan } from './TodayPlan';
 
-/** Dashboard for one goal: progress figures, today's plan, the resource queue, and the timeline. */
+/** Dashboard for one plan: header, progress summary, journey, and resources. */
 export function GoalView({ goal }: { goal: Goal }) {
+  const view = useStore((s) => s.ui.view);
   const today = todayISO();
-  const met = metrics(goal, today);
-  const sch = schedule(goal, met, today);
-  const p = pace(goal, met, sch, today);
+  const met = metrics(goal.resources);
+  const p = pace(goal, met, today);
+  const nodes = roadmap(goal, view);
 
   return (
     <>
-      <RatingBanner goal={goal} />
-      <SampleBanner goal={goal} />
-      <GoalHeader goal={goal} pace={p} today={today} />
-      <Stats met={met} />
-      <div className="board">
-        <div className="col">
-          <TodayPlan met={met} sch={sch} today={today} />
+      <DashboardHeader goal={goal} today={today} />
+      <ProgressSummary goal={goal} met={met} pace={p} today={today} />
+      <Journey goal={goal} nodes={nodes} />
+      {goal.resources.length > 0 && (
+        <>
+          <ContinueCard goal={goal} />
           <ResourceList goal={goal} />
-        </div>
-        <div className="col">
-          <Timeline goal={goal} met={met} sch={sch} today={today} />
-        </div>
-      </div>
+        </>
+      )}
     </>
   );
 }

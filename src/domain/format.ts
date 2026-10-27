@@ -16,8 +16,10 @@ export function fmtMin(m: number): string {
   return r ? `${h}h ${r}m` : `${h}h`;
 }
 
-/** Minutes as hours, one decimal under 10h: 90 → "1.5h", 720 → "12h". */
+/** Minutes as hours, one decimal under 10h: 30 → "30m", 90 → "1.5h", 720 → "12h". */
 export function fmtHours(m: number): string {
+  m = Math.round(m);
+  if (m > 0 && m < 60) return `${m}m`;
   const h = m / 60;
   return `${h >= 10 ? Math.round(h) : Math.round(h * 10) / 10}h`;
 }

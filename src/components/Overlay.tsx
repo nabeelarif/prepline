@@ -1,9 +1,16 @@
 import { useEffect, useRef, type ReactNode } from 'react';
+import { X } from 'lucide-react';
 import { useStore } from '../state/store';
 
+/** Id that each overlay's heading uses, so the dialog is named by it. */
+export const DIALOG_TITLE = 'dlgTitle';
+
+const FOCUSABLE =
+  'a[href],button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex]:not([tabindex="-1"])';
+
 /**
- * Modal sheet. Focuses its first field on open, closes on Escape or a backdrop
- * click, locks page scroll, and returns focus to the opener on close.
+ * Modal sheet. Focuses its first field on open, keeps Tab inside, closes on Escape
+ * or a backdrop click, locks page scroll, and returns focus to the opener on close.
  */
 export function Overlay({ children }: { children: ReactNode }) {
   const close = useStore((s) => s.closeOverlay);
@@ -12,9 +19,24 @@ export function Overlay({ children }: { children: ReactNode }) {
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
     document.body.classList.add('locked');
-    sheet.current?.querySelector<HTMLElement>('input:not([type=file]),textarea,select')?.focus();
+    const first =
+      sheet.current?.querySelector<HTMLElement>(
+        'input:not([type=file]):not([type=radio]),textarea,select',
+      ) ?? sheet.current?.querySelector<HTMLElement>(FOCUSABLE);
+    first?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') close();
+      if (e.key !== 'Tab' || !sheet.current) return;
+      const list = [...sheet.current.querySelectorAll<HTMLElement>(FOCUSABLE)];
+      const a = list[0];
+      const z = list[list.length - 1];
+      if (e.shiftKey && document.activeElement === a) {
+        e.preventDefault();
+        z?.focus();
+      } else if (!e.shiftKey && document.activeElement === z) {
+        e.preventDefault();
+        a?.focus();
+      }
     };
     document.addEventListener('keydown', onKey);
     return () => {
@@ -27,11 +49,20 @@ export function Overlay({ children }: { children: ReactNode }) {
   return (
     <div
       className="overlay"
-      onClick={(e) => {
+      onMouseDown={(e) => {
         if (e.target === e.currentTarget) close();
       }}
     >
-      <div className="sheet" role="dialog" aria-modal="true" ref={sheet}>
+      <div
+        className="sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={DIALOG_TITLE}
+        ref={sheet}
+      >
+        <button type="button" className="icon-btn sheet-close" aria-label="Close" onClick={close}>
+          <X size={20} />
+        </button>
         {children}
       </div>
     </div>

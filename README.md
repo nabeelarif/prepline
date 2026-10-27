@@ -1,16 +1,19 @@
 # Prepline
 
-Collect the articles, videos and courses you plan to get through, and Prepline turns them into a day-by-day plan toward a target date.
+Collect the articles, videos, courses and practice you plan to get through, and follow them as a preparation journey toward a target date. Prepline shows how far you've come, what to work on next, and whether you're on track.
 
 ## Features
 
-- Multiple goals, each with a target date and hours per day
-- Resources by link, with type and title guessed from the URL (YouTube → video, Udemy/Coursera → course, everything else → article)
-- Courses can have sections, each ticked off on its own
-- Progress weighted by hours, not item count
-- Readiness score from a 1–5 self-rating after each finished item
-- Timeline that schedules unfinished work in priority order and shows whether you'll make your date
-- Data saved in the browser (localStorage), with JSON export and import for backups
+- **Plans:** several independent plans, each with a target date, optional daily study hours and a description. Switch, edit, duplicate or delete them from **My Plans**.
+- **Resources by link:** type and title are guessed from the URL (YouTube → video, Udemy/Coursera → course, LeetCode/HackerRank → practice, everything else → article). The list order is your priority order.
+- **Statuses:** Not Started, In Progress or Completed. Several resources can be in progress at once. Starting one counts no hours, you record the hours you've done, and reopening restores earlier progress.
+- **Progress by hours, not item count:** an overall ring, hours done and remaining, days left, and an On Track / At Risk / Behind status when daily hours are set.
+- **Preparation journey:** a winding roadmap with a step for each resource, showing which are done or in progress and which comes next. It becomes a vertical list on phones.
+- **Optional phases:** group resources into milestones such as "Foundations" or "System Design", with a description and colour. The Phases view shows progress per phase, weighted by hours. Resources without a phase stay under "Unorganized".
+- **Continue Learning:** a card that points to the first resource in progress, or the next one to start.
+- **Resource list:** filter by type and status, change status from each row, reorder, and move resources between phases.
+- **Backups:** data is saved in the browser (localStorage). You can export it as JSON, and importing checks the file and shows a preview before anything is replaced.
+- **Responsive design** with dark mode.
 
 ## Architecture
 

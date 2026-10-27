@@ -46,6 +46,15 @@ describe('resource status', () => {
     expect(resStatus(direct)).toBe('in_progress');
   });
 
+  it('completing by recording the full estimate keeps earlier partial progress for a reopen', () => {
+    const done = record(record(course, 300), 1200);
+    expect(resStatus(done)).toBe('completed');
+    expect(resDone(done)).toBe(1200);
+    const reopened = move(done, 'in_progress');
+    expect(resStatus(reopened)).toBe('in_progress');
+    expect(resDone(reopened)).toBe(300);
+  });
+
   it('Not Started clears progress, and needs confirmation only when there is some', () => {
     expect(statusLosesProgress(move(course, 'in_progress'), 'not_started')).toBe(false);
     expect(statusLosesProgress(record(course, 300), 'not_started')).toBe(true);

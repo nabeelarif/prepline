@@ -117,10 +117,95 @@ export interface ImportPreview {
 
 const arr = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
 
+/*
+ * Strict shape of a backup, checked before anything is repaired. Unknown keys are
+ * allowed (older and newer fields), but every plan, resource and phase must be an
+ * object with its name or title, and known fields must have the right type.
+ */
+const named = z.string().trim().min(1);
+const BackupShape = z.looseObject({
+  version: z.literal(1).optional(),
+  activeGoalId: z.string().nullable().optional(),
+  goals: z.array(
+    z.looseObject({
+      name: named,
+      description: z.string().optional(),
+      targetDate: z.string().optional(),
+      hoursPerDay: z.number().nullable().optional(),
+      resources: z
+        .array(
+          z.looseObject({
+            title: named,
+            url: z.string().optional(),
+            notes: z.string().optional(),
+            type: z.string().optional(),
+            phaseId: z.string().nullable().optional(),
+            minutes: z.number().optional(),
+            doneMinutes: z.number().optional(),
+            done: z.boolean().optional(),
+            sections: z.array(z.looseObject({ minutes: z.number().optional() })).optional(),
+          }),
+        )
+        .optional(),
+      phases: z
+        .array(
+          z.looseObject({
+            name: named,
+            description: z.string().optional(),
+            color: z.string().optional(),
+          }),
+        )
+        .optional(),
+    }),
+  ),
+});
+
+const NOUN: Record<string, string> = {
+  goals: 'Plan',
+  resources: 'Resource',
+  phases: 'Phase',
+  sections: 'Section',
+};
+
+/** Display name of a backup entry, if it has one. */
+function labelOf(v: unknown): string {
+  const o = isObject(v) ? (v as { name?: unknown; title?: unknown }) : {};
+  const n = typeof o.name === 'string' ? o.name : typeof o.title === 'string' ? o.title : '';
+  return n.trim() ? ` "${n.trim()}"` : '';
+}
+
 /**
- * Checks a backup before it replaces saved data. Anything that is not a Prepline
- * backup is rejected; a real backup with bad or old fields is repaired as on load,
- * and the repairs are listed so the user can decide before confirming.
+ * Turns the first schema failure into a sentence naming the entry and the field,
+ * e.g. 'Resource 3 in Plan 1 "Prep" has no title'.
+ */
+function describeIssue(raw: unknown, path: PropertyKey[]): string {
+  const where: string[] = [];
+  let node: unknown = raw;
+  let field = '';
+  path.forEach((key, i) => {
+    node = isObject(node) ? (node as Record<PropertyKey, unknown>)[key] : undefined;
+    if (typeof key === 'number') {
+      where.unshift(`${NOUN[String(path[i - 1])] ?? 'Entry'} ${key + 1}${labelOf(node)}`);
+      field = '';
+    } else field = String(key);
+  });
+  const subject = where.join(' in ') || 'This backup';
+  const blank = node === undefined || (typeof node === 'string' && !node.trim());
+  const problem = !field
+    ? 'is not a valid entry'
+    : (field === 'name' || field === 'title') && blank
+      ? `has no ${field}`
+      : NOUN[field]
+        ? `has "${field}" that is not a list`
+        : `has an invalid "${field}"`;
+  return `${subject} ${problem}, so this file can't be imported.`;
+}
+
+/**
+ * Checks a backup before it replaces saved data. Anything that is not a well-formed
+ * Prepline backup is rejected with the first problem found. A valid backup from an
+ * older version is converted as on load, and the conversions are listed so the user
+ * can decide before confirming.
  */
 export function previewImport(
   raw: unknown,
@@ -133,20 +218,13 @@ export function previewImport(
       ok: false,
       error: `This backup was made by a different version of Prepline (version ${String(version)}) and cannot be imported here.`,
     };
-  const goals = (raw as { goals: unknown[] }).goals;
-  if (goals.length && !goals.some(isObject))
-    return { ok: false, error: 'This backup has no valid plans in it.' };
+  const checked = BackupShape.safeParse(raw);
+  if (!checked.success)
+    return { ok: false, error: describeIssue(raw, checked.error.issues[0]?.path ?? []) };
 
   const notes: string[] = [];
-  const skipped = (n: number, what: string) => {
-    if (n) notes.push(`${n} invalid ${what}${n === 1 ? '' : 's'} will be skipped.`);
-  };
-  const rawGoals = goals.filter(isObject) as Record<string, unknown>[];
-  const rawRes = rawGoals.flatMap((g) => arr(g.resources));
-  skipped(goals.length - rawGoals.length, 'plan');
-  skipped(rawRes.filter((r) => !isObject(r)).length, 'resource');
-  skipped(rawGoals.flatMap((g) => arr(g.phases)).filter((p) => !isObject(p)).length, 'phase');
-  const res = rawRes.filter(isObject) as Record<string, unknown>[];
+  const goals = (raw as { goals: Record<string, unknown>[] }).goals;
+  const res = goals.flatMap((g) => arr(g.resources)) as Record<string, unknown>[];
   const withSections = res.filter((r) => arr(r.sections).length).length;
   if (withSections)
     notes.push(

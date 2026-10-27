@@ -162,7 +162,6 @@ describe('previewImport', () => {
       ok: false,
       error: expect.stringContaining('version 2'),
     });
-    expect(previewImport({ goals: ['x', 3] })).toMatchObject({ ok: false });
   });
 
   it('accepts a clean backup with counts and no notes', () => {
@@ -179,15 +178,55 @@ describe('previewImport', () => {
     expect(r.ok && r.preview).toMatchObject({ plans: 1, resources: 1, phases: 1, notes: [] });
   });
 
-  it('lists what an older or damaged backup will lose or convert', () => {
+  it('rejects malformed backups, naming the first problem', () => {
+    const err = (raw: unknown) => {
+      const r = previewImport(raw);
+      return r.ok ? null : r.error;
+    };
+    expect(err({ goals: [{ foo: 1 }] })).toBe(
+      "Plan 1 has no name, so this file can't be imported.",
+    );
+    expect(err({ goals: [{ name: 'Prep' }, { name: '  ' }] })).toBe(
+      "Plan 2 has no name, so this file can't be imported.",
+    );
+    expect(err({ goals: [{ name: 'Prep', resources: [{ title: 'a' }, { url: 'x' }] }] })).toBe(
+      'Resource 2 in Plan 1 "Prep" has no title, so this file can\'t be imported.',
+    );
+    expect(err({ goals: [{ name: 'Prep', resources: 'none' }] })).toBe(
+      'Plan 1 "Prep" has "resources" that is not a list, so this file can\'t be imported.',
+    );
+    expect(err({ goals: [{ name: 'Prep', resources: [{ title: 'a', minutes: '45' }] }] })).toBe(
+      'Resource 1 "a" in Plan 1 "Prep" has an invalid "minutes", so this file can\'t be imported.',
+    );
+    expect(err({ goals: ['junk'] })).toBe(
+      "Plan 1 is not a valid entry, so this file can't be imported.",
+    );
+    expect(err({ goals: [{ name: 'Prep', phases: [{ name: 'P' }, null] }] })).toBe(
+      'Phase 2 in Plan 1 "Prep" is not a valid entry, so this file can\'t be imported.',
+    );
+  });
+
+  it('accepts a real backup from an older version and lists what it converts', () => {
     const r = previewImport({
+      version: 1,
+      activeGoalId: 'g',
       goals: [
-        'junk',
         {
+          id: 'g',
+          name: 'Prep',
+          hoursPerDay: 2,
+          sample: true,
           resources: [
-            null,
-            { title: 'c', sections: [{ minutes: 30, done: true }] },
-            { title: 'a', rating: 3, phaseId: 'gone' },
+            {
+              title: 'Course',
+              type: 'course',
+              minutes: 15,
+              sections: [
+                { title: 'A', minutes: 30, done: true, doneAt: '2026-01-03' },
+                { title: 'B', minutes: 30, done: false, doneAt: null },
+              ],
+            },
+            { title: 'Article', rating: 3, done: true, doneAt: '2026-01-02', phaseId: 'gone' },
           ],
         },
       ],
@@ -195,12 +234,29 @@ describe('previewImport', () => {
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.preview.notes).toEqual([
-      '1 invalid plan will be skipped.',
-      '1 invalid resource will be skipped.',
       '1 course with sections will be converted to hours completed.',
       'Self-ratings from an older version are not kept.',
       '1 resource pointing to a missing phase will have no phase.',
     ]);
-    expect(r.preview.data.goals[0]!.resources[0]).toMatchObject({ minutes: 30, done: true });
+    expect(r.preview.data.goals[0]!.resources[0]).toMatchObject({
+      minutes: 60,
+      doneMinutes: 30,
+      done: false,
+    });
+  });
+
+  it('accepts what this version exports', () => {
+    const exported = parseAppData({
+      goals: [
+        {
+          name: 'Prep',
+          hoursPerDay: null,
+          phases: [{ id: 'p', name: 'P', color: 'green' }],
+          resources: [{ title: 'r', phaseId: 'p', startedAt: '2026-01-01' }, { title: 's' }],
+        },
+      ],
+    });
+    const r = previewImport(JSON.parse(JSON.stringify(exported)));
+    expect(r.ok && r.preview).toMatchObject({ plans: 1, resources: 2, phases: 1, notes: [] });
   });
 });

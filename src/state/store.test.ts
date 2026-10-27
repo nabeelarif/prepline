@@ -123,6 +123,16 @@ describe('store', () => {
     expect(rc).toMatchObject({ done: false, doneMinutes: 0, startedAt: null });
   });
 
+  it('restores partial progress after completing through Update progress', () => {
+    const { s, g, add } = setup();
+    const { id } = add({ minutes: 1200 });
+    s().setProgress(id, 300);
+    s().setProgress(id, 1200);
+    expect(g().resources[0]).toMatchObject({ done: true });
+    s().setStatus(id, 'in_progress');
+    expect(g().resources[0]).toMatchObject({ done: false, doneMinutes: 300 });
+  });
+
   it('resets to Not Started', () => {
     const { s, g, add } = setup();
     const { id } = add();

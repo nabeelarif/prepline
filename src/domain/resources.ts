@@ -58,10 +58,14 @@ export function statusPatch(r: Resource, to: ResourceStatus, today: ISODate): Pr
   }
 }
 
-/** Fields to change when recording completed minutes; the full estimate completes it. */
+/**
+ * Fields to change when recording completed minutes. Recording the full estimate
+ * completes the resource the same way the checkbox does, keeping any earlier
+ * partial progress so a later reopen can restore it.
+ */
 export function progressPatch(r: Resource, minutes: number, today: ISODate): Progress {
   const m = Math.round(Math.min(Math.max(0, minutes), r.minutes));
-  if (m === r.minutes) return { ...statusPatch(r, 'completed', today), doneMinutes: 0 };
+  if (m === r.minutes) return statusPatch(r, 'completed', today);
   return { done: false, doneAt: null, doneMinutes: m, startedAt: r.startedAt ?? today };
 }
 

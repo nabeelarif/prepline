@@ -1,4 +1,10 @@
-import { backupFileName, createEmptyAppData, exportedAtOf, serializeBackup } from './backup';
+import {
+  backupFileName,
+  createEmptyAppData,
+  exportedAtOf,
+  localDateTime,
+  serializeBackup,
+} from './backup';
 import { parseAppData, previewImport } from './schema';
 import type { AppData } from './types';
 
@@ -42,15 +48,16 @@ describe('backup', () => {
   });
 
   it('exports valid JSON holding everything that is saved, plus the export time', () => {
-    const raw = JSON.parse(serializeBackup(data, new Date(2026, 9, 28, 14, 32, 5)));
-    expect(raw).toEqual({ ...data, exportedAt: '2026-10-28T14:32:05' });
+    const now = new Date(2026, 9, 28, 14, 32, 5);
+    const raw = JSON.parse(serializeBackup(data, now));
+    expect(raw).toEqual({ ...data, exportedAt: localDateTime(now) });
     const r = previewImport(raw);
     expect(r.ok && r.preview).toMatchObject({
       data,
       plans: 1,
       phases: 1,
       resources: 1,
-      exportedAt: '2026-10-28T14:32:05',
+      exportedAt: localDateTime(now),
       notes: [],
     });
   });
@@ -66,10 +73,22 @@ describe('backup', () => {
     expect(parseAppData(JSON.parse(JSON.stringify(empty)))).toEqual(empty);
   });
 
+  it('writes the export time as local time with its offset, naming one exact moment', () => {
+    const now = new Date(2026, 9, 28, 14, 32, 5);
+    const s = localDateTime(now);
+    expect(s).toMatch(/^2026-10-28T14:32:05[+-]\d{2}:\d{2}$/);
+    expect(new Date(s).getTime()).toBe(now.getTime());
+  });
+
   it('reads the export time only when it is a real date', () => {
+    expect(exportedAtOf({ exportedAt: '2026-10-28T14:32:05+05:30' })).toBe(
+      '2026-10-28T14:32:05+05:30',
+    );
+    expect(exportedAtOf({ exportedAt: '2026-10-28T09:02:05Z' })).toBe('2026-10-28T09:02:05Z');
     expect(exportedAtOf({ exportedAt: '2026-10-28T14:32:05' })).toBe('2026-10-28T14:32:05');
     expect(exportedAtOf({ exportedAt: '2026-10-28T14:32' })).toBe('2026-10-28T14:32');
     expect(exportedAtOf({ exportedAt: 'yesterday' })).toBeNull();
+    expect(exportedAtOf({ exportedAt: '2026-10-28T14:32:05 PST' })).toBeNull();
     expect(exportedAtOf({ exportedAt: '2026-13-45T99:99:99' })).toBeNull();
     expect(exportedAtOf({ exportedAt: 123 })).toBeNull();
     expect(exportedAtOf({})).toBeNull();

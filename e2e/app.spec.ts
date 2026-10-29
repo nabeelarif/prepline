@@ -24,6 +24,19 @@ const journey = (page: Page) => page.getByRole('region', { name: 'Your Preparati
 const resources = (page: Page) => page.getByRole('region', { name: /^Resources/ });
 const statusOf = (page: Page, title: string) =>
   resources(page).getByRole('button', { name: new RegExp(`Change status of ${title}`) });
+/** Picks a backup file in the open Backup and Restore modal. */
+const chooseBackup = (page: Page, contents: string | Buffer, name = 'backup.json') =>
+  page.getByLabel('Backup file').setInputFiles({
+    name,
+    mimeType: 'application/json',
+    buffer: Buffer.from(contents),
+  });
+const restoreFromReview = async (page: Page) => {
+  await page.getByRole('button', { name: 'Restore Backup' }).click();
+  await page.getByRole('button', { name: 'Replace and Restore' }).click();
+  await expect(page.getByText('Backup restored successfully')).toBeVisible();
+  await page.getByRole('button', { name: 'Continue to Dashboard' }).click();
+};
 const titles = (page: Page) => resources(page).locator('.res-name > :first-child').allInnerTexts();
 
 test('first run invites the user to create a plan', async ({ page }) => {
@@ -152,13 +165,15 @@ test('my plans: switch, duplicate, and import a backup from an older version', a
     ],
   };
   await page.getByRole('button', { name: 'Backup and restore' }).click();
-  await page.getByLabel('Paste backup JSON').fill(JSON.stringify(backup));
-  await page.getByRole('button', { name: 'Check backup' }).click();
+  await chooseBackup(page, JSON.stringify(backup), 'old-backup.json');
   const contents = page.getByRole('region', { name: 'Backup contents' });
-  await expect(contents).toContainText('1 plan, 2 resources, 0 phases');
+  await expect(contents).toContainText('old-backup.json');
+  await expect(contents.locator('.backup-stats')).toHaveText(
+    /Plan\s*1\s*Phases\s*0\s*Resources\s*2/,
+  );
+  await expect(contents).not.toContainText('Created');
   await expect(contents).toContainText('1 course with sections will be converted');
-  await contents.getByRole('button', { name: 'Replace all data' }).click();
-  await contents.getByRole('button', { name: 'Click again to replace' }).click();
+  await restoreFromReview(page);
 
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Imported goal');
   await expect(resources(page).getByText('Old article')).toBeVisible();
@@ -232,23 +247,35 @@ test('definition of done: two resources in progress at once, then export and res
   await page.reload();
   await expect(status('Async video')).toHaveText('Completed');
 
-  // Export, wipe, and restore.
+  // Download, delete everything, and restore.
   await page.getByRole('button', { name: 'My Plans' }).click();
   await page.getByRole('button', { name: 'Backup and restore' }).click();
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByRole('button', { name: 'Download .json' }).click(),
+    page.getByRole('button', { name: 'Download Backup' }).click(),
   ]);
-  const backup = await (await download.createReadStream()).toArray();
-  const json = Buffer.concat(backup).toString();
-  await page.getByRole('button', { name: 'Erase all data' }).click();
-  await page.getByRole('button', { name: 'Erase every plan?' }).click();
+  expect(download.suggestedFilename()).toMatch(/^prepline-backup-\d{4}-\d{2}-\d{2}\.json$/);
+  const backup = Buffer.concat(await (await download.createReadStream()).toArray());
+  await page.getByRole('button', { name: 'Delete All Data' }).click();
+  await page
+    .getByRole('alertdialog', { name: 'Delete all Prepline data?' })
+    .getByRole('button', { name: 'Delete All Data' })
+    .click();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+    'Start your preparation journey',
+  );
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+    'Start your preparation journey',
+  );
+
   await page.getByRole('button', { name: 'Restore from a backup' }).click();
-  await page.getByLabel('Paste backup JSON').fill(json);
-  await page.getByRole('button', { name: 'Check backup' }).click();
-  await page.getByRole('button', { name: 'Replace all data' }).click();
-  await page.getByRole('button', { name: 'Click again to replace' }).click();
+  await chooseBackup(page, backup);
+  await expect(page.getByRole('region', { name: 'Backup contents' })).toContainText('Created');
+  await restoreFromReview(page);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Senior iOS');
+  await expect(status('Async video')).toHaveText('Completed');
+  await page.reload();
   await expect(status('Async video')).toHaveText('Completed');
 });
 
@@ -256,10 +283,26 @@ test('rejects a file that is not a Prepline backup', async ({ page }) => {
   await createPlan(page, 'Keep me');
   await page.getByRole('button', { name: 'My Plans' }).click();
   await page.getByRole('button', { name: 'Backup and restore' }).click();
-  await page.getByLabel('Paste backup JSON').fill('{"version": 2, "goals": []}');
-  await page.getByRole('button', { name: 'Check backup' }).click();
-  await expect(page.getByRole('dialog')).toContainText('different version of Prepline');
+  await chooseBackup(page, '{"version": 2, "goals": []}');
+  const alert = page.getByRole('dialog').getByRole('alert');
+  await expect(alert).toContainText("This backup couldn't be opened.");
+  await expect(alert).toContainText('Unsupported backup version');
   await expect(page.getByRole('region', { name: 'Backup contents' })).toHaveCount(0);
+  await page.reload();
+  await page.getByRole('button', { name: 'My Plans' }).click();
+  await expect(page.locator('.plan-card')).toHaveCount(1);
+});
+
+test('on a phone the backup cards stack without sideways scrolling', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('./');
+  await page.getByRole('button', { name: 'Restore from a backup' }).click();
+  const [dl, restore] = await page.locator('.backup-card').all();
+  const a = (await dl!.boundingBox())!;
+  const b = (await restore!.boundingBox())!;
+  expect(b.y).toBeGreaterThanOrEqual(a.y + a.height);
+  const overflow = await page.getByRole('dialog').evaluate((el) => el.scrollWidth - el.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
 });
 
 test('on a phone the journey is a vertical stepper and the list is stacked cards', async ({

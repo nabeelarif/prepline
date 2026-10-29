@@ -39,7 +39,11 @@ function OverlayContent() {
       content = <ResourceDetails r={r} phases={goal.phases} />;
     }
   }
-  return <Overlay key={overlay.kind}>{content}</Overlay>;
+  return (
+    <Overlay key={overlay.kind} wide={overlay.kind === 'data'}>
+      {content}
+    </Overlay>
+  );
 }
 
 function NoPlans() {
@@ -64,7 +68,7 @@ function NoPlans() {
           </div>
         }
       >
-        Create your first plan, set a target date, and organize the resources you want to complete.
+        Create your first plan, set a target date, and add the resources you want to complete.
       </EmptyState>
     </section>
   );

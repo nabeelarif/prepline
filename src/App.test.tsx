@@ -10,7 +10,7 @@ const createPlan = (name: string) => {
 
 afterEach(() => {
   vi.restoreAllMocks();
-  useStore.getState().resetAll();
+  useStore.getState().deleteAllData();
 });
 
 describe('App', () => {

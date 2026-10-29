@@ -4,15 +4,17 @@ import { createAppStore, type ResourceInput } from './store';
 
 function memoryStorage(initial: unknown = null) {
   const saved: AppData[] = [];
+  const ctl = { fail: false };
   const adapter: StorageAdapter = {
     available: true,
-    load: () => initial,
+    load: () => saved.at(-1) ?? initial,
     save: (d) => {
+      if (ctl.fail) return false;
       saved.push(d);
       return true;
     },
   };
-  return { adapter, saved };
+  return { adapter, saved, ctl };
 }
 
 const input = (o: Partial<ResourceInput> = {}): ResourceInput => ({
@@ -26,7 +28,7 @@ const input = (o: Partial<ResourceInput> = {}): ResourceInput => ({
 });
 
 function setup() {
-  const { adapter, saved } = memoryStorage();
+  const { adapter, saved, ctl } = memoryStorage();
   const store = createAppStore(adapter);
   const s = () => store.getState();
   s().createGoal({ name: 'Prep', description: '', targetDate: '2026-05-01', hoursPerDay: 1 });
@@ -35,7 +37,7 @@ function setup() {
     s().addResource(input(o));
     return g().resources.at(-1)!;
   };
-  return { s, g, add, saved };
+  return { s, g, add, saved, ctl, adapter };
 }
 
 describe('store', () => {
@@ -233,5 +235,95 @@ describe('store', () => {
     s().setTypeFilter('video');
     s().selectGoal(s().data.activeGoalId!);
     expect(s().ui).toMatchObject({ selectedResourceId: null, typeFilter: 'all' });
+  });
+
+  describe('restore and delete', () => {
+    const backup: AppData = {
+      version: 1,
+      activeGoalId: 'b2',
+      goals: [
+        {
+          id: 'b1',
+          name: 'One',
+          description: '',
+          targetDate: '2027-01-01',
+          hoursPerDay: null,
+          createdAt: '2026-01-01',
+          resources: [],
+          phases: [],
+        },
+        {
+          id: 'b2',
+          name: 'Two',
+          description: '',
+          targetDate: '2027-01-01',
+          hoursPerDay: 1,
+          createdAt: '2026-01-01',
+          resources: [],
+          phases: [],
+        },
+      ],
+    };
+    /** A plan with a resource selected and filters set, so a reset is visible. */
+    const busy = () => {
+      const t = setup();
+      const r = t.add();
+      t.s().selectResource(r.id);
+      t.s().setStatusFilter('completed');
+      t.s().openOverlay({ kind: 'data' });
+      return t;
+    };
+
+    it('restores a backup: saves it, keeps its active plan and resets view state', () => {
+      const { s, saved } = busy();
+      expect(s().restoreBackup(backup)).toBe(true);
+      expect(saved.at(-1)).toEqual(backup);
+      expect(s().data).toEqual(backup);
+      expect(s().ui).toMatchObject({
+        selectedResourceId: null,
+        statusFilter: 'all',
+        page: 'dashboard',
+        overlay: { kind: 'data' },
+      });
+    });
+
+    it('falls back to the first plan when the active one is missing', () => {
+      const { s } = setup();
+      s().restoreBackup({ ...backup, activeGoalId: 'gone' });
+      expect(s().data.activeGoalId).toBe('b1');
+    });
+
+    it('changes nothing in memory when saving fails', () => {
+      const { s, ctl } = busy();
+      const before = { data: s().data, ui: s().ui };
+      ctl.fail = true;
+      expect(s().restoreBackup(backup)).toBe(false);
+      expect(s().deleteAllData()).toBe(false);
+      expect(s().data).toBe(before.data);
+      expect(s().ui).toEqual(before.ui);
+      expect(s().storageOK).toBe(false);
+    });
+
+    it('deletes everything in one save and stays empty after a reload', () => {
+      const { s, saved, adapter } = busy();
+      const count = saved.length;
+      expect(s().deleteAllData()).toBe(true);
+      expect(saved).toHaveLength(count + 1);
+      expect(s().data).toEqual({ version: 1, activeGoalId: null, goals: [] });
+      expect(s().ui).toMatchObject({
+        overlay: null,
+        selectedResourceId: null,
+        statusFilter: 'all',
+      });
+      expect(s().ui.toast?.text).toBe('All Prepline data deleted');
+      expect(createAppStore(adapter).getState().data.goals).toEqual([]);
+    });
+
+    it('restores a backup after deleting, and it survives a reload', () => {
+      const { s, adapter } = setup();
+      s().deleteAllData();
+      s().restoreBackup(backup);
+      expect(createAppStore(adapter).getState().data).toEqual(backup);
+    });
   });
 });

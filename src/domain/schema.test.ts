@@ -156,12 +156,14 @@ describe('parseAppData', () => {
 
 describe('previewImport', () => {
   it('rejects anything that is not a Prepline backup', () => {
-    expect(previewImport('hello')).toMatchObject({ ok: false });
-    expect(previewImport({ plans: [] })).toMatchObject({ ok: false });
+    expect(previewImport('hello')).toMatchObject({ ok: false, kind: 'not-backup' });
+    expect(previewImport({ plans: [] })).toMatchObject({ ok: false, kind: 'not-backup' });
     expect(previewImport({ version: 2, goals: [] })).toMatchObject({
       ok: false,
+      kind: 'version',
       error: expect.stringContaining('version 2'),
     });
+    expect(previewImport({ goals: [{ foo: 1 }] })).toMatchObject({ ok: false, kind: 'invalid' });
   });
 
   it('accepts a clean backup with counts and no notes', () => {
@@ -175,7 +177,14 @@ describe('previewImport', () => {
         },
       ],
     });
-    expect(r.ok && r.preview).toMatchObject({ plans: 1, resources: 1, phases: 1, notes: [] });
+    expect(r.ok && r.preview).toMatchObject({
+      plans: 1,
+      resources: 1,
+      phases: 1,
+      version: 1,
+      exportedAt: null,
+      notes: [],
+    });
   });
 
   it('rejects malformed backups, naming the first problem', () => {

@@ -3,7 +3,7 @@ import { Database, Download, ListChecks } from 'lucide-react';
 import { backupFileName, serializeBackup } from '../../domain/backup';
 import { useStore } from '../../state/store';
 import { DIALOG_TITLE } from '../Overlay';
-import { AdvancedOptions } from './AdvancedOptions';
+import { DeleteAllData } from './DeleteAllData';
 import { RestoreCard, RestoreFlowPanel } from './RestoreCard';
 import { useRestoreFlow } from './useRestoreFlow';
 
@@ -12,7 +12,7 @@ interface Msg {
   err?: boolean;
 }
 
-/** Download a backup, restore one from a file, or delete everything (under Advanced Options). */
+/** Download a backup, restore one from a file, or delete everything. */
 export function DataPanel() {
   const flow = useRestoreFlow();
   const [msg, setMsg] = useState<Msg>({ text: '' });
@@ -95,7 +95,7 @@ export function DataPanel() {
             </section>
             <RestoreCard flow={flow} />
           </div>
-          <AdvancedOptions />
+          <DeleteAllData />
         </>
       )}
     </>

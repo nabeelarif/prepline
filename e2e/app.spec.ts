@@ -256,7 +256,6 @@ test('definition of done: two resources in progress at once, then export and res
   ]);
   expect(download.suggestedFilename()).toMatch(/^prepline-backup-\d{4}-\d{2}-\d{2}\.json$/);
   const backup = Buffer.concat(await (await download.createReadStream()).toArray());
-  await page.getByRole('button', { name: /Advanced Options/ }).click();
   await page.getByRole('button', { name: 'Delete All Data' }).click();
   await page
     .getByRole('alertdialog', { name: 'Delete all Prepline data?' })

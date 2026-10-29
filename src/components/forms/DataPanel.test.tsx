@@ -177,21 +177,15 @@ describe('Backup and Restore', () => {
 });
 
 describe('Delete All Data', () => {
-  const expand = () => fireEvent.click(screen.getByRole('button', { name: /Advanced Options/ }));
-
-  it('is hidden under collapsed Advanced Options', () => {
+  it('is offered directly, with no Reset to Default', () => {
     open();
-    expect(screen.getByRole('button', { name: /Advanced Options/ })).toHaveAttribute(
-      'aria-expanded',
-      'false',
-    );
-    expect(screen.queryByRole('button', { name: 'Delete All Data' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Delete All Data' })).toBeVisible();
+    expect(screen.queryByText(/Advanced Options/)).toBeNull();
     expect(screen.queryByText(/Reset to default/i)).toBeNull();
   });
 
   it('keeps everything when cancelled, by button or Escape', () => {
     open();
-    expand();
     fireEvent.click(screen.getByRole('button', { name: 'Delete All Data' }));
     const confirm = screen.getByRole('alertdialog', { name: 'Delete all Prepline data?' });
     fireEvent.click(within(confirm).getByRole('button', { name: 'Cancel' }));
@@ -203,7 +197,6 @@ describe('Delete All Data', () => {
 
   it('deletes everything and shows the first-run screen, leaving other storage alone', () => {
     open();
-    expand();
     fireEvent.click(screen.getByRole('button', { name: 'Delete All Data' }));
     fireEvent.click(
       within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Delete All Data' }),
@@ -220,7 +213,6 @@ describe('Delete All Data', () => {
 
   it('keeps the data and says so when deleting cannot be saved', () => {
     open();
-    expand();
     vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
       throw new DOMException('Quota exceeded', 'QuotaExceededError');
     });

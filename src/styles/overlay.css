@@ -541,44 +541,8 @@ textarea:focus {
   justify-content: flex-end;
   margin-top: 14px;
 }
-.advanced {
+.delete-all {
   margin-top: 16px;
-  border-top: 1px solid var(--line);
-  padding-top: 8px;
-}
-.advanced-toggle {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  min-height: 44px;
-  padding: 8px 4px;
-  border: none;
-  background: none;
-  color: var(--fg);
-  text-align: left;
-  cursor: pointer;
-  border-radius: 8px;
-}
-.advanced-toggle > span {
-  flex: 1;
-  display: grid;
-}
-.advanced-toggle small {
-  color: var(--muted);
-  font-size: 13px;
-}
-.advanced-toggle > svg {
-  color: var(--muted);
-}
-.advanced-toggle .chev {
-  transition: transform 150ms;
-}
-.advanced-toggle[aria-expanded='true'] .chev {
-  transform: rotate(180deg);
-}
-#advancedBody {
-  margin-top: 8px;
 }
 .danger-zone {
   display: flex;
@@ -591,7 +555,7 @@ textarea:focus {
 .danger-zone p {
   font-size: 14px;
 }
-#advancedBody .confirm-panel {
+.delete-all .confirm-panel {
   padding: 16px;
   border: 1px solid var(--bad);
   border-radius: 12px;

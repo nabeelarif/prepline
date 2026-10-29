@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 
 async function createPlan(page: Page, name: string) {
@@ -32,7 +33,7 @@ const chooseBackup = (page: Page, contents: string | Buffer, name = 'backup.json
     buffer: Buffer.from(contents),
   });
 const restoreFromReview = async (page: Page) => {
-  await page.getByRole('button', { name: 'Restore Backup' }).click();
+  await page.getByRole('button', { name: 'Replace All Data' }).click();
   await page.getByRole('button', { name: 'Replace and Restore' }).click();
   await expect(page.getByText('Backup restored successfully')).toBeVisible();
   await page.getByRole('button', { name: 'Continue to Dashboard' }).click();
@@ -166,7 +167,7 @@ test('my plans: switch, duplicate, and import a backup from an older version', a
   };
   await page.getByRole('button', { name: 'Backup and restore' }).click();
   await chooseBackup(page, JSON.stringify(backup), 'old-backup.json');
-  const contents = page.getByRole('region', { name: 'Backup contents' });
+  const contents = page.getByRole('region', { name: 'File contents' });
   await expect(contents).toContainText('old-backup.json');
   await expect(contents.locator('.backup-stats')).toHaveText(
     /Plan\s*1\s*Phases\s*0\s*Resources\s*2/,
@@ -271,12 +272,30 @@ test('definition of done: two resources in progress at once, then export and res
 
   await page.getByRole('button', { name: 'Restore from a backup' }).click();
   await chooseBackup(page, backup);
-  await expect(page.getByRole('region', { name: 'Backup contents' })).toContainText('Created');
+  await expect(page.getByRole('region', { name: 'File contents' })).toContainText('Created');
   await restoreFromReview(page);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Senior iOS');
   await expect(status('Async video')).toHaveText('Completed');
   await page.reload();
   await expect(status('Async video')).toHaveText('Completed');
+});
+
+test('adds the documented agent plan next to an existing plan', async ({ page }) => {
+  await createPlan(page, 'Keep me');
+  await page.getByRole('button', { name: 'My Plans' }).click();
+  await page.getByRole('button', { name: 'Backup and restore' }).click();
+  await chooseBackup(page, readFileSync('docs/examples/ios-interview-prep.json'), 'plan.json');
+  await expect(page.getByRole('region', { name: 'File contents' })).toBeVisible();
+  await page.getByRole('button', { name: 'Add to My Plans' }).click();
+  await expect(page.getByText('Plans added successfully')).toBeVisible();
+  await page.getByRole('button', { name: 'Continue to Dashboard' }).click();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+    'iOS Developer Interview Preparation',
+  );
+  expect(await titles(page)).toHaveLength(8);
+  await page.reload();
+  await page.getByRole('button', { name: 'My Plans' }).click();
+  await expect(page.locator('.plan-card')).toHaveCount(2);
 });
 
 test('rejects a file that is not a Prepline backup', async ({ page }) => {
@@ -287,7 +306,7 @@ test('rejects a file that is not a Prepline backup', async ({ page }) => {
   const alert = page.getByRole('dialog').getByRole('alert');
   await expect(alert).toContainText("This backup couldn't be opened.");
   await expect(alert).toContainText('Unsupported backup version');
-  await expect(page.getByRole('region', { name: 'Backup contents' })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'File contents' })).toHaveCount(0);
   await page.reload();
   await page.getByRole('button', { name: 'My Plans' }).click();
   await expect(page.locator('.plan-card')).toHaveCount(1);

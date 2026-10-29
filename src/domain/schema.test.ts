@@ -1,3 +1,5 @@
+import spec from '../../docs/agent-plan-format.md?raw';
+import example from '../../docs/examples/ios-interview-prep.json?raw';
 import { parseAppData, previewImport } from './schema';
 
 describe('parseAppData', () => {
@@ -267,5 +269,21 @@ describe('previewImport', () => {
     });
     const r = previewImport(JSON.parse(JSON.stringify(exported)));
     expect(r.ok && r.preview).toMatchObject({ plans: 1, resources: 2, phases: 1, notes: [] });
+  });
+});
+
+describe('agent plan format (docs/agent-plan-format.md)', () => {
+  it('has an example that imports cleanly, with nothing repaired', () => {
+    const r = previewImport(JSON.parse(example));
+    if (!r.ok) throw new Error(r.error);
+    expect(r.preview.notes).toEqual([]);
+    expect(r.preview).toMatchObject({ plans: 1, phases: 3, resources: 8 });
+    const minutes = r.preview.data.goals[0]!.resources.reduce((a, x) => a + x.minutes, 0);
+    expect(minutes).toBe(4825);
+  });
+
+  it('shows the same example in the document', () => {
+    const block = spec.split('## 10. Example')[1]?.match(/```json\n([\s\S]*?)```/)?.[1];
+    expect(JSON.parse(block ?? 'null')).toEqual(JSON.parse(example));
   });
 });

@@ -79,7 +79,7 @@ describe('Backup and Restore', () => {
     open();
     const before = saved();
     pick(JSON.stringify(backup));
-    const review = await screen.findByRole('region', { name: 'Backup contents' });
+    const review = await screen.findByRole('region', { name: 'File contents' });
     expect(within(review).getByText('prepline-backup-2026-10-20.json')).toBeVisible();
     const stats = within(review)
       .getAllByRole('definition')
@@ -94,7 +94,7 @@ describe('Backup and Restore', () => {
   it('hides the creation date for backups that do not record one', async () => {
     open();
     pick(JSON.stringify({ ...backup, exportedAt: undefined }));
-    const review = await screen.findByRole('region', { name: 'Backup contents' });
+    const review = await screen.findByRole('region', { name: 'File contents' });
     expect(review).not.toHaveTextContent('Created');
   });
 
@@ -119,22 +119,22 @@ describe('Backup and Restore', () => {
     open();
     const before = saved();
     pick(JSON.stringify(backup));
-    await screen.findByRole('region', { name: 'Backup contents' });
+    await screen.findByRole('region', { name: 'File contents' });
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(screen.getByRole('button', { name: 'Choose File' })).toBeVisible();
 
     pick(JSON.stringify(backup));
-    fireEvent.click(await screen.findByRole('button', { name: 'Restore Backup' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Replace All Data' }));
     const confirm = screen.getByRole('alertdialog', { name: 'Replace your current data?' });
     expect(within(confirm).getByRole('button', { name: 'Cancel' })).toHaveFocus();
     // Escape backs out of the confirmation only; the modal stays open.
     fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
-    expect(screen.getByRole('region', { name: 'Backup contents' })).toBeVisible();
+    expect(screen.getByRole('region', { name: 'File contents' })).toBeVisible();
     expect(dialog()).toBeVisible();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Restore Backup' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Replace All Data' }));
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-    expect(screen.getByRole('region', { name: 'Backup contents' })).toBeVisible();
+    expect(screen.getByRole('region', { name: 'File contents' })).toBeVisible();
     expect(saved()).toBe(before);
     expect(useStore.getState().data).toEqual(current);
   });
@@ -142,7 +142,7 @@ describe('Backup and Restore', () => {
   it('restores after confirmation and shows the restored dashboard', async () => {
     open();
     pick(JSON.stringify(backup));
-    fireEvent.click(await screen.findByRole('button', { name: 'Restore Backup' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Replace All Data' }));
     fireEvent.click(screen.getByRole('button', { name: 'Replace and Restore' }));
     expect(screen.getByText('Backup restored successfully')).toBeVisible();
     expect(JSON.parse(saved()!).goals.map((g: { name: string }) => g.name)).toEqual([
@@ -158,13 +158,13 @@ describe('Backup and Restore', () => {
     open();
     const before = saved();
     pick(JSON.stringify(backup));
-    fireEvent.click(await screen.findByRole('button', { name: 'Restore Backup' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Replace All Data' }));
     vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
       throw new DOMException('Quota exceeded', 'QuotaExceededError');
     });
     fireEvent.click(screen.getByRole('button', { name: 'Replace and Restore' }));
     expect(within(dialog()).getByRole('alert')).toHaveTextContent(
-      "We couldn't restore your backup.Your current data has not been replaced.",
+      "We couldn't restore your backup.Your current data has not been changed.",
     );
     expect(screen.queryByText('Backup restored successfully')).toBeNull();
     expect(saved()).toBe(before);
@@ -173,6 +173,43 @@ describe('Backup and Restore', () => {
     vi.restoreAllMocks();
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(screen.getByText('Backup restored successfully')).toBeVisible();
+  });
+});
+
+describe('Add to My Plans', () => {
+  const names = () => useStore.getState().data.goals.map((g) => g.name);
+
+  it('adds the plans next to the current ones, with no confirmation', async () => {
+    open();
+    pick(JSON.stringify(backup), 'prepline-plan-ios.json');
+    fireEvent.click(await screen.findByRole('button', { name: 'Add to My Plans' }));
+    expect(screen.getByText('Plans added successfully')).toBeVisible();
+    expect(names()).toEqual(['Current plan', 'Restored plan', 'Second']);
+    const added = useStore.getState().data.goals[1]!;
+    expect(added.id).not.toBe('b');
+    expect(added.resources[0]!.phaseId).toBe(added.phases[0]!.id);
+    expect(JSON.parse(saved()!).goals).toHaveLength(3);
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to Dashboard' }));
+    expect(screen.getByRole('heading', { level: 1, name: 'Restored plan' })).toBeVisible();
+  });
+
+  it('keeps the current data when the browser refuses to save, then retries', async () => {
+    open();
+    const before = saved();
+    pick(JSON.stringify(backup));
+    const add = await screen.findByRole('button', { name: 'Add to My Plans' });
+    vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
+      throw new DOMException('Quota exceeded', 'QuotaExceededError');
+    });
+    fireEvent.click(add);
+    expect(within(dialog()).getByRole('alert')).toHaveTextContent("We couldn't add these plans.");
+    expect(saved()).toBe(before);
+    expect(useStore.getState().data).toEqual(current);
+
+    vi.restoreAllMocks();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(screen.getByText('Plans added successfully')).toBeVisible();
+    expect(names()).toEqual(['Current plan', 'Restored plan', 'Second']);
   });
 });
 

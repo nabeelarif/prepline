@@ -3,6 +3,7 @@ import {
   createEmptyAppData,
   exportedAtOf,
   localDateTime,
+  mergePlans,
   serializeBackup,
 } from './backup';
 import { parseAppData, previewImport } from './schema';
@@ -93,5 +94,39 @@ describe('backup', () => {
     expect(exportedAtOf({ exportedAt: 123 })).toBeNull();
     expect(exportedAtOf({})).toBeNull();
     expect(exportedAtOf(null)).toBeNull();
+  });
+});
+
+describe('mergePlans', () => {
+  const twice = { ...data, goals: [data.goals[0]!, { ...data.goals[0]!, name: 'Again' }] };
+
+  it('adds the plans after the current ones with new ids and makes the first active', () => {
+    const merged = mergePlans(data, twice);
+    expect(merged.goals.map((g) => g.name)).toEqual(['Prep', 'Prep', 'Again']);
+    expect(merged.goals[0]).toBe(data.goals[0]);
+    const [, a, b] = merged.goals;
+    expect(merged.activeGoalId).toBe(a!.id);
+    const ids = merged.goals.flatMap((g) => [
+      g.id,
+      ...g.phases.map((p) => p.id),
+      ...g.resources.map((r) => r.id),
+    ]);
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const g of [a!, b!]) expect(g.resources[0]!.phaseId).toBe(g.phases[0]!.id);
+    expect(a!.resources[0]).toMatchObject({ title: 'Course', minutes: 120, doneMinutes: 30 });
+    expect(parseAppData(merged)).toEqual(merged);
+  });
+
+  it('works on empty data and keeps resources without a phase out of phases', () => {
+    const loose = parseAppData({
+      goals: [{ name: 'New', resources: [{ title: 'A' }, { title: 'B', phaseId: 'p' }] }],
+    })!;
+    const merged = mergePlans(createEmptyAppData(), loose);
+    expect(merged.activeGoalId).toBe(merged.goals[0]!.id);
+    expect(merged.goals[0]!.resources.map((r) => r.phaseId)).toEqual([null, null]);
+  });
+
+  it('changes nothing when the file has no plans', () => {
+    expect(mergePlans(data, createEmptyAppData())).toEqual(data);
   });
 });

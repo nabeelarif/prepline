@@ -1,5 +1,6 @@
 import { produce, type Draft } from 'immer';
 import { create } from 'zustand';
+import { createEmptyAppData } from '../domain/backup';
 import { todayISO } from '../domain/dates';
 import { uid } from '../domain/format';
 import type { RoadmapView } from '../domain/roadmap';
@@ -85,8 +86,14 @@ export interface Store {
   showToast(text: string): void;
   dismissToast(): void;
 
-  importData(data: AppData): void;
-  resetAll(): void;
+  /**
+   * Replaces all saved data with a checked backup. Saves first and changes nothing in
+   * memory when saving fails. Returns whether it worked. Keeps the backup overlay open
+   * so it can show the result.
+   */
+  restoreBackup(data: AppData): boolean;
+  /** Replaces all saved data with the empty state, the same way. Closes overlays on success. */
+  deleteAllData(): boolean;
 }
 
 const freshUi = (): UiState => ({
@@ -113,8 +120,6 @@ const planUi = (): Partial<UiState> => ({
   navOpen: false,
   overlay: null,
 });
-
-const emptyData = (): AppData => ({ version: 1, activeGoalId: null, goals: [] });
 
 function activeOf(d: Draft<AppData>): Draft<Goal> | undefined {
   return d.goals.find((g) => g.id === d.activeGoalId);
@@ -158,13 +163,28 @@ export function createAppStore(storage: StorageAdapter = createLocalStorageAdapt
       const patch = typeof ui === 'function' ? ui() : ui;
       set((s) => ({ data, storageOK, ui: patch ? { ...s.ui, ...patch } : s.ui }));
     };
+    /**
+     * Swaps in whole new data, unlike `commit()`: the data is saved first and memory is
+     * only updated if that works, so a failed restore or delete never looks like it
+     * worked. `save()` is synchronous, so no other write can run in between.
+     */
+    const replaceData = (next: AppData, ui?: Partial<UiState>): boolean => {
+      const clean = parseAppData(JSON.parse(JSON.stringify(next)));
+      if (!clean) return false;
+      if (!storage.save(clean)) {
+        set({ storageOK: false });
+        return false;
+      }
+      set((s) => ({ data: clean, storageOK: true, ui: { ...s.ui, ...planUi(), ...ui } }));
+      return true;
+    };
     const setUi = (ui: Partial<UiState>) => set((s) => ({ ui: { ...s.ui, ...ui } }));
     const toast = (text: string) => ({ toast: { id: ++toastSeq, text } });
     const resource = (d: Draft<AppData>, id: string) =>
       activeOf(d)?.resources.find((x) => x.id === id);
 
     return {
-      data: parseAppData(storage.load()) ?? emptyData(),
+      data: parseAppData(storage.load()) ?? createEmptyAppData(),
       ui: freshUi(),
       storageOK: storage.available,
 
@@ -364,9 +384,9 @@ export function createAppStore(storage: StorageAdapter = createLocalStorageAdapt
       showToast: (text) => setUi(toast(text)),
       dismissToast: () => setUi({ toast: null }),
 
-      importData: (data) => commit(() => data, { ...planUi(), ...toast('Backup imported') }),
+      restoreBackup: (data) => replaceData(data, { overlay: { kind: 'data' } }),
 
-      resetAll: () => commit(emptyData, planUi()),
+      deleteAllData: () => replaceData(createEmptyAppData(), toast('All Prepline data deleted')),
     };
   });
 }

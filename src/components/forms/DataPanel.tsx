@@ -1,191 +1,103 @@
-import { useState } from 'react';
-import { todayISO } from '../../domain/dates';
-import { previewImport, type ImportPreview } from '../../domain/schema';
-import { pl } from '../../domain/format';
+import { useEffect, useState } from 'react';
+import { Database, Download, ListChecks } from 'lucide-react';
+import { backupFileName, serializeBackup } from '../../domain/backup';
 import { useStore } from '../../state/store';
-import { ConfirmButton } from '../ConfirmButton';
 import { DIALOG_TITLE } from '../Overlay';
+import { AdvancedOptions } from './AdvancedOptions';
+import { RestoreCard, RestoreFlowPanel } from './RestoreCard';
+import { useRestoreFlow } from './useRestoreFlow';
 
 interface Msg {
   text: string;
   err?: boolean;
 }
 
-/** Export, import, and reset. Importing replaces all saved data. */
+/** Download a backup, restore one from a file, or delete everything (under Advanced Options). */
 export function DataPanel() {
-  const data = useStore((s) => s.data);
-  const { importData, resetAll, closeOverlay } = useStore.getState();
-  const json = JSON.stringify(data, null, 2);
-  const [copyMsg, setCopyMsg] = useState('');
-  const [importText, setImportText] = useState('');
-  const [importMsg, setImportMsg] = useState<Msg>({ text: '' });
-  const [preview, setPreview] = useState<ImportPreview | null>(null);
+  const flow = useRestoreFlow();
+  const [msg, setMsg] = useState<Msg>({ text: '' });
+  // Once a file checks out, the restore steps take the whole modal.
+  const restoring = !['idle', 'validating', 'invalid'].includes(flow.state.step);
 
-  const copy = (box: HTMLTextAreaElement | null) => {
-    const fallback = () => {
-      box?.focus();
-      box?.select();
-      setCopyMsg('Press Ctrl+C or ⌘C to copy the selected text.');
-    };
-    try {
-      navigator.clipboard.writeText(json).then(() => setCopyMsg('Copied.'), fallback);
-    } catch {
-      fallback();
-    }
-  };
+  useEffect(() => {
+    if (!msg.text || msg.err) return;
+    const t = setTimeout(() => setMsg({ text: '' }), 5000);
+    return () => clearTimeout(t);
+  }, [msg]);
 
+  // The browser handles the file from here, so this only says the download started.
   const download = () => {
     try {
-      const blob = new Blob([json], { type: 'application/json' });
-      const u = URL.createObjectURL(blob);
+      const json = serializeBackup(useStore.getState().data);
+      const u = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
       const a = document.createElement('a');
       a.href = u;
-      a.download = `prepline-backup-${todayISO()}.json`;
+      a.download = backupFileName();
       document.body.appendChild(a);
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(u), 3000);
+      setMsg({ text: 'Your backup download has started.' });
     } catch {
-      // Fall through to the hint below.
-    }
-    setCopyMsg('If no file was saved, use Copy JSON instead.');
-  };
-
-  const readFile = (f: File | undefined) => {
-    if (!f) return;
-    const rd = new FileReader();
-    rd.onload = () => {
-      setImportText(String(rd.result ?? ''));
-      setImportMsg({ text: `Loaded ${f.name}. Press Check backup to review it.` });
-      setPreview(null);
-    };
-    rd.onerror = () =>
-      setImportMsg({
-        text: 'That file could not be read. Try pasting its contents instead.',
-        err: true,
-      });
-    rd.readAsText(f);
-  };
-
-  // Step one: check the backup and show what it holds. Step two replaces the data.
-  const check = () => {
-    setPreview(null);
-    let raw: unknown;
-    try {
-      raw = JSON.parse(importText);
-    } catch {
-      return setImportMsg({
-        text: 'That is not valid JSON. Paste the whole backup, from the first { to the last }.',
+      setMsg({
+        text: 'This browser blocked the download. Try again or use another browser.',
         err: true,
       });
     }
-    const r = previewImport(raw);
-    if (!r.ok) return setImportMsg({ text: r.error, err: true });
-    setImportMsg({ text: '' });
-    setPreview(r.preview);
   };
 
   return (
     <>
-      <h2 id={DIALOG_TITLE}>Backup and restore</h2>
-      <p className="muted">
-        Prepline saves your plans in this browser's local storage. It is not synced across devices,
-        and clearing site data erases it, so export a backup now and then. A backup also moves your
-        plans to another browser.
-      </p>
-
-      <h3>Export</h3>
-      <textarea id="exportBox" rows={6} readOnly aria-label="Backup JSON" value={json} />
-      <div className="btn-row" style={{ marginTop: 8 }}>
-        <button
-          className="btn sm"
-          onClick={() => copy(document.querySelector<HTMLTextAreaElement>('#exportBox'))}
-        >
-          Copy JSON
-        </button>
-        <button className="btn sm" onClick={download}>
-          Download .json
-        </button>
-        <p className="msg" role="status">
-          {copyMsg}
-        </p>
-      </div>
-
-      <h3>Import</h3>
-      <p>Choose a backup file or paste its contents. Importing replaces everything saved here.</p>
-      <input
-        type="file"
-        accept="application/json,.json"
-        aria-label="Backup file"
-        onChange={(e) => readFile(e.target.files?.[0])}
-      />
-      <textarea
-        rows={4}
-        style={{ marginTop: 8 }}
-        placeholder='{ "version": 1, "goals": [ … ] }'
-        aria-label="Paste backup JSON"
-        value={importText}
-        onChange={(e) => {
-          setImportText(e.target.value);
-          setPreview(null);
-        }}
-      />
-      <div className="btn-row" style={{ marginTop: 8 }}>
-        <button className="btn sm" onClick={check} disabled={!importText.trim()}>
-          Check backup
-        </button>
-        <p className={`msg${importMsg.err ? ' err' : ''}`} role="alert">
-          {importMsg.text}
-        </p>
-      </div>
-      {preview && (
-        <div className="import-preview" role="region" aria-label="Backup contents">
-          <p>
-            <strong>
-              {pl(preview.plans, 'plan')}, {pl(preview.resources, 'resource')},{' '}
-              {pl(preview.phases, 'phase')}
-            </strong>
+      <header className="backup-head">
+        <span className="tile accent round" aria-hidden="true">
+          <Database size={26} />
+        </span>
+        <div>
+          <h2 id={DIALOG_TITLE}>Backup and Restore</h2>
+          <p className="muted">
+            Keep your preparation data safe. Download a backup or restore one on this or another
+            device.
           </p>
-          {preview.notes.length > 0 && (
-            <ul>
-              {preview.notes.map((n) => (
-                <li key={n}>{n}</li>
-              ))}
-            </ul>
-          )}
-          <p className="muted">This replaces everything saved in this browser.</p>
-          <div className="btn-row">
-            <ConfirmButton
-              className="btn sm primary"
-              confirmText="Click again to replace"
-              onConfirm={() => importData(preview.data)}
-            >
-              Replace all data
-            </ConfirmButton>
-            <button className="btn sm ghost" onClick={() => setPreview(null)}>
-              Cancel
-            </button>
-          </div>
         </div>
+      </header>
+
+      {restoring ? (
+        <RestoreFlowPanel flow={flow} />
+      ) : (
+        <>
+          <div className="backup-grid">
+            <section className="backup-card download" aria-labelledby="downloadTitle">
+              <div className="backup-card-head">
+                <span className="tile good" aria-hidden="true">
+                  <Download size={26} />
+                </span>
+                <div>
+                  <h3 id="downloadTitle">Download Backup</h3>
+                  <p className="muted">
+                    Save all your plans, phases, resources, and progress in one file.
+                  </p>
+                </div>
+              </div>
+              <div className="backup-includes">
+                <ListChecks size={20} aria-hidden="true" />
+                <p>
+                  <strong>Includes everything</strong>
+                  <br />
+                  <span className="muted">All plans, phases, resources and study progress.</span>
+                </p>
+              </div>
+              <button type="button" className="btn primary wide-btn" onClick={download}>
+                <Download size={18} aria-hidden="true" /> Download Backup
+              </button>
+              <p className={`msg${msg.err ? ' err' : ''}`} role={msg.err ? 'alert' : 'status'}>
+                {msg.text}
+              </p>
+            </section>
+            <RestoreCard flow={flow} />
+          </div>
+          <AdvancedOptions />
+        </>
       )}
-
-      <h3>Start over</h3>
-      <div className="btn-row">
-        <ConfirmButton
-          className="btn danger sm"
-          confirmText="Erase every plan?"
-          onConfirm={resetAll}
-        >
-          Erase all data
-        </ConfirmButton>
-      </div>
-
-      <div className="sheet-actions">
-        <span className="spacer" />
-        <button className="btn primary" onClick={closeOverlay}>
-          Done
-        </button>
-      </div>
     </>
   );
 }

@@ -11,8 +11,9 @@ const FOCUSABLE =
 /**
  * Modal sheet. Focuses its first field on open, keeps Tab inside, closes on Escape
  * or a backdrop click, locks page scroll, and returns focus to the opener on close.
+ * Content that handles Escape itself (an inner confirmation) calls preventDefault().
  */
-export function Overlay({ children }: { children: ReactNode }) {
+export function Overlay({ children, wide }: { children: ReactNode; wide?: boolean }) {
   const close = useStore((s) => s.closeOverlay);
   const sheet = useRef<HTMLDivElement>(null);
 
@@ -25,7 +26,7 @@ export function Overlay({ children }: { children: ReactNode }) {
       ) ?? sheet.current?.querySelector<HTMLElement>(FOCUSABLE);
     first?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') close();
+      if (e.key === 'Escape' && !e.defaultPrevented) close();
       if (e.key !== 'Tab' || !sheet.current) return;
       const list = [...sheet.current.querySelectorAll<HTMLElement>(FOCUSABLE)];
       const a = list[0];
@@ -54,7 +55,7 @@ export function Overlay({ children }: { children: ReactNode }) {
       }}
     >
       <div
-        className="sheet"
+        className={wide ? 'sheet wide' : 'sheet'}
         role="dialog"
         aria-modal="true"
         aria-labelledby={DIALOG_TITLE}

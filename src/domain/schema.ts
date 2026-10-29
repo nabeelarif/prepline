@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { exportedAtOf } from './backup';
 import { PHASE_COLORS, TYPES } from './constants';
 import { addDays, todayISO, validISO } from './dates';
 import { num, uid } from './format';
@@ -111,6 +112,9 @@ export interface ImportPreview {
   plans: number;
   resources: number;
   phases: number;
+  version: 1;
+  /** When the backup was downloaded, if the file says so (local "YYYY-MM-DDTHH:MM:SS"). */
+  exportedAt: string | null;
   /** What was repaired or converted, in plain words. Empty for a clean backup. */
   notes: string[];
 }
@@ -201,6 +205,9 @@ function describeIssue(raw: unknown, path: PropertyKey[]): string {
   return `${subject} ${problem}, so this file can't be imported.`;
 }
 
+/** Why a backup was rejected: not a Prepline file, another version, or malformed entries. */
+export type ImportErrorKind = 'not-backup' | 'version' | 'invalid';
+
 /**
  * Checks a backup before it replaces saved data. Anything that is not a well-formed
  * Prepline backup is rejected with the first problem found. A valid backup from an
@@ -209,18 +216,27 @@ function describeIssue(raw: unknown, path: PropertyKey[]): string {
  */
 export function previewImport(
   raw: unknown,
-): { ok: true; preview: ImportPreview } | { ok: false; error: string } {
+): { ok: true; preview: ImportPreview } | { ok: false; kind: ImportErrorKind; error: string } {
   if (!isObject(raw) || !Array.isArray((raw as { goals?: unknown }).goals))
-    return { ok: false, error: 'This file has no "goals" list, so it is not a Prepline backup.' };
+    return {
+      ok: false,
+      kind: 'not-backup',
+      error: 'This file has no "goals" list, so it is not a Prepline backup.',
+    };
   const version = (raw as { version?: unknown }).version;
   if (version !== undefined && version !== 1)
     return {
       ok: false,
+      kind: 'version',
       error: `This backup was made by a different version of Prepline (version ${String(version)}) and cannot be imported here.`,
     };
   const checked = BackupShape.safeParse(raw);
   if (!checked.success)
-    return { ok: false, error: describeIssue(raw, checked.error.issues[0]?.path ?? []) };
+    return {
+      ok: false,
+      kind: 'invalid',
+      error: describeIssue(raw, checked.error.issues[0]?.path ?? []),
+    };
 
   const notes: string[] = [];
   const goals = (raw as { goals: Record<string, unknown>[] }).goals;
@@ -249,6 +265,8 @@ export function previewImport(
       plans: data.goals.length,
       resources: count((g) => g.resources.length),
       phases: count((g) => g.phases.length),
+      version: 1,
+      exportedAt: exportedAtOf(raw),
       notes,
     },
   };

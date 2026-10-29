@@ -150,7 +150,20 @@ export function ResourceRow({ r, index, count, phases, selected, handle, drag }:
       </td>
       <td className="c-time">{fmtHours(r.minutes)}</td>
       <td className="c-status">
-        <StatusMenu r={r} />
+        <div className="status-cell">
+          <StatusMenu r={r} />
+          {status === 'in_progress' && (
+            <button
+              type="button"
+              className="icon-btn progress-btn"
+              aria-label={`Update progress of ${r.title}`}
+              title="Update progress"
+              onClick={() => a.openOverlay({ kind: 'details', resourceId: r.id })}
+            >
+              <Gauge size={15} aria-hidden="true" />
+            </button>
+          )}
+        </div>
       </td>
       <td className="c-phase">
         {phase ? (

@@ -25,10 +25,11 @@ export function ThemeSwitch() {
           type="button"
           role="radio"
           aria-checked={theme === t}
+          aria-label={label}
+          title={label}
           onClick={() => pick(t)}
         >
-          <Icon size={14} aria-hidden="true" />
-          {label}
+          <Icon size={15} aria-hidden="true" />
         </button>
       ))}
     </div>

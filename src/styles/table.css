@@ -128,7 +128,16 @@
   font-weight: 700;
 }
 
-/* Status dropdown in each row */
+/* Status dropdown in each row, with a quick progress button when in progress */
+.status-cell {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.progress-btn {
+  width: 26px;
+  height: 26px;
+}
 .status-btn {
   border: none;
   cursor: pointer;

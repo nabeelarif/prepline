@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "goals": [
+    {
+      "id": "ios-interview",
+      "name": "iOS Developer Interview Preparation",
+      "description": "Get ready for mid-level iOS interviews: Swift memory and concurrency, SwiftUI, coding problems, and a mock interview.",
+      "targetDate": "2026-12-31",
+      "hoursPerDay": 2,
+      "phases": [
+        {
+          "id": "swift",
+          "name": "Swift Fundamentals",
+          "description": "Memory management and concurrency, the topics most iOS interviews probe first.",
+          "color": "blue"
+        },
+        {
+          "id": "swiftui",
+          "name": "SwiftUI",
+          "description": "How SwiftUI tracks identity and state, and enough hands-on building to talk about it with confidence.",
+          "color": "purple"
+        },
+        {
+          "id": "interview",
+          "name": "Interview Practice",
+          "description": "Coding problems, common iOS questions, and a timed mock interview.",
+          "color": "green"
+        }
+      ],
+      "resources": [
+        {
+          "id": "arc",
+          "title": "Automatic Reference Counting (The Swift Programming Language)",
+          "url": "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/automaticreferencecounting/",
+          "type": "article",
+          "minutes": 45,
+          "notes": "Know strong reference cycles and when to use weak versus unowned, including in closures.",
+          "phaseId": "swift"
+        },
+        {
+          "id": "concurrency",
+          "title": "Concurrency (The Swift Programming Language)",
+          "url": "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/concurrency/",
+          "type": "article",
+          "minutes": 60,
+          "notes": "Focus on tasks, task groups, actors and Sendable. Be ready to explain data races.",
+          "phaseId": "swift"
+        },
+        {
+          "id": "async-await",
+          "title": "Meet async/await in Swift (WWDC21)",
+          "url": "https://developer.apple.com/videos/play/wwdc2021/10132/",
+          "type": "video",
+          "minutes": 50,
+          "notes": "Watch how completion handlers become async functions. A common whiteboard question.",
+          "phaseId": "swift"
+        },
+        {
+          "id": "demystify-swiftui",
+          "title": "Demystify SwiftUI (WWDC21)",
+          "url": "https://developer.apple.com/videos/play/wwdc2021/10022/",
+          "type": "video",
+          "minutes": 50,
+          "notes": "Identity, lifetime and dependencies: the basis for answering why a view redraws or loses state.",
+          "phaseId": "swiftui"
+        },
+        {
+          "id": "100-days",
+          "title": "100 Days of SwiftUI (Hacking with Swift)",
+          "url": "https://www.hackingwithswift.com/100/swiftui",
+          "type": "course",
+          "minutes": 2400,
+          "notes": "Free. Budget for the projects and consolidation days you need, not all 100 days.",
+          "phaseId": "swiftui"
+        },
+        {
+          "id": "neetcode",
+          "title": "NeetCode Practice",
+          "url": "https://neetcode.io/practice",
+          "type": "practice",
+          "minutes": 1800,
+          "notes": "Work through arrays, hashing, two pointers, trees and graphs. Solve in Swift, out loud.",
+          "phaseId": "interview"
+        },
+        {
+          "id": "hws-questions",
+          "title": "iOS Interview Questions (Hacking with Swift)",
+          "url": "https://www.hackingwithswift.com/interview-questions",
+          "type": "practice",
+          "minutes": 300,
+          "notes": "Answer each question aloud before reading the hints, as you would in the interview.",
+          "phaseId": "interview"
+        },
+        {
+          "id": "mock",
+          "title": "Mock interview on interviewing.io",
+          "url": "https://interviewing.io/",
+          "type": "practice",
+          "minutes": 120,
+          "notes": "Book one timed mock in the last two weeks. Some sessions are paid.",
+          "phaseId": "interview"
+        }
+      ]
+    }
+  ]
+}

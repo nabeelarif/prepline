@@ -66,7 +66,7 @@ export function RestoreCard({ flow }: { flow: RestoreFlow }) {
         <div>
           <h3 id="restoreTitle">Restore Backup</h3>
           <p className="muted">
-            Recover your preparation data from a previously downloaded backup.
+            Recover a previously downloaded backup, or add plans from a Prepline file.
           </p>
         </div>
       </div>
@@ -144,7 +144,7 @@ const fmtExported = (s: string) =>
 
 /** Review, confirm, and the outcome, shown full width in place of the cards. */
 export function RestoreFlowPanel({ flow }: { flow: RestoreFlow }) {
-  const { state, reset, restore, confirm, backToReview } = flow;
+  const { state, reset, add, restore, retry, confirm, backToReview } = flow;
   const heading = useStepFocus(state.step);
 
   if (state.step === 'success') {
@@ -153,15 +153,20 @@ export function RestoreFlowPanel({ flow }: { flow: RestoreFlow }) {
       setPage('dashboard');
       closeOverlay();
     };
+    const added = state.mode === 'add';
     return (
       <div className="flow-panel center" role="status">
         <span className="tile good round" aria-hidden="true">
           <CircleCheck size={30} />
         </span>
         <h3 ref={heading} tabIndex={-1}>
-          Backup restored successfully
+          {added ? 'Plans added successfully' : 'Backup restored successfully'}
         </h3>
-        <p className="muted">Your preparation plans and progress are ready.</p>
+        <p className="muted">
+          {added
+            ? 'The new plans are next to your existing ones.'
+            : 'Your preparation plans and progress are ready.'}
+        </p>
         <button type="button" className="btn primary wide-btn" onClick={done}>
           Continue to Dashboard
         </button>
@@ -171,7 +176,7 @@ export function RestoreFlowPanel({ flow }: { flow: RestoreFlow }) {
   if (!('preview' in state)) return null;
   const { preview, fileName } = state;
 
-  if (state.step === 'confirming' || state.step === 'restoring')
+  if (state.step === 'confirming' || (state.step === 'restoring' && state.mode === 'replace'))
     return (
       <div className="flow-panel">
         <ConfirmPanel
@@ -198,18 +203,20 @@ export function RestoreFlowPanel({ flow }: { flow: RestoreFlow }) {
             <TriangleAlert size={22} />
           </span>
           <h3 ref={heading} tabIndex={-1}>
-            We couldn't restore your backup.
+            {state.mode === 'add'
+              ? "We couldn't add these plans."
+              : "We couldn't restore your backup."}
           </h3>
         </div>
         <p>
-          Your current data has not been replaced. This browser refused to save, which can happen in
+          Your current data has not been changed. This browser refused to save, which can happen in
           private browsing or when storage is full.
         </p>
         <div className="btn-row confirm-actions">
           <button type="button" className="btn" onClick={reset}>
             Cancel
           </button>
-          <button type="button" className="btn primary" onClick={restore}>
+          <button type="button" className="btn primary" onClick={retry}>
             Retry
           </button>
         </div>
@@ -217,14 +224,14 @@ export function RestoreFlowPanel({ flow }: { flow: RestoreFlow }) {
     );
 
   return (
-    <div className="flow-panel" role="region" aria-label="Backup contents">
+    <div className="flow-panel" role="region" aria-label="File contents">
       <div className="confirm-head">
         <span className="tile good" aria-hidden="true">
           <FileCheck size={22} />
         </span>
         <div>
           <h3 ref={heading} tabIndex={-1}>
-            Backup ready to restore
+            File ready to import
           </h3>
           <p className="file-name">{fileName}</p>
         </div>
@@ -262,15 +269,21 @@ export function RestoreFlowPanel({ flow }: { flow: RestoreFlow }) {
           ))}
         </ul>
       )}
+      <p className="muted">
+        Add to My Plans keeps everything saved in this browser and adds the plans from this file.
+      </p>
       <p className="backup-warn">
-        Restoring this backup will replace all preparation data currently saved in this browser.
+        Replace All Data deletes everything saved in this browser and restores this file instead.
       </p>
       <div className="btn-row confirm-actions">
         <button type="button" className="btn" onClick={reset}>
           Cancel
         </button>
-        <button type="button" className="btn primary" onClick={confirm}>
-          Restore Backup
+        <button type="button" className="btn" onClick={confirm}>
+          Replace All Data
+        </button>
+        <button type="button" className="btn primary" onClick={add}>
+          Add to My Plans
         </button>
       </div>
     </div>

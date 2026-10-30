@@ -6,19 +6,20 @@ import { useStore } from '../../state/store';
 export type RestoreFailure = ImportErrorKind | 'json' | 'read';
 
 /**
- * Restore steps. Only `restoring` touches saved data, and only after the user
- * confirmed. This state lives in the component and is never persisted.
+ * Restore steps. Only `restoring` touches saved data: after the user chose to add the
+ * file's plans, or confirmed replacing everything. This state lives in the component
+ * and is never persisted.
  */
 export type RestoreState =
   | { step: 'idle' }
   | { step: 'validating'; fileName: string }
   | { step: 'invalid'; fileName: string; reason: RestoreFailure; detail: string }
-  | {
-      step: 'review' | 'confirming' | 'restoring' | 'error';
-      fileName: string;
-      preview: ImportPreview;
-    }
-  | { step: 'success' };
+  | { step: 'review' | 'confirming'; fileName: string; preview: ImportPreview }
+  | { step: 'restoring' | 'error'; fileName: string; preview: ImportPreview; mode: RestoreMode }
+  | { step: 'success'; mode: RestoreMode };
+
+/** Add the file's plans next to the saved ones, or replace all saved data with the file. */
+export type RestoreMode = 'add' | 'replace';
 
 export type RestoreFlow = ReturnType<typeof useRestoreFlow>;
 
@@ -55,13 +56,27 @@ export function useRestoreFlow() {
   };
 
   const withPreview = (step: 'review' | 'confirming') =>
-    setState((s) => ('preview' in s ? { ...s, step } : s));
+    setState((s) => ('preview' in s ? { step, fileName: s.fileName, preview: s.preview } : s));
 
-  const restore = () => {
-    if (!('preview' in state) || (state.step !== 'confirming' && state.step !== 'error')) return;
-    setState({ ...state, step: 'restoring' });
-    const ok = useStore.getState().restoreBackup(state.preview.data);
-    setState(ok ? { step: 'success' } : { ...state, step: 'error' });
+  /**
+   * Applies the checked file. Adding is allowed straight from review because it
+   * keeps saved data; replacing needs the confirmation step first. Retry after an
+   * error repeats the same action.
+   */
+  const apply = (mode: RestoreMode) => {
+    if (!('preview' in state)) return;
+    const allowed =
+      state.step === 'error'
+        ? state.mode === mode
+        : mode === 'add'
+          ? state.step === 'review'
+          : state.step === 'confirming';
+    if (!allowed) return;
+    const { fileName, preview } = state;
+    setState({ step: 'restoring', fileName, preview, mode });
+    const { addPlans, restoreBackup } = useStore.getState();
+    const ok = (mode === 'add' ? addPlans : restoreBackup)(preview.data);
+    setState(ok ? { step: 'success', mode } : { step: 'error', fileName, preview, mode });
   };
 
   const reset = () => {
@@ -73,7 +88,11 @@ export function useRestoreFlow() {
     state,
     check,
     reset,
-    restore,
+    add: () => apply('add'),
+    restore: () => apply('replace'),
+    retry: () => {
+      if (state.step === 'error') apply(state.mode);
+    },
     confirm: () => withPreview('confirming'),
     backToReview: () => withPreview('review'),
   };

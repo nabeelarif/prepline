@@ -1,6 +1,6 @@
 import { produce, type Draft } from 'immer';
 import { create } from 'zustand';
-import { createEmptyAppData } from '../domain/backup';
+import { createEmptyAppData, mergePlans } from '../domain/backup';
 import { todayISO } from '../domain/dates';
 import { uid } from '../domain/format';
 import type { RoadmapView } from '../domain/roadmap';
@@ -92,6 +92,8 @@ export interface Store {
    * so it can show the result.
    */
   restoreBackup(data: AppData): boolean;
+  /** Adds the plans from a checked file next to the saved ones (see `mergePlans`), the same way. */
+  addPlans(data: AppData): boolean;
   /** Replaces all saved data with the empty state, the same way. Closes overlays on success. */
   deleteAllData(): boolean;
 }
@@ -385,6 +387,8 @@ export function createAppStore(storage: StorageAdapter = createLocalStorageAdapt
       dismissToast: () => setUi({ toast: null }),
 
       restoreBackup: (data) => replaceData(data, { overlay: { kind: 'data' } }),
+
+      addPlans: (data) => replaceData(mergePlans(get().data, data), { overlay: { kind: 'data' } }),
 
       deleteAllData: () => replaceData(createEmptyAppData(), toast('All Prepline data deleted')),
     };

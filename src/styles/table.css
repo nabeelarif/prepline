@@ -49,8 +49,12 @@
   /* Let the handle, not the page, receive touch moves. */
   touch-action: none;
 }
-.res-row:not(:hover, :has(+ .res-notes-row:hover)) .drag-handle:not(:focus-visible) {
+.res-row:not(:hover) .drag-handle:not(:focus-visible) {
   color: color-mix(in srgb, var(--muted) 60%, transparent);
+}
+/* Separate rule: a browser without :has() drops only this one. */
+.res-row:has(+ .res-notes-row:hover) .drag-handle {
+  color: var(--muted);
 }
 .is-reordering,
 .is-reordering .drag-handle {
@@ -177,8 +181,15 @@
   margin-left: auto;
   white-space: nowrap;
 }
-/* The row and its notes line read as one item. */
+/* The row and its notes line read as one item. :has() gets its own rule so a
+   browser without it still highlights the notes line when the row is hovered. */
+.res-notes-row {
+  transition: background-color 300ms;
+}
 .res-row:hover + .res-notes-row,
+.res-notes-row:hover {
+  background: var(--surface-2);
+}
 .res-row:has(+ .res-notes-row:hover) {
   background: var(--surface-2);
 }

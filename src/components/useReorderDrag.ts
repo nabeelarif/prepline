@@ -17,7 +17,8 @@ const EDGE = 60;
 /**
  * Pointer-based drag to reorder rows of a list (mouse and touch), plus arrow
  * keys on the handle. `ids` are the visible rows in order; each row element
- * must carry `data-reorder-id`. Only the visible rows are considered, so a
+ * must carry `data-reorder-id`, and any extra rows of the same item (such as a
+ * notes line) `data-reorder-part` with the same id. Only the visible rows are considered, so a
  * filtered list still drops next to the row the user sees.
  */
 export function useReorderDrag(ids: string[], place: Place) {
@@ -47,11 +48,12 @@ export function useReorderDrag(ids: string[], place: Place) {
       if (from < 0 || !list) return;
       e.preventDefault();
       e.currentTarget.setPointerCapture(e.pointerId);
-      // Row midpoints in page coordinates, so scrolling mid-drag stays accurate.
+      // Item midpoints in page coordinates, so scrolling mid-drag stays accurate.
       const mids = ids.map((x) => {
-        const el = list.querySelector(`[data-reorder-id="${x}"]`);
-        const r = el?.getBoundingClientRect();
-        return r ? r.top + window.scrollY + r.height / 2 : 0;
+        const top = list.querySelector(`[data-reorder-id="${x}"]`)?.getBoundingClientRect();
+        if (!top) return 0;
+        const part = list.querySelector(`[data-reorder-part="${x}"]`)?.getBoundingClientRect();
+        return (top.top + (part ?? top).bottom) / 2 + window.scrollY;
       });
       start.current = { y: e.clientY + window.scrollY, mids };
       setDrag({ id, from, to: from, dy: 0 });

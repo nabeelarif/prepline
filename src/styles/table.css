@@ -28,8 +28,13 @@
 .res-row {
   transition: background-color 300ms;
 }
+/* Alternate resources, a row and its notes line together. */
+.res-row.alt,
+.res-notes-row.alt {
+  background: var(--row-alt);
+}
 .res-row:hover {
-  background: color-mix(in srgb, var(--surface-2) 60%, transparent);
+  background: var(--surface-2);
 }
 .res-row.is-selected {
   background: var(--accent-soft);
@@ -44,7 +49,7 @@
   /* Let the handle, not the page, receive touch moves. */
   touch-action: none;
 }
-.res-row:not(:hover) .drag-handle:not(:focus-visible) {
+.res-row:not(:hover, :has(+ .res-notes-row:hover)) .drag-handle:not(:focus-visible) {
   color: color-mix(in srgb, var(--muted) 60%, transparent);
 }
 .is-reordering,
@@ -102,6 +107,86 @@
 .c-actions {
   width: 44px;
   text-align: right;
+}
+
+/* Notes: a line under the row, from the title to the right edge */
+.res-row.has-notes td {
+  border-bottom: none;
+  padding-bottom: 2px;
+}
+.res-notes-row td {
+  padding-top: 0;
+}
+.res-notes-line {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  /* Lines up with the title text, past the type icon. */
+  margin-left: 28px;
+}
+.res-notes {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+.res-notes.open {
+  display: block;
+  max-width: 90ch;
+  color: var(--fg);
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+.res-notes-row.open .res-notes-line {
+  align-items: flex-start;
+  padding: 10px 12px;
+  margin-left: 16px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+}
+.link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  justify-self: start;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.link-btn:hover {
+  text-decoration-thickness: 2px;
+}
+.res-notes-line .link-btn {
+  flex: none;
+  margin-left: auto;
+  white-space: nowrap;
+}
+/* The row and its notes line read as one item. */
+.res-row:hover + .res-notes-row,
+.res-row:has(+ .res-notes-row:hover) {
+  background: var(--surface-2);
+}
+.res-row.is-selected + .res-notes-row {
+  background: var(--accent-soft);
+}
+.res-notes-row.drop-after td {
+  box-shadow: inset 0 -2px 0 var(--accent);
 }
 
 /* Selected phase, above the table */

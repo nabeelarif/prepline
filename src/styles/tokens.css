@@ -9,6 +9,8 @@
   --bg: #f6f8fc;
   --surface: #ffffff;
   --surface-2: #f1f5f9;
+  /* Every other resource in the list. */
+  --row-alt: #f8fafc;
   --fg: #172033;
   --muted: #64748b;
   --line: #e2e8f0;
@@ -53,6 +55,7 @@
     --bg: #0b1220;
     --surface: #131c2e;
     --surface-2: #1b2639;
+    --row-alt: #172133;
     --fg: #e2e8f0;
     --muted: #94a3b8;
     --line: #26334a;
@@ -88,6 +91,7 @@
   --bg: #0b1220;
   --surface: #131c2e;
   --surface-2: #1b2639;
+  --row-alt: #172133;
   --fg: #e2e8f0;
   --muted: #94a3b8;
   --line: #26334a;

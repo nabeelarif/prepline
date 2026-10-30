@@ -144,6 +144,28 @@
   .res-row .c-phase .muted {
     display: none;
   }
+  .res-row.has-notes {
+    border-bottom: none;
+    padding-bottom: 4px;
+  }
+  .res-notes-row {
+    display: block;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--line);
+  }
+  .res-notes-row:last-child {
+    border-bottom: none;
+  }
+  .res-notes-row .c-drag {
+    display: none;
+  }
+  /* Lines up with the title: past the drag handle and the type icon. */
+  .res-notes-row .res-notes-line {
+    margin-left: 64px;
+  }
+  .res-notes-row.open .res-notes-line {
+    margin-left: 0;
+  }
 }
 @media (max-width: 560px) {
   .overlay {

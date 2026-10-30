@@ -1,8 +1,18 @@
-import { useEffect, useRef, type CSSProperties, type HTMLAttributes } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type HTMLAttributes,
+  type RefObject,
+} from 'react';
 import {
   ArrowDown,
   ArrowUp,
   Check,
+  ChevronDown,
+  ChevronUp,
   Ellipsis,
   FolderInput,
   Gauge,
@@ -29,17 +39,56 @@ interface Props {
   count: number;
   phases: Phase[];
   selected: boolean;
+  /** Every other visible resource gets a tinted background. */
+  alt: boolean;
   /** Pointer and key handlers for the drag handle, from `useReorderDrag`. */
   handle: HTMLAttributes<HTMLButtonElement>;
   drag: { dragging?: boolean; dy?: number; dropLine?: 'before' | 'after' };
 }
 
-export function ResourceRow({ r, index, count, phases, selected, handle, drag }: Props) {
+/**
+ * Whether a clamped element hides text: it overflows, or the text has line breaks
+ * that the clamped preview folds away. Re-measures when the element is resized
+ * or web fonts finish loading, which can lengthen the text without resizing the box.
+ * Pass `shown` false while the element is not rendered: observing starts again when
+ * it returns, and a removed element (which measures as empty) is never measured.
+ */
+function useClamped(ref: RefObject<HTMLElement | null>, text: string, shown: boolean): boolean {
+  const [clamped, setClamped] = useState(false);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!shown || !el) return;
+    const measure = () =>
+      setClamped(/\n/.test(text.trim()) || el.scrollHeight > el.clientHeight + 1);
+    measure();
+    // Missing in jsdom.
+    const fonts = document.fonts as FontFaceSet | undefined;
+    fonts?.addEventListener('loadingdone', measure);
+    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    ro?.observe(el);
+    return () => {
+      fonts?.removeEventListener('loadingdone', measure);
+      ro?.disconnect();
+    };
+  }, [ref, text, shown]);
+  return clamped;
+}
+
+export function ResourceRow({ r, index, count, phases, selected, alt, handle, drag }: Props) {
   const a = useStore.getState();
   const row = useRef<HTMLTableRowElement>(null);
   const status = resStatus(r);
   const href = safeUrl(r.url);
   const phase = phases.find((p) => p.id === r.phaseId);
+  const notes = r.notes.trim();
+  const [open, setOpen] = useState(false);
+  const preview = useRef<HTMLParagraphElement>(null);
+  // The notes line under the row; hidden while the row is dragged, as it does not move.
+  const notesRow = !!notes && !drag.dragging;
+  // Measured only while collapsed: open notes never overflow.
+  const clamped = useClamped(preview, notes, notesRow && !open);
+  // A drop line below this resource goes under its notes line instead.
+  const rowDrop = drag.dropLine === 'after' && notesRow ? undefined : drag.dropLine;
 
   useEffect(() => {
     if (!selected) return;
@@ -110,79 +159,119 @@ export function ResourceRow({ r, index, count, phases, selected, handle, drag }:
   });
 
   return (
-    <tr
-      ref={row}
-      id={`res-${r.id}`}
-      data-reorder-id={r.id}
-      className={`res-row${r.done ? ' done' : ''}${selected ? ' is-selected' : ''}${
-        drag.dragging ? ' dragging' : ''
-      }${drag.dropLine ? ` drop-${drag.dropLine}` : ''}`}
-      style={drag.dragging ? { transform: `translateY(${drag.dy ?? 0}px)` } : undefined}
-    >
-      <td className="c-drag">
-        <button
-          type="button"
-          className="icon-btn drag-handle"
-          aria-label={`Reorder ${r.title}`}
-          title="Drag to reorder, or use the arrow keys"
-          {...handle}
-        >
-          <GripVertical size={16} aria-hidden="true" />
-        </button>
-      </td>
-      <td className="c-title">
-        <div className="res-title">
-          <TypeIcon type={r.type} />
-          <div className="res-name">
-            {href ? (
-              <a href={href} target="_blank" rel="noopener noreferrer">
-                {r.title}
-              </a>
-            ) : (
-              <span>{r.title}</span>
-            )}
-            {href && <small>{hostOf(href)}</small>}
+    <>
+      <tr
+        ref={row}
+        id={`res-${r.id}`}
+        data-reorder-id={r.id}
+        className={`res-row${alt ? ' alt' : ''}${r.done ? ' done' : ''}${
+          selected ? ' is-selected' : ''
+        }${
+          notesRow ? ' has-notes' : ''
+        }${drag.dragging ? ' dragging' : ''}${rowDrop ? ` drop-${rowDrop}` : ''}`}
+        style={drag.dragging ? { transform: `translateY(${drag.dy ?? 0}px)` } : undefined}
+      >
+        <td className="c-drag">
+          <button
+            type="button"
+            className="icon-btn drag-handle"
+            aria-label={`Reorder ${r.title}`}
+            title="Drag to reorder, or use the arrow keys"
+            {...handle}
+          >
+            <GripVertical size={16} aria-hidden="true" />
+          </button>
+        </td>
+        <td className="c-title">
+          <div className="res-title">
+            <TypeIcon type={r.type} />
+            <div className="res-name">
+              {href ? (
+                <a href={href} target="_blank" rel="noopener noreferrer">
+                  {r.title}
+                </a>
+              ) : (
+                <span>{r.title}</span>
+              )}
+              {href && <small>{hostOf(href)}</small>}
+            </div>
           </div>
-        </div>
-      </td>
-      <td className="c-type">
-        <span className={`tag t-${r.type}`}>{TYPES[r.type]}</span>
-      </td>
-      <td className="c-time">{fmtHours(r.minutes)}</td>
-      <td className="c-status">
-        <div className="status-cell">
-          <StatusMenu r={r} />
-          {status === 'in_progress' && (
-            <button
-              type="button"
-              className="icon-btn progress-btn"
-              aria-label={`Update progress of ${r.title}`}
-              title="Update progress"
-              onClick={() => a.openOverlay({ kind: 'details', resourceId: r.id })}
+        </td>
+        <td className="c-type">
+          <span className={`tag t-${r.type}`}>{TYPES[r.type]}</span>
+        </td>
+        <td className="c-time">{fmtHours(r.minutes)}</td>
+        <td className="c-status">
+          <div className="status-cell">
+            <StatusMenu r={r} />
+            {status === 'in_progress' && (
+              <button
+                type="button"
+                className="icon-btn progress-btn"
+                aria-label={`Update progress of ${r.title}`}
+                title="Update progress"
+                onClick={() => a.openOverlay({ kind: 'details', resourceId: r.id })}
+              >
+                <Gauge size={15} aria-hidden="true" />
+              </button>
+            )}
+          </div>
+        </td>
+        <td className="c-phase">
+          {phase ? (
+            <span
+              className="ph-tag"
+              style={{ '--ph': `var(--ph-${phase.color})` } as CSSProperties}
             >
-              <Gauge size={15} aria-hidden="true" />
-            </button>
+              {phase.name}
+            </span>
+          ) : (
+            <span className="muted">—</span>
           )}
-        </div>
-      </td>
-      <td className="c-phase">
-        {phase ? (
-          <span className="ph-tag" style={{ '--ph': `var(--ph-${phase.color})` } as CSSProperties}>
-            {phase.name}
-          </span>
-        ) : (
-          <span className="muted">—</span>
-        )}
-      </td>
-      <td className="c-actions">
-        <Menu
-          label={`Actions for ${r.title}`}
-          triggerClass="icon-btn"
-          trigger={<Ellipsis size={18} />}
-          align="end"
-          items={items}
-        />
-      </td>
-    </tr>
+        </td>
+        <td className="c-actions">
+          <Menu
+            label={`Actions for ${r.title}`}
+            triggerClass="icon-btn"
+            trigger={<Ellipsis size={18} />}
+            align="end"
+            items={items}
+          />
+        </td>
+      </tr>
+      {notesRow && (
+        <tr
+          className={`res-notes-row${alt ? ' alt' : ''}${open ? ' open' : ''}${
+            drag.dropLine === 'after' ? ' drop-after' : ''
+          }`}
+          data-reorder-part={r.id}
+        >
+          <td className="c-drag" />
+          <td colSpan={6}>
+            <div className="res-notes-line">
+              <p id={`notes-${r.id}`} className={`res-notes${open ? ' open' : ''}`} ref={preview}>
+                {notes}
+              </p>
+              {(open || clamped) && (
+                <button
+                  type="button"
+                  className="link-btn"
+                  aria-expanded={open}
+                  aria-controls={`notes-${r.id}`}
+                  onClick={() => setOpen(!open)}
+                >
+                  {open ? 'Show less' : 'Show more'}
+                  {open ? (
+                    <ChevronUp size={15} aria-hidden="true" />
+                  ) : (
+                    <ChevronDown size={15} aria-hidden="true" />
+                  )}
+                </button>
+              )}
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
   );
 }

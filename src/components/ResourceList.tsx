@@ -148,7 +148,7 @@ export function ResourceList({ goal }: { goal: Goal }) {
               </tr>
             </thead>
             <tbody>
-              {rows.map(({ r, i }) => (
+              {rows.map(({ r, i }, pos) => (
                 <ResourceRow
                   key={r.id}
                   r={r}
@@ -156,6 +156,7 @@ export function ResourceList({ goal }: { goal: Goal }) {
                   count={all.length}
                   phases={goal.phases}
                   selected={r.id === selected}
+                  alt={pos % 2 === 1}
                   handle={reorder.handleProps(r.id)}
                   drag={reorder.rowState(r.id)}
                 />

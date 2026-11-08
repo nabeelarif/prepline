@@ -255,11 +255,11 @@ test('definition of done: two resources in progress at once, then export and res
     page.waitForEvent('download'),
     page.getByRole('button', { name: 'Download Backup' }).click(),
   ]);
-  expect(download.suggestedFilename()).toMatch(/^prepline-backup-\d{4}-\d{2}-\d{2}\.json$/);
+  expect(download.suggestedFilename()).toMatch(/^roadtogoals-backup-\d{4}-\d{2}-\d{2}\.json$/);
   const backup = Buffer.concat(await (await download.createReadStream()).toArray());
   await page.getByRole('button', { name: 'Delete All Data' }).click();
   await page
-    .getByRole('alertdialog', { name: 'Delete all Prepline data?' })
+    .getByRole('alertdialog', { name: 'Delete all Road to Goals data?' })
     .getByRole('button', { name: 'Delete All Data' })
     .click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(
@@ -298,7 +298,7 @@ test('adds the documented agent plan next to an existing plan', async ({ page })
   await expect(page.locator('.plan-card')).toHaveCount(2);
 });
 
-test('rejects a file that is not a Prepline backup', async ({ page }) => {
+test('rejects a file that is not a Road to Goals backup', async ({ page }) => {
   await createPlan(page, 'Keep me');
   await page.getByRole('button', { name: 'My Plans' }).click();
   await page.getByRole('button', { name: 'Backup and restore' }).click();

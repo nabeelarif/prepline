@@ -42,7 +42,7 @@ export function useRestoreFlow() {
       try {
         raw = JSON.parse(String(rd.result ?? ''));
       } catch {
-        return fail(fileName, 'json', 'The file is damaged or is not a Prepline backup.');
+        return fail(fileName, 'json', 'The file is damaged or is not a Road to Goals backup.');
       }
       const r = previewImport(raw);
       if (!r.ok) return fail(fileName, r.kind, r.error);

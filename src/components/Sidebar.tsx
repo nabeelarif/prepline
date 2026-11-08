@@ -20,7 +20,7 @@ export function Sidebar() {
       <aside className={`side${navOpen ? ' open' : ''}`} id="sidebar">
         <div className="brand">
           <Logo />
-          <span>Prepline</span>
+          <span>Road to Goals</span>
         </div>
         <nav aria-label="Main">
           <ul className="nav">

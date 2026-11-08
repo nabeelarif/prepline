@@ -1,6 +1,6 @@
-# Prepline
+# Road to Goals
 
-Collect the articles, videos, courses and practice you plan to get through, and follow them as a preparation journey toward a target date. Prepline shows how far you've come, what to work on next, and whether you're on track.
+Collect the articles, videos, courses and practice you plan to get through, and follow them as a preparation journey toward a target date. Road to Goals shows how far you've come, what to work on next, and whether you're on track.
 
 ## Features
 
@@ -18,9 +18,9 @@ Collect the articles, videos, courses and practice you plan to get through, and 
 
 ## Architecture
 
-Prepline runs entirely in the browser. It has four layers (UI, state, domain and storage), one-way data flow and a core of pure functions.
+Road to Goals runs entirely in the browser. It has four layers (UI, state, domain and storage), one-way data flow and a core of pure functions.
 
-![Prepline architecture and data flow](docs/architecture.png)
+![Road to Goals architecture and data flow](docs/architecture.png)
 
 ## Development
 
@@ -28,7 +28,7 @@ Requires Node 22 or newer.
 
 ```bash
 npm install
-npm run dev          # dev server at http://localhost:5173/prepline/
+npm run dev          # dev server at http://localhost:5173/
 npm test             # unit tests (Vitest)
 npm run test:e2e     # browser tests (Playwright); run `npx playwright install chromium` once first
 npm run lint
@@ -40,10 +40,11 @@ Built with Vite, React, TypeScript, Zustand and Zod.
 
 ## Deploy to GitHub Pages
 
-1. Push the repo to GitHub. If it is not named `prepline`, change `base` in `vite.config.ts` to `/<repo-name>/`.
+1. Push the repo to GitHub.
 2. In the repo, go to **Settings → Pages** and set **Source** to **GitHub Actions**.
-3. Every push to `main` builds and deploys the site through `.github/workflows/deploy.yml`. It is live at `https://<your-username>.github.io/prepline/`.
+3. Every push to `main` builds and deploys the site through `.github/workflows/deploy.yml`. It is live at https://roadtogoals.com.
+4. The custom domain comes from `public/CNAME`. In **Settings → Pages**, set the custom domain to `roadtogoals.com`, point DNS at GitHub Pages, and enable **Enforce HTTPS**. Because it is served from the domain root, `base` in `vite.config.ts` is `/`.
 
 ## Data
 
-Everything lives in your browser's localStorage under the key `prepline:v1`. Clearing site data erases it, and it does not sync between browsers or devices. Use **Backup and restore** to export a JSON file now and then.
+Everything lives in your browser's localStorage under the key `roadtogoals:v1`. Clearing site data erases it, and it does not sync between browsers or devices. Use **Backup and restore** to export a JSON file now and then.

@@ -43,7 +43,7 @@ function open() {
   fireEvent.click(screen.getByRole('button', { name: 'Backup and restore' }));
 }
 
-function pick(contents: string, name = 'prepline-backup-2026-10-20.json') {
+function pick(contents: string, name = 'roadtogoals-backup-2026-10-20.json') {
   const file = new File([contents], name, { type: 'application/json' });
   fireEvent.change(screen.getByLabelText('Backup file'), { target: { files: [file] } });
 }
@@ -70,7 +70,7 @@ describe('Backup and Restore', () => {
     expect(screen.queryByRole('textbox')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Download Backup' }));
     const a = click.mock.contexts[0] as HTMLAnchorElement;
-    expect(a.download).toMatch(/^prepline-backup-\d{4}-\d{2}-\d{2}\.json$/);
+    expect(a.download).toMatch(/^roadtogoals-backup-\d{4}-\d{2}-\d{2}\.json$/);
     expect(blob?.type).toBe('application/json');
     expect(screen.getByText('Your backup download has started.')).toBeVisible();
   });
@@ -80,7 +80,7 @@ describe('Backup and Restore', () => {
     const before = saved();
     pick(JSON.stringify(backup));
     const review = await screen.findByRole('region', { name: 'File contents' });
-    expect(within(review).getByText('prepline-backup-2026-10-20.json')).toBeVisible();
+    expect(within(review).getByText('roadtogoals-backup-2026-10-20.json')).toBeVisible();
     const stats = within(review)
       .getAllByRole('definition')
       .map((d) => d.textContent);
@@ -181,7 +181,7 @@ describe('Add to My Plans', () => {
 
   it('adds the plans next to the current ones, with no confirmation', async () => {
     open();
-    pick(JSON.stringify(backup), 'prepline-plan-ios.json');
+    pick(JSON.stringify(backup), 'roadtogoals-plan-ios.json');
     fireEvent.click(await screen.findByRole('button', { name: 'Add to My Plans' }));
     expect(screen.getByText('Plans added successfully')).toBeVisible();
     expect(names()).toEqual(['Current plan', 'Restored plan', 'Second']);
@@ -224,7 +224,7 @@ describe('Delete All Data', () => {
   it('keeps everything when cancelled, by button or Escape', () => {
     open();
     fireEvent.click(screen.getByRole('button', { name: 'Delete All Data' }));
-    const confirm = screen.getByRole('alertdialog', { name: 'Delete all Prepline data?' });
+    const confirm = screen.getByRole('alertdialog', { name: 'Delete all Road to Goals data?' });
     fireEvent.click(within(confirm).getByRole('button', { name: 'Cancel' }));
     fireEvent.click(screen.getByRole('button', { name: 'Delete All Data' }));
     fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
@@ -243,7 +243,7 @@ describe('Delete All Data', () => {
       screen.getByRole('heading', { level: 1, name: 'Start your preparation journey' }),
     ).toBeVisible();
     expect(screen.getByRole('button', { name: 'Create Your First Plan' })).toBeVisible();
-    expect(screen.getByRole('status')).toHaveTextContent('All Prepline data deleted');
+    expect(screen.getByRole('status')).toHaveTextContent('All Road to Goals data deleted');
     expect(JSON.parse(saved()!)).toEqual({ version: 1, activeGoalId: null, goals: [] });
     expect(localStorage.getItem('other:key')).toBe('keep me');
   });

@@ -2,8 +2,8 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
-  // GitHub Pages serves the site from /<repo-name>/. Change this if the repo is renamed.
-  base: '/prepline/',
+  // Served from the custom domain roadtogoals.com (public/CNAME), so the base is the root.
+  base: '/',
   plugins: [react()],
   test: {
     globals: true,

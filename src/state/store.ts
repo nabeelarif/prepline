@@ -390,7 +390,8 @@ export function createAppStore(storage: StorageAdapter = createLocalStorageAdapt
 
       addPlans: (data) => replaceData(mergePlans(get().data, data), { overlay: { kind: 'data' } }),
 
-      deleteAllData: () => replaceData(createEmptyAppData(), toast('All Prepline data deleted')),
+      deleteAllData: () =>
+        replaceData(createEmptyAppData(), toast('All Road to Goals data deleted')),
     };
   });
 }

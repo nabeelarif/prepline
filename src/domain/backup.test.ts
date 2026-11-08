@@ -44,8 +44,10 @@ const data: AppData = {
 describe('backup', () => {
   it('names the file with the local date', () => {
     // 23:30 local on Oct 28 is already Oct 29 in UTC for zones west of UTC; the name must not shift.
-    expect(backupFileName(new Date(2026, 9, 28, 23, 30))).toBe('prepline-backup-2026-10-28.json');
-    expect(backupFileName(new Date(2026, 0, 2, 0, 5))).toBe('prepline-backup-2026-01-02.json');
+    expect(backupFileName(new Date(2026, 9, 28, 23, 30))).toBe(
+      'roadtogoals-backup-2026-10-28.json',
+    );
+    expect(backupFileName(new Date(2026, 0, 2, 0, 5))).toBe('roadtogoals-backup-2026-01-02.json');
   });
 
   it('exports valid JSON holding everything that is saved, plus the export time', () => {

@@ -1,8 +1,8 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { App } from '../../App';
-import { STORAGE_KEY } from '../../domain/constants';
 import type { AppData } from '../../domain/types';
 import { useStore } from '../../state/store';
+import { memory, resetApp, serverData } from '../../test/harness';
 
 const plan = (id: string, name: string) => ({
   id,
@@ -34,12 +34,13 @@ const backup = {
   ],
 };
 
-const saved = () => localStorage.getItem(STORAGE_KEY);
+/** The backend's copy of the data, as text so before/after can be compared. */
+const saved = () => JSON.stringify(serverData());
 const dialog = () => screen.getByRole('dialog');
 
-function open() {
+async function open() {
   render(<App />);
-  fireEvent.click(screen.getByRole('button', { name: 'My Plans' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'My Plans' }));
   fireEvent.click(screen.getByRole('button', { name: 'Backup and restore' }));
 }
 
@@ -48,25 +49,16 @@ function pick(contents: string, name = 'roadtogoals-backup-2026-10-20.json') {
   fireEvent.change(screen.getByLabelText('Backup file'), { target: { files: [file] } });
 }
 
-beforeEach(() => {
-  useStore.getState().restoreBackup(current);
-  useStore.getState().closeOverlay();
-  localStorage.setItem('other:key', 'keep me');
-});
-
-afterEach(() => {
-  vi.restoreAllMocks();
-  useStore.getState().deleteAllData();
-  localStorage.removeItem('other:key');
-});
+beforeEach(() => resetApp(current));
+afterEach(() => vi.restoreAllMocks());
 
 describe('Backup and Restore', () => {
-  it('downloads the backup in one click, with no JSON on screen', () => {
+  it('downloads the backup in one click, with no JSON on screen', async () => {
     let blob: Blob | undefined;
     URL.createObjectURL = vi.fn((b: Blob) => ((blob = b), 'blob:x'));
     URL.revokeObjectURL = vi.fn();
     const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
-    open();
+    await open();
     expect(screen.queryByRole('textbox')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Download Backup' }));
     const a = click.mock.contexts[0] as HTMLAnchorElement;
@@ -76,7 +68,7 @@ describe('Backup and Restore', () => {
   });
 
   it('reviews a valid backup without changing anything', async () => {
-    open();
+    await open();
     const before = saved();
     pick(JSON.stringify(backup));
     const review = await screen.findByRole('region', { name: 'File contents' });
@@ -92,7 +84,7 @@ describe('Backup and Restore', () => {
   });
 
   it('hides the creation date for backups that do not record one', async () => {
-    open();
+    await open();
     pick(JSON.stringify({ ...backup, exportedAt: undefined }));
     const review = await screen.findByRole('region', { name: 'File contents' });
     expect(review).not.toHaveTextContent('Created');
@@ -104,7 +96,7 @@ describe('Backup and Restore', () => {
     ['{"plans": []}', 'Missing or invalid data'],
     ['{"goals": [{"resources": []}]}', 'Missing or invalid data'],
   ])('turns away %s', async (contents, reason) => {
-    open();
+    await open();
     const before = saved();
     pick(contents);
     const alert = await screen.findByRole('alert');
@@ -116,7 +108,7 @@ describe('Backup and Restore', () => {
   });
 
   it('cancels from review and from the confirmation without changing data', async () => {
-    open();
+    await open();
     const before = saved();
     pick(JSON.stringify(backup));
     await screen.findByRole('region', { name: 'File contents' });
@@ -140,11 +132,11 @@ describe('Backup and Restore', () => {
   });
 
   it('restores after confirmation and shows the restored dashboard', async () => {
-    open();
+    await open();
     pick(JSON.stringify(backup));
     fireEvent.click(await screen.findByRole('button', { name: 'Replace All Data' }));
     fireEvent.click(screen.getByRole('button', { name: 'Replace and Restore' }));
-    expect(screen.getByText('Backup restored successfully')).toBeVisible();
+    expect(await screen.findByText('Backup restored successfully')).toBeVisible();
     expect(JSON.parse(saved()!).goals.map((g: { name: string }) => g.name)).toEqual([
       'Restored plan',
       'Second',
@@ -154,25 +146,22 @@ describe('Backup and Restore', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Restored plan' })).toBeVisible();
   });
 
-  it('says so, and keeps the current data, when the browser refuses to save', async () => {
-    open();
+  it('says so, and keeps the current data, when the server refuses to save', async () => {
+    await open();
     const before = saved();
     pick(JSON.stringify(backup));
     fireEvent.click(await screen.findByRole('button', { name: 'Replace All Data' }));
-    vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
-      throw new DOMException('Quota exceeded', 'QuotaExceededError');
-    });
+    memory().failNext(1);
     fireEvent.click(screen.getByRole('button', { name: 'Replace and Restore' }));
-    expect(within(dialog()).getByRole('alert')).toHaveTextContent(
+    expect(await within(dialog()).findByRole('alert')).toHaveTextContent(
       "We couldn't restore your backup.Your current data has not been changed.",
     );
     expect(screen.queryByText('Backup restored successfully')).toBeNull();
     expect(saved()).toBe(before);
     expect(useStore.getState().data).toEqual(current);
 
-    vi.restoreAllMocks();
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
-    expect(screen.getByText('Backup restored successfully')).toBeVisible();
+    expect(await screen.findByText('Backup restored successfully')).toBeVisible();
   });
 });
 
@@ -180,10 +169,10 @@ describe('Add to My Plans', () => {
   const names = () => useStore.getState().data.goals.map((g) => g.name);
 
   it('adds the plans next to the current ones, with no confirmation', async () => {
-    open();
+    await open();
     pick(JSON.stringify(backup), 'roadtogoals-plan-ios.json');
     fireEvent.click(await screen.findByRole('button', { name: 'Add to My Plans' }));
-    expect(screen.getByText('Plans added successfully')).toBeVisible();
+    expect(await screen.findByText('Plans added successfully')).toBeVisible();
     expect(names()).toEqual(['Current plan', 'Restored plan', 'Second']);
     const added = useStore.getState().data.goals[1]!;
     expect(added.id).not.toBe('b');
@@ -193,36 +182,35 @@ describe('Add to My Plans', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Restored plan' })).toBeVisible();
   });
 
-  it('keeps the current data when the browser refuses to save, then retries', async () => {
-    open();
+  it('keeps the current data when the server refuses to save, then retries', async () => {
+    await open();
     const before = saved();
     pick(JSON.stringify(backup));
     const add = await screen.findByRole('button', { name: 'Add to My Plans' });
-    vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
-      throw new DOMException('Quota exceeded', 'QuotaExceededError');
-    });
+    memory().failNext(1);
     fireEvent.click(add);
-    expect(within(dialog()).getByRole('alert')).toHaveTextContent("We couldn't add these plans.");
+    expect(await within(dialog()).findByRole('alert')).toHaveTextContent(
+      "We couldn't add these plans.",
+    );
     expect(saved()).toBe(before);
     expect(useStore.getState().data).toEqual(current);
 
-    vi.restoreAllMocks();
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
-    expect(screen.getByText('Plans added successfully')).toBeVisible();
+    expect(await screen.findByText('Plans added successfully')).toBeVisible();
     expect(names()).toEqual(['Current plan', 'Restored plan', 'Second']);
   });
 });
 
 describe('Delete All Data', () => {
-  it('is offered directly, with no Reset to Default', () => {
-    open();
+  it('is offered directly, with no Reset to Default', async () => {
+    await open();
     expect(screen.getByRole('button', { name: 'Delete All Data' })).toBeVisible();
     expect(screen.queryByText(/Advanced Options/)).toBeNull();
     expect(screen.queryByText(/Reset to default/i)).toBeNull();
   });
 
-  it('keeps everything when cancelled, by button or Escape', () => {
-    open();
+  it('keeps everything when cancelled, by button or Escape', async () => {
+    await open();
     fireEvent.click(screen.getByRole('button', { name: 'Delete All Data' }));
     const confirm = screen.getByRole('alertdialog', { name: 'Delete all Road to Goals data?' });
     fireEvent.click(within(confirm).getByRole('button', { name: 'Cancel' }));
@@ -232,32 +220,31 @@ describe('Delete All Data', () => {
     expect(useStore.getState().data).toEqual(current);
   });
 
-  it('deletes everything and shows the first-run screen, leaving other storage alone', () => {
-    open();
+  it('deletes everything and shows the first-run screen, and removes it from the backend', async () => {
+    await open();
     fireEvent.click(screen.getByRole('button', { name: 'Delete All Data' }));
     fireEvent.click(
       within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Delete All Data' }),
     );
-    expect(screen.queryByRole('dialog')).toBeNull();
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(
       screen.getByRole('heading', { level: 1, name: 'Start your preparation journey' }),
     ).toBeVisible();
     expect(screen.getByRole('button', { name: 'Create Your First Plan' })).toBeVisible();
-    expect(screen.getByRole('status')).toHaveTextContent('All Road to Goals data deleted');
+    expect(await screen.findByText('All Road to Goals data deleted')).toBeVisible();
     expect(JSON.parse(saved()!)).toEqual({ version: 1, activeGoalId: null, goals: [] });
-    expect(localStorage.getItem('other:key')).toBe('keep me');
   });
 
-  it('keeps the data and says so when deleting cannot be saved', () => {
-    open();
-    vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
-      throw new DOMException('Quota exceeded', 'QuotaExceededError');
-    });
+  it('keeps the data and says so when deleting fails', async () => {
+    await open();
+    memory().failNext(1);
     fireEvent.click(screen.getByRole('button', { name: 'Delete All Data' }));
     fireEvent.click(
       within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Delete All Data' }),
     );
-    expect(within(dialog()).getByRole('alert')).toHaveTextContent("We couldn't delete your data.");
+    expect(await within(dialog()).findByRole('alert')).toHaveTextContent(
+      "We couldn't delete your data.",
+    );
     expect(useStore.getState().data).toEqual(current);
   });
 });

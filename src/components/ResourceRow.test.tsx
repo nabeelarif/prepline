@@ -1,11 +1,11 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { App } from '../App';
 import { parseAppData } from '../domain/schema';
-import { useStore } from '../state/store';
+import { resetApp } from '../test/harness';
 
 const resources = () => screen.getByRole('region', { name: /^Resources/ });
 
-function show(notes: Record<string, string>) {
+async function show(notes: Record<string, string>) {
   const data = parseAppData({
     goals: [
       {
@@ -15,26 +15,25 @@ function show(notes: Record<string, string>) {
       },
     ],
   })!;
-  useStore.getState().restoreBackup(data);
-  useStore.getState().closeOverlay();
+  await resetApp(data);
   render(<App />);
+  await screen.findByRole('region', { name: /^Resources/ });
 }
 
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
-  useStore.getState().deleteAllData();
 });
 
 describe('Resource notes', () => {
-  it('shows nothing extra for a resource without notes', () => {
-    show({ Plain: '' });
+  it('shows nothing extra for a resource without notes', async () => {
+    await show({ Plain: '' });
     expect(resources().querySelector('.res-notes-row')).toBeNull();
     expect(resources().querySelector('.res-row')).not.toHaveClass('has-notes');
   });
 
-  it('shows short notes on their own line under the row, with no Show more', () => {
-    show({ Short: 'Read the intro.' });
+  it('shows short notes on their own line under the row, with no Show more', async () => {
+    await show({ Short: 'Read the intro.' });
     const line = within(resources()).getByText('Read the intro.');
     expect(line.closest('tr')).toHaveClass('res-notes-row');
     expect(line.closest('tr')!.previousElementSibling).toHaveClass('res-row', 'has-notes');
@@ -42,9 +41,9 @@ describe('Resource notes', () => {
     expect(within(resources()).queryByRole('button', { name: /Show/ })).toBeNull();
   });
 
-  it('opens multi-line notes in full and closes them again with the same button', () => {
+  it('opens multi-line notes in full and closes them again with the same button', async () => {
     const notes = 'Understand memory.\n\n- Read ARC\n- Fix a retain cycle';
-    show({ Memory: notes });
+    await show({ Memory: notes });
     const toggle = within(resources()).getByRole('button', { name: 'Show more' });
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     toggle.focus();
@@ -62,14 +61,14 @@ describe('Resource notes', () => {
     expect(text).not.toHaveClass('open');
   });
 
-  it('offers Show more when one long line overflows the preview', () => {
+  it('offers Show more when one long line overflows the preview', async () => {
     vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(80);
     vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(36);
-    show({ Long: 'A very long single line of notes. '.repeat(10) });
+    await show({ Long: 'A very long single line of notes. '.repeat(10) });
     expect(within(resources()).getByRole('button', { name: 'Show more' })).toBeVisible();
   });
 
-  it('offers Show more again after Show less', () => {
+  it('offers Show more again after Show less', async () => {
     // A detached element measures as empty, as in a browser.
     vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockImplementation(function (
       this: HTMLElement,
@@ -94,7 +93,7 @@ describe('Resource notes', () => {
         }
       },
     );
-    show({ Long: 'A very long single line of notes. '.repeat(10) });
+    await show({ Long: 'A very long single line of notes. '.repeat(10) });
     const resize = () => act(() => live.forEach((cb) => cb()));
 
     fireEvent.click(within(resources()).getByRole('button', { name: 'Show more' }));
@@ -104,14 +103,14 @@ describe('Resource notes', () => {
     expect(within(resources()).getByRole('button', { name: 'Show more' })).toBeVisible();
   });
 
-  it('shows notes as plain text, never as HTML', () => {
-    show({ Markup: '<b>bold</b>' });
+  it('shows notes as plain text, never as HTML', async () => {
+    await show({ Markup: '<b>bold</b>' });
     expect(within(resources()).getByText('<b>bold</b>')).toBeVisible();
     expect(resources().querySelector('.res-notes b')).toBeNull();
   });
 
-  it("alternates backgrounds by visible resource, with notes in their row's color", () => {
-    useStore.getState().restoreBackup(
+  it("alternates backgrounds by visible resource, with notes in their row's color", async () => {
+    await resetApp(
       parseAppData({
         goals: [
           {
@@ -125,8 +124,8 @@ describe('Resource notes', () => {
         ],
       })!,
     );
-    useStore.getState().closeOverlay();
     render(<App />);
+    await screen.findByRole('region', { name: /^Resources/ });
     const alt = () =>
       [...resources().querySelectorAll('tbody tr')].map(
         (tr) =>

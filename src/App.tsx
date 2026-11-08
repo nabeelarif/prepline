@@ -10,9 +10,13 @@ import { Logo } from './components/icons';
 import { MyPlans } from './components/MyPlans';
 import { Overlay } from './components/Overlay';
 import { Sidebar } from './components/Sidebar';
-import { StorageBanner } from './components/StorageBanner';
+import { AuthGate } from './components/AuthGate';
+import { AccountPanel } from './components/forms/AccountPanel';
+import { ConfigErrorScreen, LoadErrorScreen, LoadingScreen } from './components/StatusScreens';
+import { SyncBanner } from './components/SyncBanner';
 import { Toast } from './components/Toast';
-import { useActiveGoal, useStore } from './state/store';
+import { useEffect } from 'react';
+import { backendConfigError, useActiveGoal, useStore } from './state/store';
 
 function OverlayContent() {
   const overlay = useStore((s) => s.ui.overlay);
@@ -25,6 +29,8 @@ function OverlayContent() {
     content = <GoalForm goal={g} />;
   } else if (overlay.kind === 'data') {
     content = <DataPanel />;
+  } else if (overlay.kind === 'account') {
+    content = <AccountPanel />;
   } else {
     if (!goal) return null;
     if (overlay.kind === 'resource') {
@@ -74,7 +80,7 @@ function NoPlans() {
   );
 }
 
-export function App() {
+function Shell() {
   const goal = useActiveGoal();
   const page = useStore((s) => s.ui.page);
   const navOpen = useStore((s) => s.ui.navOpen);
@@ -100,7 +106,7 @@ export function App() {
         </div>
         <Sidebar />
         <main className="main">
-          <StorageBanner />
+          <SyncBanner />
           {page === 'plans' ? <MyPlans /> : goal ? <GoalView goal={goal} /> : <NoPlans />}
         </main>
       </div>
@@ -108,4 +114,19 @@ export function App() {
       <Toast />
     </>
   );
+}
+
+/** What to show before the app itself: configuration, sign-in and loading states. */
+export function App() {
+  const auth = useStore((s) => s.auth.status);
+  const load = useStore((s) => s.load.status);
+
+  useEffect(() => (backendConfigError ? undefined : useStore.getState().init()), []);
+
+  if (backendConfigError) return <ConfigErrorScreen />;
+  if (auth === 'loading') return <LoadingScreen label="Loading…" />;
+  if (auth === 'signedOut') return <AuthGate />;
+  if (load === 'error') return <LoadErrorScreen />;
+  if (load !== 'ready') return <LoadingScreen />;
+  return <Shell />;
 }

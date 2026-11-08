@@ -12,13 +12,14 @@ Collect the articles, videos, courses and practice you plan to get through, and 
 - **Optional phases:** group resources into milestones such as "Foundations" or "System Design", with a description and colour. The Phases view shows progress per phase, weighted by hours. Resources without a phase stay under "Unorganized".
 - **Continue Learning:** a card that points to the first resource in progress, or the next one to start.
 - **Resource list:** filter by type and status, change status from each row, drag rows by their handle to reorder (or use the arrow keys on the handle), and move resources between phases.
-- **Backups:** data is saved in the browser (localStorage). You can export it as JSON. Importing checks the file and shows a preview, then either adds its plans to yours or replaces everything.
+- **Accounts and sync:** sign in with Google, X, or email and password. Plans are saved to your account (Supabase), so they follow you across devices, and you can link several sign-in methods to the same account.
+- **Backups:** you can export your data as JSON. Importing checks the file and shows a preview, then either adds its plans to yours or replaces everything.
 - **Agent-made plans:** give an AI agent [docs/agent-plan-format.md](docs/agent-plan-format.md) and ask for a plan, for example "iOS developer interview preparation, ready by 2026-12-31, 2 hours a day". It returns a JSON file you import with **Add to My Plans**.
 - **Responsive design** with light and dark themes. The sidebar switch follows your system setting or keeps the one you pick.
 
 ## Architecture
 
-Road to Goals runs entirely in the browser. It has four layers (UI, state, domain and storage), one-way data flow and a core of pure functions.
+Road to Goals is a static front end that stores data in Supabase. It has these layers: UI, state, domain, and a replaceable backend (repository and auth interfaces, with a Supabase implementation). Data flow is one-way and the core is pure functions. The diagram below predates the backend and still shows browser storage.
 
 ![Road to Goals architecture and data flow](docs/architecture.png)
 
@@ -36,15 +37,15 @@ npm run typecheck
 npm run build        # production build in dist/
 ```
 
-Built with Vite, React, TypeScript, Zustand and Zod.
+Built with Vite, React, TypeScript, Zustand, Zod and Supabase. Set up the backend first: see [docs/supabase-setup.md](docs/supabase-setup.md). Without `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` the app shows a configuration error and saves nothing.
 
 ## Deploy to GitHub Pages
 
 1. Push the repo to GitHub.
 2. In the repo, go to **Settings → Pages** and set **Source** to **GitHub Actions**.
-3. Every push to `main` builds and deploys the site through `.github/workflows/deploy.yml`. It is live at https://roadtogoals.com.
+3. Add the repository variables `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (**Settings → Secrets and variables → Actions → Variables**). Every push to `main` builds and deploys the site through `.github/workflows/deploy.yml`. It is live at https://roadtogoals.com.
 4. The custom domain comes from `public/CNAME`. In **Settings → Pages**, set the custom domain to `roadtogoals.com`, point DNS at GitHub Pages, and enable **Enforce HTTPS**. Because it is served from the domain root, `base` in `vite.config.ts` is `/`.
 
 ## Data
 
-Everything lives in your browser's localStorage under the key `roadtogoals:v1`. Clearing site data erases it, and it does not sync between browsers or devices. Use **Backup and restore** to export a JSON file now and then.
+Your plans, resources, progress, notes and order live in your Supabase account and are loaded on every visit. Only your sign-in session and the theme choice stay in the browser. Use **Backup and restore** to export a JSON file now and then, or to import one.

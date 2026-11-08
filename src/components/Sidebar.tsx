@@ -1,4 +1,4 @@
-import { House, LayoutList } from 'lucide-react';
+import { House, LayoutList, UserRound } from 'lucide-react';
 import { useStore, type Page } from '../state/store';
 import { Logo } from './icons';
 import { ThemeSwitch } from './ThemeSwitch';
@@ -11,7 +11,9 @@ const NAV: [Page, string, typeof House][] = [
 export function Sidebar() {
   const page = useStore((s) => s.ui.page);
   const navOpen = useStore((s) => s.ui.navOpen);
-  const storageOK = useStore((s) => s.storageOK);
+  const sync = useStore((s) => s.sync.status);
+  const email = useStore((s) => s.auth.user?.email);
+  const openOverlay = useStore((s) => s.openOverlay);
   const setPage = useStore((s) => s.setPage);
   const setNavOpen = useStore((s) => s.setNavOpen);
 
@@ -40,9 +42,19 @@ export function Sidebar() {
         </nav>
         <div className="side-foot">
           <ThemeSwitch />
-          <p className={`store-note${storageOK ? '' : ' off'}`}>
+          <button className="nav-btn" onClick={() => openOverlay({ kind: 'account' })}>
+            <UserRound size={19} aria-hidden="true" />
+            <span className="acct-label">{email ?? 'Account'}</span>
+          </button>
+          <p className={`store-note${sync === 'error' ? ' off' : ''}`}>
             <i />
-            {storageOK ? 'Saved in this browser' : 'Not saving: browser storage is blocked'}
+            {sync === 'error'
+              ? 'Not saved: retry needed'
+              : sync === 'saving'
+                ? 'Saving…'
+                : sync === 'saved'
+                  ? 'All changes saved'
+                  : 'Saved to your account'}
           </p>
           <p className="tagline">
             Prepare today,

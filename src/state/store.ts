@@ -7,8 +7,13 @@ import type { RoadmapView } from '../domain/roadmap';
 import { progressPatch, statusPatch } from '../domain/resources';
 import { parseAppData } from '../domain/schema';
 import type { AppData, Goal, Phase, Resource, ResourceStatus, ResourceType } from '../domain/types';
-import { createLocalStorageAdapter } from '../storage/localStorageAdapter';
-import type { StorageAdapter } from '../storage/StorageAdapter';
+import { describeAuthError } from '../auth/describe';
+import type { AuthProviderId, AuthResult, AuthUser, LinkedMethod } from '../auth/types';
+import { createBackend } from '../backend';
+import type { Backend } from '../backend/types';
+import { describeError } from '../repositories/errors';
+import { diffData } from './syncOps';
+import { IDLE_SYNC, WriteQueue, type SyncState } from './writeQueue';
 
 export type Page = 'dashboard' | 'plans';
 export type Overlay =
@@ -16,7 +21,8 @@ export type Overlay =
   | { kind: 'resource'; resourceId: string | null; phaseId?: string | null }
   | { kind: 'phase'; phaseId: string | null }
   | { kind: 'details'; resourceId: string }
-  | { kind: 'data' };
+  | { kind: 'data' }
+  | { kind: 'account' };
 
 export type GoalInput = Pick<Goal, 'name' | 'description' | 'targetDate' | 'hoursPerDay'>;
 export type ResourceInput = Pick<
@@ -43,10 +49,42 @@ export interface UiState {
   toast: { id: number; text: string } | null;
 }
 
+export type AuthState =
+  { status: 'loading' | 'signedOut'; user: null } | { status: 'signedIn'; user: AuthUser };
+
+export interface LoadState {
+  /** `error` means the data could not be loaded, which is not the same as having none. */
+  status: 'idle' | 'loading' | 'ready' | 'error';
+  error: string | null;
+}
+
+/** Result of a sign-in step: what happened next, or text to show the user. */
+export type AuthOutcome = { ok: true; result: AuthResult } | { ok: false; error: string };
+
 export interface Store {
   data: AppData;
   ui: UiState;
-  storageOK: boolean;
+  auth: AuthState;
+  load: LoadState;
+  /** Whether the backend has confirmed the latest changes. */
+  sync: SyncState;
+  /** A restore, add or delete-all is running; further ones are refused. */
+  busy: boolean;
+
+  /** Starts watching the session and loads the signed-in user's data. Returns a cleanup. */
+  init(): () => void;
+  reload(): Promise<void>;
+  /** Saves again from the failed write on. */
+  retrySync(): void;
+  signInWithProvider(p: Exclude<AuthProviderId, 'password'>): Promise<AuthOutcome>;
+  signInWithPassword(email: string, password: string): Promise<AuthOutcome>;
+  signUpWithPassword(email: string, password: string): Promise<AuthOutcome>;
+  sendPasswordReset(email: string): Promise<AuthOutcome>;
+  linkProvider(p: Exclude<AuthProviderId, 'password'>): Promise<AuthOutcome>;
+  linkPassword(email: string, password: string): Promise<AuthOutcome>;
+  unlinkProvider(p: AuthProviderId): Promise<AuthOutcome>;
+  listMethods(): Promise<LinkedMethod[]>;
+  signOut(): Promise<AuthOutcome>;
 
   selectGoal(id: string): void;
   createGoal(input: GoalInput): void;
@@ -87,15 +125,15 @@ export interface Store {
   dismissToast(): void;
 
   /**
-   * Replaces all saved data with a checked backup. Saves first and changes nothing in
-   * memory when saving fails. Returns whether it worked. Keeps the backup overlay open
-   * so it can show the result.
+   * Replaces all saved data with a checked backup, in one atomic backend call. Memory
+   * changes only after the backend confirms, so a failure changes nothing. Returns whether
+   * it worked. Keeps the backup overlay open so it can show the result.
    */
-  restoreBackup(data: AppData): boolean;
+  restoreBackup(data: AppData): Promise<boolean>;
   /** Adds the plans from a checked file next to the saved ones (see `mergePlans`), the same way. */
-  addPlans(data: AppData): boolean;
-  /** Replaces all saved data with the empty state, the same way. Closes overlays on success. */
-  deleteAllData(): boolean;
+  addPlans(data: AppData): Promise<boolean>;
+  /** Deletes all saved data, the same way. Closes overlays on success. */
+  deleteAllData(): Promise<boolean>;
 }
 
 const freshUi = (): UiState => ({
@@ -150,45 +188,141 @@ function place<T extends { id: string }>(list: T[], id: string, targetId: string
 
 let toastSeq = 0;
 
-export function createAppStore(storage: StorageAdapter = createLocalStorageAdapter()) {
+export function createAppStore({ repo, auth }: Backend) {
   return create<Store>()((set, get) => {
+    const queue = new WriteQueue((sync) => set({ sync }));
+    let userId: string | null = null;
+    let loadSeq = 0;
+    let replacing = false;
+
     /**
-     * Applies a change to the saved data, persists it, and optionally updates UI state.
-     * `ui` may be a function, evaluated after the recipe runs.
+     * Applies a change to the data in memory at once, then saves it through the write queue.
+     * `ui` may be a function, evaluated after the recipe runs. A `toast` in it is shown only
+     * once the backend has confirmed the save.
      */
     const commit = (
       recipe: (d: Draft<AppData>) => void | AppData,
       ui?: Partial<UiState> | (() => Partial<UiState>),
     ) => {
-      const data = produce(get().data, recipe);
-      const storageOK = storage.save(data);
-      const patch = typeof ui === 'function' ? ui() : ui;
-      set((s) => ({ data, storageOK, ui: patch ? { ...s.ui, ...patch } : s.ui }));
+      const prev = get().data;
+      const data = produce(prev, recipe);
+      const { toast: confirmed, ...patch } = (typeof ui === 'function' ? ui() : ui) ?? {};
+      set((s) => ({ data, ui: ui ? { ...s.ui, ...patch } : s.ui }));
+      const ops = diffData(prev, data, repo);
+      if (confirmed) {
+        if (ops.length === 0) set((s) => ({ ui: { ...s.ui, toast: confirmed } }));
+        else ops[ops.length - 1]!.after = () => set((s) => ({ ui: { ...s.ui, toast: confirmed } }));
+      }
+      queue.enqueue(ops);
     };
     /**
-     * Swaps in whole new data, unlike `commit()`: the data is saved first and memory is
-     * only updated if that works, so a failed restore or delete never looks like it
-     * worked. `save()` is synchronous, so no other write can run in between.
+     * Swaps in whole new data, unlike `commit()`: the backend call runs on its own, after
+     * anything in flight, and memory only changes if it succeeds, so a failed restore or
+     * delete never looks like it worked. Refuses a second one while one is running.
      */
-    const replaceData = (next: AppData, ui?: Partial<UiState>): boolean => {
+    const replaceData = async (
+      save: (clean: AppData) => Promise<void>,
+      next: AppData,
+      ui?: Partial<UiState>,
+    ): Promise<boolean> => {
+      if (replacing) return false;
       const clean = parseAppData(JSON.parse(JSON.stringify(next)));
       if (!clean) return false;
-      if (!storage.save(clean)) {
-        set({ storageOK: false });
+      replacing = true;
+      set({ busy: true });
+      try {
+        await queue.exclusive(() => save(clean));
+        set((s) => ({ data: clean, ui: { ...s.ui, ...planUi(), ...ui } }));
+        return true;
+      } catch {
         return false;
+      } finally {
+        replacing = false;
+        set({ busy: false });
       }
-      set((s) => ({ data: clean, storageOK: true, ui: { ...s.ui, ...planUi(), ...ui } }));
-      return true;
     };
+
+    const loadData = async () => {
+      const seq = ++loadSeq;
+      set({ load: { status: 'loading', error: null } });
+      try {
+        const loaded = await repo.loadAll();
+        if (seq !== loadSeq) return;
+        set({
+          data: parseAppData(loaded) ?? createEmptyAppData(),
+          load: { status: 'ready', error: null },
+        });
+      } catch (e) {
+        if (seq !== loadSeq) return;
+        set({ load: { status: 'error', error: describeError(e) } });
+      }
+    };
+    /** Starts over for another user, or for nobody: nothing of the old user stays in memory. */
+    const handleUser = (user: AuthUser | null) => {
+      if (user && user.id === userId) {
+        set({ auth: { status: 'signedIn', user } });
+        return;
+      }
+      userId = user?.id ?? null;
+      loadSeq++;
+      queue.clear();
+      const reset = { data: createEmptyAppData(), ui: freshUi(), sync: IDLE_SYNC, busy: false };
+      if (!user) {
+        set({
+          ...reset,
+          auth: { status: 'signedOut', user: null },
+          load: { status: 'idle', error: null },
+        });
+        return;
+      }
+      set({ ...reset, auth: { status: 'signedIn', user } });
+      void loadData();
+    };
+
+    const attempt = async (fn: () => Promise<AuthResult | void>): Promise<AuthOutcome> => {
+      try {
+        return { ok: true, result: (await fn()) ?? 'done' };
+      } catch (e) {
+        return { ok: false, error: describeAuthError(e) };
+      }
+    };
+
     const setUi = (ui: Partial<UiState>) => set((s) => ({ ui: { ...s.ui, ...ui } }));
     const toast = (text: string) => ({ toast: { id: ++toastSeq, text } });
     const resource = (d: Draft<AppData>, id: string) =>
       activeOf(d)?.resources.find((x) => x.id === id);
 
     return {
-      data: parseAppData(storage.load()) ?? createEmptyAppData(),
+      data: createEmptyAppData(),
       ui: freshUi(),
-      storageOK: storage.available,
+      auth: { status: 'loading', user: null },
+      load: { status: 'idle', error: null },
+      sync: IDLE_SYNC,
+      busy: false,
+
+      init: () => {
+        const stop = auth.onChange((user) => handleUser(user));
+        // Warn before leaving the page with changes the backend has not confirmed.
+        const warn = (e: BeforeUnloadEvent) => {
+          if (get().sync.status === 'saving' || get().sync.status === 'error') e.preventDefault();
+        };
+        window.addEventListener('beforeunload', warn);
+        return () => {
+          stop();
+          window.removeEventListener('beforeunload', warn);
+        };
+      },
+      reload: loadData,
+      retrySync: () => queue.retry(),
+      signInWithProvider: (p) => attempt(() => auth.signInWithProvider(p)),
+      signInWithPassword: (e, p) => attempt(() => auth.signInWithPassword(e, p)),
+      signUpWithPassword: (e, p) => attempt(() => auth.signUpWithPassword(e, p)),
+      sendPasswordReset: (e) => attempt(() => auth.sendPasswordReset(e)),
+      linkProvider: (p) => attempt(() => auth.linkProvider(p)),
+      linkPassword: (e, p) => attempt(() => auth.linkPassword(e, p)),
+      unlinkProvider: (p) => attempt(() => auth.unlinkProvider(p)),
+      listMethods: () => auth.listMethods().catch(() => []),
+      signOut: () => attempt(() => auth.signOut()),
 
       selectGoal: (id) =>
         commit((d) => {
@@ -386,17 +520,44 @@ export function createAppStore(storage: StorageAdapter = createLocalStorageAdapt
       showToast: (text) => setUi(toast(text)),
       dismissToast: () => setUi({ toast: null }),
 
-      restoreBackup: (data) => replaceData(data, { overlay: { kind: 'data' } }),
+      restoreBackup: (data) =>
+        replaceData((clean) => repo.replaceAll(clean), data, { overlay: { kind: 'data' } }),
 
-      addPlans: (data) => replaceData(mergePlans(get().data, data), { overlay: { kind: 'data' } }),
+      addPlans: (data) =>
+        replaceData((clean) => repo.replaceAll(clean), mergePlans(get().data, data), {
+          overlay: { kind: 'data' },
+        }),
 
       deleteAllData: () =>
-        replaceData(createEmptyAppData(), toast('All Road to Goals data deleted')),
+        replaceData(
+          () => repo.deleteAll(),
+          createEmptyAppData(),
+          toast('All Road to Goals data deleted'),
+        ),
     };
   });
 }
 
-export const useStore = createAppStore();
+/**
+ * Composition root: the backend comes from `createBackend()` and nothing else in the UI
+ * or state layer knows which one it is. Without configuration the store is wired to a
+ * backend that fails every call, and `App` shows `backendConfigError` instead.
+ */
+const created = createBackend(import.meta.env);
+/** The wired backend, exposed so tests can seed and break the in-memory one. */
+export const currentBackend: Backend | null = 'backend' in created ? created.backend : null;
+export const backendConfigError = 'configError' in created ? created.configError : null;
+const unavailable = (): never => {
+  throw new Error(backendConfigError ?? 'Backend not configured');
+};
+export const useStore = createAppStore(
+  'backend' in created
+    ? created.backend
+    : {
+        repo: new Proxy({}, { get: () => unavailable }) as Backend['repo'],
+        auth: new Proxy({}, { get: () => unavailable }) as Backend['auth'],
+      },
+);
 
 export function useActiveGoal(): Goal | null {
   return useStore((s) => s.data.goals.find((g) => g.id === s.data.activeGoalId) ?? null);

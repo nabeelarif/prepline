@@ -1,9 +1,9 @@
-# Writing a Prepline plan file
+# Writing a Road to Goals plan file
 
 These are instructions for an AI agent. Give them to the agent along with a request
 such as "Make me an iOS developer interview preparation plan, target date
 2026-12-31, 2 hours a day." The agent researches real study resources and returns
-one JSON file. Prepline imports it with **Backup and restore → Choose File → Add to
+one JSON file. Road to Goals imports it with **Backup and restore → Choose File → Add to
 My Plans**, which keeps the user's existing plans.
 
 ## 1. Your task
@@ -15,8 +15,8 @@ My Plans**, which keeps the user's existing plans.
    what you describe. **Never invent or guess a URL.**
 3. Group the resources into phases, put them in study order, and estimate each one's
    study time.
-4. Return **only the JSON**, as a file named `prepline-plan-<topic>.json`, for
-   example `prepline-plan-ios-interview.json`. Put any comments outside the file.
+4. Return **only the JSON**, as a file named `roadtogoals-plan-<topic>.json`, for
+   example `roadtogoals-plan-ios-interview.json`. Put any comments outside the file.
 
 ## 2. File shape
 
@@ -56,15 +56,15 @@ My Plans**, which keeps the user's existing plans.
 
 ### Plan (`goals[]`)
 
-| Field         | Required | Type             | Meaning and limits                                                                                                                      |
-| ------------- | -------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `name`        | yes      | string           | Plan title shown everywhere. Max 120 characters.                                                                                        |
-| `description` | no       | string           | One to three sentences on the aim and level. Max 1000 characters.                                                                       |
-| `targetDate`  | no       | `"YYYY-MM-DD"`   | The date the user wants to be ready. Must be a real calendar date. Defaults to 30 days from import.                                     |
-| `hoursPerDay` | no       | number or `null` | Daily study capacity, 0.25 to 16. Prepline uses it to say whether the plan is on track. With `null` it shows only the pace needed.      |
-| `id`          | no       | string           | Any unique string. Prepline gives every plan, phase and resource new ids on import. You only need ids so resources can point at phases. |
-| `phases`      | no       | array            | Optional groups, shown as milestones. See below.                                                                                        |
-| `resources`   | no       | array            | The study items, **in the order the user should do them**.                                                                              |
+| Field         | Required | Type             | Meaning and limits                                                                                                                           |
+| ------------- | -------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`        | yes      | string           | Plan title shown everywhere. Max 120 characters.                                                                                             |
+| `description` | no       | string           | One to three sentences on the aim and level. Max 1000 characters.                                                                            |
+| `targetDate`  | no       | `"YYYY-MM-DD"`   | The date the user wants to be ready. Must be a real calendar date. Defaults to 30 days from import.                                          |
+| `hoursPerDay` | no       | number or `null` | Daily study capacity, 0.25 to 16. Road to Goals uses it to say whether the plan is on track. With `null` it shows only the pace needed.      |
+| `id`          | no       | string           | Any unique string. Road to Goals gives every plan, phase and resource new ids on import. You only need ids so resources can point at phases. |
+| `phases`      | no       | array            | Optional groups, shown as milestones. See below.                                                                                             |
+| `resources`   | no       | array            | The study items, **in the order the user should do them**.                                                                                   |
 
 ### Phase (`phases[]`)
 
@@ -88,7 +88,7 @@ My Plans**, which keeps the user's existing plans.
 | `id`      | no       | string           | Any unique string.                                                                                  |
 
 Leave these out of a new plan. They record the user's own progress:
-`done`, `doneMinutes`, `doneAt`, `startedAt`, `createdAt`. Prepline ignores any other key.
+`done`, `doneMinutes`, `doneAt`, `startedAt`, `createdAt`. Road to Goals ignores any other key.
 
 ## 4. Choosing `type`
 
@@ -110,7 +110,7 @@ Tie-breakers:
 
 ## 5. Estimating `minutes`
 
-Progress in Prepline is weighted by these estimates, not by the number of resources,
+Progress in Road to Goals is weighted by these estimates, not by the number of resources,
 so make them realistic. Estimate **study time**: watching or reading plus taking
 notes and trying things out.
 
@@ -134,7 +134,7 @@ Round to whole minutes.
 
 ## 7. Order and phases
 
-- **The order of `resources` is the study order.** Prepline's journey follows it
+- **The order of `resources` is the study order.** The journey in Road to Goals follows it
   from first to last and suggests the first unfinished item next. Put foundations
   before advanced topics and practice after the theory it uses. Keep each phase's
   resources together.

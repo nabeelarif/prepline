@@ -95,7 +95,7 @@ export function App() {
           </button>
           <span className="brand">
             <Logo />
-            Prepline
+            Road to Goals
           </span>
         </div>
         <Sidebar />

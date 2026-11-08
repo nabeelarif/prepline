@@ -157,7 +157,7 @@ describe('parseAppData', () => {
 });
 
 describe('previewImport', () => {
-  it('rejects anything that is not a Prepline backup', () => {
+  it('rejects anything that is not a Road to Goals backup', () => {
     expect(previewImport('hello')).toMatchObject({ ok: false, kind: 'not-backup' });
     expect(previewImport({ plans: [] })).toMatchObject({ ok: false, kind: 'not-backup' });
     expect(previewImport({ version: 2, goals: [] })).toMatchObject({

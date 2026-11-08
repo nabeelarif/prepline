@@ -34,9 +34,9 @@ export function mergePlans(current: AppData, incoming: AppData): AppData {
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
-/** "prepline-backup-2026-10-28.json", in local time. */
+/** "roadtogoals-backup-2026-10-28.json", in local time. */
 export function backupFileName(now: Date = new Date()): string {
-  return `prepline-backup-${toISO(now)}.json`;
+  return `roadtogoals-backup-${toISO(now)}.json`;
 }
 
 /**

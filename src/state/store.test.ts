@@ -315,7 +315,7 @@ describe('store', () => {
         selectedResourceId: null,
         statusFilter: 'all',
       });
-      expect(s().ui.toast?.text).toBe('All Prepline data deleted');
+      expect(s().ui.toast?.text).toBe('All Road to Goals data deleted');
       expect(createAppStore(adapter).getState().data.goals).toEqual([]);
     });
 

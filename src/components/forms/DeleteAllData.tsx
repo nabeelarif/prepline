@@ -25,7 +25,7 @@ export function DeleteAllData() {
       {state === 'confirming' || state === 'deleting' ? (
         <ConfirmPanel
           danger
-          title="Delete all Prepline data?"
+          title="Delete all Road to Goals data?"
           confirmLabel={state === 'deleting' ? 'Deleting…' : 'Delete All Data'}
           busy={state === 'deleting'}
           onConfirm={remove}

@@ -1,6 +1,6 @@
 import type { PhaseColor, ResourceStatus, ResourceType } from './types';
 
-export const STORAGE_KEY = 'prepline:v1';
+export const STORAGE_KEY = 'roadtogoals:v1';
 
 export const TYPES: Record<ResourceType, string> = {
   video: 'Video',

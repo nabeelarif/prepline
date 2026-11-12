@@ -67,6 +67,11 @@ export class WriteQueue {
     this.start();
   }
 
+  /** Resolves when the write in flight (if any) has finished. */
+  settled(): Promise<void> {
+    return this.loop ?? Promise.resolve();
+  }
+
   /** Forgets everything waiting (user switch or sign-out). */
   clear() {
     this.generation++;

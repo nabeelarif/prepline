@@ -10,7 +10,6 @@ import {
   rowsToAppData,
   type GoalRow,
   type PhaseRow,
-  type ProfileRow,
   type ResourceRow,
 } from './rows';
 
@@ -26,26 +25,6 @@ async function call<T>(op: PromiseLike<{ data: T; error: unknown; status?: numbe
   return res.data;
 }
 
-/** PostgREST returns at most 1000 rows per request by default, so larger tables are read in pages. */
-const PAGE = 1000;
-
-/** Every row of a table in position order (ties broken by id, so pages never overlap). */
-async function readAll(client: SupabaseClient, table: string): Promise<unknown[]> {
-  const rows: unknown[] = [];
-  for (let from = 0; ; from += PAGE) {
-    const page = (await call(
-      client
-        .from(table)
-        .select('*')
-        .order('position')
-        .order('id')
-        .range(from, from + PAGE - 1),
-    )) as unknown[];
-    rows.push(...page);
-    if (page.length < PAGE) return rows;
-  }
-}
-
 /** Table names, queries and RPCs live here and nowhere else. */
 export function createSupabaseRepository(client: SupabaseClient): AppRepository {
   const rpc = (fn: string, args: Record<string, unknown>) =>
@@ -53,19 +32,15 @@ export function createSupabaseRepository(client: SupabaseClient): AppRepository 
 
   return {
     async loadAll() {
-      // Separate reads are fine; each is paged because a user can have more than 1000 rows.
-      const [goals, phases, resources, profile] = await Promise.all([
-        readAll(client, 'goals'),
-        readAll(client, 'phases'),
-        readAll(client, 'resources'),
-        call(client.from('profiles').select('active_goal_id').maybeSingle()),
-      ]);
-      return rowsToAppData(
-        goals as GoalRow[],
-        phases as PhaseRow[],
-        resources as ResourceRow[],
-        profile as ProfileRow | null,
-      );
+      const all = (await call(client.rpc('load_all_data'))) as {
+        goals: GoalRow[];
+        phases: PhaseRow[];
+        resources: ResourceRow[];
+        active_goal_id: string | null;
+      };
+      return rowsToAppData(all.goals, all.phases, all.resources, {
+        active_goal_id: all.active_goal_id,
+      });
     },
     setActiveGoal: (id) => rpc('set_active_goal', { p_goal_id: id }),
     saveGoal: (goal) => rpc('save_goal', { p_goal: goalPayload(goal) }),

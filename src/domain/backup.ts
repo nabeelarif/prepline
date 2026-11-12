@@ -49,12 +49,18 @@ export function uniqueIds(data: AppData): AppData {
   return {
     ...data,
     goals: data.goals.map((g): Goal => {
-      const phaseMap = new Map(g.phases.map((p) => [p.id, fresh(phaseIds, p.id)]));
+      // The first phase with an id owns it; a repeat inside one plan does not remap it.
+      const phaseMap = new Map<string, string>();
+      const newPhaseIds = g.phases.map((p) => {
+        const id = fresh(phaseIds, p.id);
+        if (!phaseMap.has(p.id)) phaseMap.set(p.id, id);
+        return id;
+      });
       return {
         ...g,
         // The first plan with an id keeps it, so `activeGoalId` still points at that one.
         id: fresh(goalIds, g.id),
-        phases: g.phases.map((p) => ({ ...p, id: phaseMap.get(p.id)! })),
+        phases: g.phases.map((p, i) => ({ ...p, id: newPhaseIds[i]! })),
         resources: g.resources.map((r) => ({
           ...r,
           id: fresh(resourceIds, r.id),

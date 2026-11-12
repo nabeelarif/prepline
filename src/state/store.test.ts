@@ -330,12 +330,25 @@ describe('store', () => {
       expect(s().data.goals[0]!.resources).toHaveLength(1);
     });
 
-    it('ignores edits made while a restore or delete-all is running', async () => {
+    it('does not put a restore into memory after the user signed out', async () => {
+      const { s, backend } = await setup();
+      await vi.waitFor(() => expect(s().sync.pending).toBe(0));
+      const release = backend.hold();
+      const done = s().deleteAllData();
+      await s().signOut();
+      release();
+      expect(await done).toBe(false);
+      expect(s().data.goals).toEqual([]);
+      expect(s().auth.status).toBe('signedOut');
+    });
+
+    it('ignores edits made while a restore or delete-all is running, and says so', async () => {
       const { s, backend, add } = await setup();
       await vi.waitFor(() => expect(s().sync.pending).toBe(0));
       const release = backend.hold();
       const done = s().deleteAllData();
       add({ title: 'Too late' });
+      expect(s().ui.toast?.text).toMatch(/wait/i);
       release();
       expect(await done).toBe(true);
       expect(s().data.goals).toEqual([]);

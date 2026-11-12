@@ -207,10 +207,15 @@ export function createAppStore({ repo, auth }: Backend) {
     ) => {
       // A restore or delete-all is replacing the data; an edit now would be wiped from
       // memory when it finishes yet still be sent to the backend.
-      if (get().busy) return;
+      if (get().busy) {
+        setUi({ toast: toast('Please wait until your data has finished saving.').toast });
+        return;
+      }
       const prev = get().data;
       const data = produce(prev, recipe);
-      const { toast: confirmed, ...patch } = (typeof ui === 'function' ? ui() : ui) ?? {};
+      const { toast: confirmed, ...rest } = (typeof ui === 'function' ? ui() : ui) ?? {};
+      // `toast: null` clears the toast now; a new toast waits for the backend to confirm.
+      const patch = confirmed === null ? { ...rest, toast: null } : rest;
       set((s) => ({ data, ui: ui ? { ...s.ui, ...patch } : s.ui }));
       const ops = diffData(prev, data, repo);
       if (confirmed) {
@@ -232,16 +237,20 @@ export function createAppStore({ repo, auth }: Backend) {
       if (get().busy) return false;
       const clean = parseAppData(JSON.parse(JSON.stringify(next)));
       if (!clean) return false;
+      const startedFor = userId;
       set({ busy: true });
       try {
         await queue.exclusive(() => save(clean));
+        // The user signed out or changed meanwhile: the result belongs to someone else.
+        if (userId !== startedFor) return false;
         set((s) => ({ data: clean, ui: { ...s.ui, ...planUi(), ...ui } }));
         return true;
       } catch (e) {
-        setUi({ toast: toast(describeError(e)).toast });
+        if (userId === startedFor) setUi({ toast: toast(describeError(e)).toast });
         return false;
       } finally {
-        set({ busy: false });
+        // handleUser already reset `busy`; a later replace for another user may own it now.
+        if (userId === startedFor) set({ busy: false });
       }
     };
 
@@ -318,9 +327,12 @@ export function createAppStore({ repo, auth }: Backend) {
       // Never replaces edits the backend has not confirmed; Retry or Discard comes first.
       reload: () => (get().sync.pending > 0 ? Promise.resolve() : loadData()),
       retrySync: () => queue.retry(),
-      discardUnsaved: () => {
+      discardUnsaved: async () => {
+        // Let a write already sent finish first, or it could land after the reload read.
+        const inFlight = queue.settled();
         queue.clear();
-        return loadData();
+        await inFlight;
+        await loadData();
       },
       signInWithProvider: (p) => attempt(() => auth.signInWithProvider(p)),
       signInWithPassword: (e, p) => attempt(() => auth.signInWithPassword(e, p)),

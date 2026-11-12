@@ -226,6 +226,19 @@ begin
   on conflict (user_id) do update set active_goal_id = excluded.active_goal_id;
 end $$;
 
+-- Everything the signed-in user owns, read in one statement so it is one consistent
+-- snapshot (separate requests could see another device's save half-way). It is a single
+-- jsonb value, so PostgREST's row limit does not apply either.
+create function public.load_all_data() returns jsonb
+language sql stable security invoker set search_path = public as $$
+  select jsonb_build_object(
+    'goals', coalesce((select jsonb_agg(to_jsonb(g) order by g.position, g.id) from public.goals g), '[]'),
+    'phases', coalesce((select jsonb_agg(to_jsonb(p) order by p.position, p.id) from public.phases p), '[]'),
+    'resources', coalesce((select jsonb_agg(to_jsonb(r) order by r.position, r.id) from public.resources r), '[]'),
+    'active_goal_id', (select active_goal_id from public.profiles limit 1)
+  );
+$$;
+
 create function public.set_active_goal(p_goal_id text) returns void
 language sql security invoker set search_path = public as $$
   insert into public.profiles (active_goal_id) values (p_goal_id)
@@ -236,11 +249,11 @@ revoke all on function
   public.save_goal(jsonb), public.save_phase(text, jsonb), public.save_resource(text, jsonb),
   public.reorder_resources(text, text[]), public.reorder_phases(text, text[]),
   public.save_goal_tree(jsonb), public.delete_all_data(), public.replace_all_data(jsonb),
-  public.set_active_goal(text)
+  public.set_active_goal(text), public.load_all_data()
   from public, anon;
 grant execute on function
   public.save_goal(jsonb), public.save_phase(text, jsonb), public.save_resource(text, jsonb),
   public.reorder_resources(text, text[]), public.reorder_phases(text, text[]),
   public.save_goal_tree(jsonb), public.delete_all_data(), public.replace_all_data(jsonb),
-  public.set_active_goal(text)
+  public.set_active_goal(text), public.load_all_data()
   to authenticated;

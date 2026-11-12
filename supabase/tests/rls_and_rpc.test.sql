@@ -1,7 +1,7 @@
 -- pgTAP tests. Run with: supabase test db   (needs the local stack: supabase start)
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(19);
+select plan(23);
 
 -- Two users and some data for each, created as the table owner.
 insert into auth.users (id, instance_id, aud, role, email)
@@ -46,6 +46,11 @@ delete from public.phases where id = 'p1';
 select is((select phase_id from public.resources where id = 'r1'), null, 'deleting a phase unassigns its resources');
 select is((select count(*)::int from public.resources), 3, 'and keeps them');
 
+select is(jsonb_array_length(public.load_all_data() -> 'resources'), 3, 'load_all_data returns the user''s rows');
+-- A row missing from the list (added by another device) is renumbered after the listed ones.
+select lives_ok($$ select public.reorder_resources('g1', array['r3']) $$, 'reorder with a partial list runs');
+select is((select array_agg(id order by position) from public.resources), array['r3', 'r2', 'r1'], 'unlisted rows follow in their old order');
+
 -- Atomic: a bad row anywhere rolls back the whole replace.
 select throws_ok($$
   select public.replace_all_data('{"active_goal_id": null, "goals": [
@@ -58,6 +63,7 @@ select is((select count(*)::int from public.goals where id = 'g1'), 1, 'and the 
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000b');
 select is((select count(*)::int from public.goals), 0, 'B sees no plans of A');
 select is((select count(*)::int from public.resources), 0, 'B sees no resources of A');
+select is(jsonb_array_length(public.load_all_data() -> 'goals'), 0, 'load_all_data returns none of A''s plans to B');
 delete from public.goals where id = 'g1';
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
 select is((select count(*)::int from public.goals), 1, 'B cannot delete A''s plan');

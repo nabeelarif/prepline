@@ -174,6 +174,14 @@ describe('uniqueIds', () => {
     expect(out.activeGoalId).toBe('g');
   });
 
+  it('keeps resources on the first phase when a plan repeats a phase id', () => {
+    const g = goal('g');
+    g.phases = [phase('p1'), phase('p1')];
+    const [out] = uniqueIds({ version: 1, activeGoalId: 'g', goals: [g] }).goals;
+    expect(out!.phases[0]!.id).toBe('p1');
+    expect(out!.resources[0]!.phaseId).toBe('p1');
+  });
+
   it('leaves data with unique ids unchanged', () => {
     const d: AppData = { version: 1, activeGoalId: 'a', goals: [goal('a')] };
     expect(uniqueIds(d)).toEqual(d);

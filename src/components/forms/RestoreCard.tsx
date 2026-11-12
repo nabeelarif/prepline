@@ -187,7 +187,7 @@ export function RestoreFlowPanel({ flow }: { flow: RestoreFlow }) {
           onCancel={backToReview}
         >
           <p>
-            All existing Road to Goals plans, phases, resources, and progress in this browser will
+            All existing Road to Goals plans, phases, resources, and progress in your account will
             be replaced with the selected backup.
           </p>
           <p className="backup-warn">This cannot be undone unless you have another backup.</p>
@@ -270,10 +270,10 @@ export function RestoreFlowPanel({ flow }: { flow: RestoreFlow }) {
         </ul>
       )}
       <p className="muted">
-        Add to My Plans keeps everything saved in this browser and adds the plans from this file.
+        Add to My Plans keeps everything saved in your account and adds the plans from this file.
       </p>
       <p className="backup-warn">
-        Replace All Data deletes everything saved in this browser and restores this file instead.
+        Replace All Data deletes everything saved in your account and restores this file instead.
       </p>
       <div className="btn-row confirm-actions">
         <button type="button" className="btn" onClick={reset}>

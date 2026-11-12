@@ -36,9 +36,6 @@ export interface ResourceRow {
   created_at: string;
   position: number;
 }
-export interface ProfileRow {
-  active_goal_id: string | null;
-}
 
 export const goalPayload = (g: Omit<Goal, 'resources' | 'phases'>) => ({
   id: g.id,
@@ -92,11 +89,11 @@ export function rowsToAppData(
   goals: GoalRow[],
   phases: PhaseRow[],
   resources: ResourceRow[],
-  profile: ProfileRow | null,
+  activeGoalId: string | null,
 ): AppData {
   const raw = {
     version: 1,
-    activeGoalId: profile?.active_goal_id ?? null,
+    activeGoalId,
     goals: [...goals].sort(byPosition).map((g) => ({
       id: g.id,
       name: g.name,

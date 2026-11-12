@@ -107,7 +107,7 @@ describe('row mapping', () => {
           position: 0,
         },
       ],
-      { active_goal_id: 'g2' },
+      'g2',
     );
     expect(data.goals.map((x) => x.id)).toEqual(['g1', 'g2']);
     expect(data.activeGoalId).toBe('g2');

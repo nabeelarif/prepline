@@ -38,9 +38,7 @@ export function createSupabaseRepository(client: SupabaseClient): AppRepository 
         resources: ResourceRow[];
         active_goal_id: string | null;
       };
-      return rowsToAppData(all.goals, all.phases, all.resources, {
-        active_goal_id: all.active_goal_id,
-      });
+      return rowsToAppData(all.goals, all.phases, all.resources, all.active_goal_id);
     },
     setActiveGoal: (id) => rpc('set_active_goal', { p_goal_id: id }),
     saveGoal: (goal) => rpc('save_goal', { p_goal: goalPayload(goal) }),

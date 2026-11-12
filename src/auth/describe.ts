@@ -1,4 +1,4 @@
-import { AuthError } from './types';
+import { AuthError, MIN_PASSWORD_LENGTH } from './types';
 
 /** Text safe to show a user for a failed sign-in step. */
 export function describeAuthError(e: unknown): string {
@@ -11,7 +11,7 @@ export function describeAuthError(e: unknown): string {
     case 'emailTaken':
       return 'That email is already registered. Sign in instead, or reset your password.';
     case 'weakPassword':
-      return 'Choose a stronger password (at least 8 characters).';
+      return `Choose a stronger password (at least ${MIN_PASSWORD_LENGTH} characters).`;
     case 'alreadyLinked':
       return 'That sign-in method already belongs to another account.';
     case 'lastMethod':

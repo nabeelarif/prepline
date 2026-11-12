@@ -20,15 +20,9 @@ export function SyncBanner() {
           : 'Retrying will not help. Discard them to go back to what is saved.'}
         {sync.pending > 1 ? ` (${sync.pending} changes waiting)` : ''}
       </p>
-      {sync.retryable ? (
-        <button className="btn sm" onClick={retry}>
-          Retry
-        </button>
-      ) : (
-        <button className="btn sm" onClick={() => void discard()}>
-          Discard changes
-        </button>
-      )}
+      <button className="btn sm" onClick={sync.retryable ? retry : () => void discard()}>
+        {sync.retryable ? 'Retry' : 'Discard changes'}
+      </button>
     </div>
   );
 }

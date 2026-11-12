@@ -63,8 +63,7 @@ export class WriteQueue {
 
   /** Runs the failed write again, then the rest. */
   retry() {
-    if (!this.failed) return;
-    if (!this.retryable) return;
+    if (!this.failed || !this.retryable) return;
     this.failed = false;
     this.error = null;
     this.start();

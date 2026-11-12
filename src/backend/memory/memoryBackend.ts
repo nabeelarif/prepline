@@ -1,5 +1,6 @@
 import {
   AuthError,
+  MIN_PASSWORD_LENGTH,
   type AuthProviderId,
   type AuthResult,
   type AuthService,
@@ -217,6 +218,12 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
     return a;
   };
 
+  const assertStrong = (password: string) => {
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      throw new AuthError('weakPassword', 'Password too short');
+    }
+  };
+
   const auth: AuthService = {
     onChange(cb) {
       listeners.add(cb);
@@ -234,7 +241,7 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
       return signInAs(a);
     },
     async signUpWithPassword(email, password) {
-      if (password.length < 8) throw new AuthError('weakPassword', 'Password too short');
+      assertStrong(password);
       const existing = accounts.find((x) => x.email === email);
       if (existing?.password) throw new AuthError('emailTaken', 'Email already registered');
       const a = account(email, password, 'password');
@@ -248,7 +255,7 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
     async sendPasswordReset() {},
     onPasswordRecovery: () => () => {},
     async updatePassword(password) {
-      if (password.length < 8) throw new AuthError('weakPassword', 'Password too short');
+      assertStrong(password);
       requireUser().password = password;
       persist();
     },

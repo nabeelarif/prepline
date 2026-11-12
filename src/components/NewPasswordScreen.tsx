@@ -1,4 +1,6 @@
 import { useState, type FormEvent } from 'react';
+import { describeAuthError } from '../auth/describe';
+import { AuthError, MIN_PASSWORD_LENGTH } from '../auth/types';
 import { useStore } from '../state/store';
 import { Logo } from './icons';
 
@@ -11,7 +13,8 @@ export function NewPasswordScreen() {
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (busy) return;
-    if (password.length < 8) return setError('Choose a password of at least 8 characters.');
+    if (password.length < MIN_PASSWORD_LENGTH)
+      return setError(describeAuthError(new AuthError('weakPassword', '')));
     setBusy(true);
     setError('');
     const out = await useStore.getState().updatePassword(password);

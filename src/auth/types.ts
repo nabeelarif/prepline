@@ -7,6 +7,9 @@ export const AUTH_PROVIDERS: { id: AuthProviderId; label: string }[] = [
   { id: 'password', label: 'Email & password' },
 ];
 
+/** Shortest password the app accepts; the provider may require more. */
+export const MIN_PASSWORD_LENGTH = 8;
+
 /** The stable internal user id: it does not change when sign-in methods are linked. */
 export interface AuthUser {
   id: string;

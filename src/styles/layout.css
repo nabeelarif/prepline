@@ -67,6 +67,7 @@
 .side-foot {
   margin-top: auto;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   padding-inline: 8px;
 }

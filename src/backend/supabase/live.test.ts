@@ -3,7 +3,7 @@ import { describeRepositoryContract } from '../../repositories/contract';
 import { createSupabaseRepository } from './repository';
 
 /**
- * Runs the repository contract against a real Supabase project with migrations applied.
+ * Runs the repository contract against a real Supabase project with the schema applied.
  * Skipped unless these are set (use a throwaway project; the test deletes data):
  *   SUPABASE_TEST_URL, SUPABASE_TEST_ANON_KEY,
  *   SUPABASE_TEST_EMAIL_A / _PASSWORD_A, SUPABASE_TEST_EMAIL_B / _PASSWORD_B

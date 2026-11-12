@@ -11,15 +11,11 @@ Road to Goals stores all plans in Supabase and needs sign-in. Nothing is saved i
 | `service_role` key       | Project Settings → API               | **Never.** Do not put it in this app, `.env` or the repo. |
 | Database password        | Project creation                     | **Secret.** Only for `supabase link` / `db push`.         |
 
-## 1. Apply the migrations
+## 1. Create the schema
 
-```bash
-supabase login
-supabase link --project-ref YOUR-PROJECT-REF
-supabase db push          # applies supabase/migrations/*.sql in order
-```
+Open Dashboard → SQL Editor, paste the contents of `supabase/schema.sql` and run it once on the new project. (Once production exists, further changes go in `supabase/migrations/` as new ordered `.sql` files.)
 
-The migrations create `profiles`, `goals`, `phases` and `resources` (every row has a `user_id`, plus a `position` for order), Row Level Security policies that limit each table to its owner, and the RPC functions for atomic writes (reorder, save a whole plan, restore, delete all). Deleting a plan deletes its phases and resources. Deleting a phase keeps its resources, with no phase. Deleting a user deletes all their data.
+`schema.sql` creates `profiles`, `goals`, `phases` and `resources` (every row has a `user_id`, plus a `position` for order), Row Level Security policies that limit each table to its owner, and the RPC functions for atomic writes (reorder, save a whole plan, restore, delete all). Deleting a plan deletes its phases and resources. Deleting a phase keeps its resources, with no phase. Deleting a user deletes all their data.
 
 Optional, with the local stack running (`supabase start`, needs Docker): `supabase test db` runs the pgTAP tests in `supabase/tests/`, which check isolation between users and atomicity.
 

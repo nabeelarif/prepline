@@ -5,6 +5,7 @@ import {
   localDateTime,
   mergePlans,
   serializeBackup,
+  uniqueIds,
 } from './backup';
 import { parseAppData, previewImport } from './schema';
 import type { AppData } from './types';
@@ -130,5 +131,59 @@ describe('mergePlans', () => {
 
   it('changes nothing when the file has no plans', () => {
     expect(mergePlans(data, createEmptyAppData())).toEqual(data);
+  });
+});
+
+describe('uniqueIds', () => {
+  const phase = (id: string) => ({ id, name: id, description: '', color: 'blue' as const });
+  const goal = (id: string): AppData['goals'][number] => ({
+    id,
+    name: id,
+    description: '',
+    targetDate: '2026-12-01',
+    hoursPerDay: null,
+    createdAt: '2026-01-01',
+    phases: [phase('p1')],
+    resources: [
+      {
+        id: 'r1',
+        title: 'T',
+        url: '',
+        type: 'article',
+        minutes: 30,
+        doneMinutes: 0,
+        notes: '',
+        done: false,
+        doneAt: null,
+        startedAt: null,
+        phaseId: 'p1',
+        createdAt: '2026-01-01',
+      },
+    ],
+  });
+
+  it('renames repeated ids in later plans and keeps resources on their phase', () => {
+    const out = uniqueIds({ version: 1, activeGoalId: 'g', goals: [goal('g'), goal('g')] });
+    const [a, b] = out.goals;
+    expect(a!.id).toBe('g');
+    expect(a!.phases[0]!.id).toBe('p1');
+    expect(b!.id).not.toBe('g');
+    expect(b!.phases[0]!.id).not.toBe('p1');
+    expect(b!.resources[0]!.id).not.toBe('r1');
+    expect(b!.resources[0]!.phaseId).toBe(b!.phases[0]!.id);
+    expect(out.activeGoalId).toBe('g');
+  });
+
+  it('keeps resources on the first phase when a plan repeats a phase id', () => {
+    const g = goal('g');
+    g.phases = [phase('p1'), phase('p1')];
+    const [out] = uniqueIds({ version: 1, activeGoalId: 'g', goals: [g] }).goals;
+    expect(out!.phases[0]!.id).toBe('p1');
+    expect(out!.resources[0]!.phaseId).toBe('p1');
+  });
+
+  it('leaves data with unique ids unchanged', () => {
+    const d: AppData = { version: 1, activeGoalId: 'a', goals: [goal('a')] };
+    expect(uniqueIds(d)).toEqual(d);
   });
 });

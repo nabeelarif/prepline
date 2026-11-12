@@ -16,4 +16,15 @@ export default tseslint.config(
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
     },
   },
+  {
+    // Supabase stays behind the repository and auth interfaces.
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/backend/supabase/**', 'src/**/*.test.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        { patterns: [{ group: ['@supabase/*'], message: 'Use src/backend/supabase only.' }] },
+      ],
+    },
+  },
 );

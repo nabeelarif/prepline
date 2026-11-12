@@ -1,8 +1,18 @@
 import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 
-async function createPlan(page: Page, name: string) {
+/** Opens the app and creates an account (the e2e build uses an in-memory backend). */
+async function signIn(page: Page, email = 'e2e@example.test') {
   await page.goto('./');
+  await page.getByRole('button', { name: 'Create an account' }).click();
+  await page.getByLabel('Email').fill(email);
+  await page.getByLabel('Password').fill('correct horse battery');
+  await page.getByRole('button', { name: 'Create account' }).click();
+  await expect(page.getByRole('button', { name: 'My Plans' })).toBeVisible();
+}
+
+async function createPlan(page: Page, name: string) {
+  await signIn(page);
   await page.getByRole('button', { name: 'Create Your First Plan' }).click();
   await page.getByLabel('Plan Title').fill(name);
   await page.getByRole('button', { name: 'Create Plan' }).click();
@@ -40,12 +50,16 @@ const restoreFromReview = async (page: Page) => {
 };
 const titles = (page: Page) => resources(page).locator('.res-name > :first-child').allInnerTexts();
 
-test('first run invites the user to create a plan', async ({ page }) => {
+test('asks for sign-in first, then invites the user to create a plan', async ({ page }) => {
   await page.goto('./');
+  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Continue with Google' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Continue with X (Twitter)' })).toBeVisible();
+  await signIn(page);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(
     'Start your preparation journey',
   );
-  await expect(page.getByText('Saved in this browser')).toBeVisible();
+  await expect(page.getByText('Saved to your account')).toBeVisible();
 });
 
 test('add resources, track weighted progress, and keep it after reload', async ({ page }) => {
@@ -314,7 +328,7 @@ test('rejects a file that is not a Road to Goals backup', async ({ page }) => {
 
 test('on a phone the backup cards stack without sideways scrolling', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('./');
+  await signIn(page);
   await page.getByRole('button', { name: 'Restore from a backup' }).click();
   const [dl, restore] = await page.locator('.backup-card').all();
   const a = (await dl!.boundingBox())!;
@@ -344,7 +358,7 @@ test('on a phone the journey is a vertical stepper and the list is stacked cards
 
 test('the theme switch overrides the system setting and is remembered', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'dark' });
-  await page.goto('./');
+  await signIn(page);
   const bg = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
   const darkBg = await bg();
 
@@ -401,4 +415,32 @@ test('drag a resource to reorder the list, or move it with the arrow keys', asyn
 
   await page.reload();
   await expect.poll(() => titles(page)).toEqual(['One', 'Two', 'Three']);
+});
+
+test('keeps plans after reload and hides them after sign-out', async ({ page }) => {
+  await createPlan(page, 'Private plan');
+  await expect(page.getByText('All changes saved')).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Private plan');
+
+  await page.getByRole('button', { name: /e2e@example.test/ }).click();
+  await page.getByRole('button', { name: 'Sign out' }).click();
+  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+  await expect(page.getByText('Private plan')).toBeHidden();
+
+  // Signing back in finds the same account and data.
+  await page.getByLabel('Email').fill('e2e@example.test');
+  await page.getByLabel('Password').fill('correct horse battery');
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Private plan');
+});
+
+test('linking Google keeps the same account, so a Google sign-in opens the same plans', async ({
+  page,
+}) => {
+  await createPlan(page, 'Shared plan');
+  await page.getByRole('button', { name: /e2e@example.test/ }).click();
+  const account = page.getByRole('dialog', { name: 'Account' });
+  await account.getByRole('listitem').filter({ hasText: 'Google' }).getByRole('button').click();
+  await expect(account.getByText('linked')).toHaveCount(2);
 });

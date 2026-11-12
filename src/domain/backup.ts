@@ -32,6 +32,45 @@ export function mergePlans(current: AppData, incoming: AppData): AppData {
   };
 }
 
+/**
+ * Gives a plan, phase or resource a new id when an earlier one in `data` already has it.
+ * Ids are unique per user in the database, not per plan, so a file whose plans reuse
+ * short ids ("p1", "r1") would otherwise lose rows or be rejected on restore.
+ */
+export function uniqueIds(data: AppData): AppData {
+  const goalIds = new Set<string>();
+  const phaseIds = new Set<string>();
+  const resourceIds = new Set<string>();
+  const fresh = (seen: Set<string>, id: string) => {
+    const out = seen.has(id) ? uid() : id;
+    seen.add(out);
+    return out;
+  };
+  return {
+    ...data,
+    goals: data.goals.map((g): Goal => {
+      // The first phase with an id owns it; a repeat inside one plan does not remap it.
+      const phaseMap = new Map<string, string>();
+      const phases = g.phases.map((p) => {
+        const id = fresh(phaseIds, p.id);
+        if (!phaseMap.has(p.id)) phaseMap.set(p.id, id);
+        return { ...p, id };
+      });
+      return {
+        ...g,
+        // The first plan with an id keeps it, so `activeGoalId` still points at that one.
+        id: fresh(goalIds, g.id),
+        phases,
+        resources: g.resources.map((r) => ({
+          ...r,
+          id: fresh(resourceIds, r.id),
+          phaseId: r.phaseId ? (phaseMap.get(r.phaseId) ?? null) : null,
+        })),
+      };
+    }),
+  };
+}
+
 const pad = (n: number) => String(n).padStart(2, '0');
 
 /** "roadtogoals-backup-2026-10-28.json", in local time. */

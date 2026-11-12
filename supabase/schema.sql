@@ -9,6 +9,10 @@
 -- use short ids. Primary keys include user_id so two users can never collide.
 -- Order is the `position` column (0-based); the app treats it as array order.
 
+-- Supabase normally grants this already; without it every request fails with
+-- "permission denied for schema public".
+grant usage on schema public to anon, authenticated;
+
 create table public.profiles (
   user_id uuid primary key default auth.uid() references auth.users (id) on delete cascade,
   active_goal_id text

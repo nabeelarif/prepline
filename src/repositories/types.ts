@@ -32,6 +32,11 @@ export interface AppRepository {
 
   /** Replaces everything with `data` (restore a backup), atomically. */
   replaceAll(data: AppData): Promise<void>;
+  /**
+   * Adds plans after the existing ones and makes `activeGoalId` active, atomically. Nothing
+   * already saved is touched, so plans another device saved meanwhile are kept.
+   */
+  addGoals(goals: Goal[], activeGoalId: string | null): Promise<void>;
   /** Deletes all of the user's data, atomically. */
   deleteAll(): Promise<void>;
 }

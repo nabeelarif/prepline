@@ -478,6 +478,20 @@ describe('store', () => {
       expect(saved().goals.map((g) => g.name)).toEqual(['Prep', 'One', 'Two']);
     });
 
+    it('keeps plans another device saved meanwhile when adding plans', async () => {
+      const { s, backend, saved } = await busy();
+      // Another device adds a plan this one has not loaded.
+      await backend.repo.saveGoalTree({
+        ...backup.goals[0]!,
+        id: 'other-device',
+        name: 'Elsewhere',
+      });
+      expect(await s().addPlans(backup)).toBe(true);
+      expect(saved().goals.map((g) => g.name)).toEqual(['Prep', 'Elsewhere', 'One', 'Two']);
+      expect(backend.calls).toContain('addGoals');
+      expect(backend.calls).not.toContain('replaceAll');
+    });
+
     it('deletes everything, and stays empty after a reload', async () => {
       const { s, backend } = await busy();
       expect(await s().deleteAllData()).toBe(true);
@@ -505,6 +519,26 @@ describe('store', () => {
   });
 
   describe('loading and accounts', () => {
+    it('asks for a new password after a reset link, then returns to the app', async () => {
+      const backend = createMemoryBackend({ signedInAs: 'a@example.test' });
+      let fire = () => {};
+      const store = createAppStore({
+        repo: backend.repo,
+        auth: {
+          ...backend.auth,
+          onPasswordRecovery: (cb) => ((fire = cb), () => {}),
+        },
+      });
+      store.getState().init();
+      await vi.waitFor(() => expect(store.getState().load.status).toBe('ready'));
+      fire();
+      expect(store.getState().recovery).toBe(true);
+      expect((await store.getState().updatePassword('short')).ok).toBe(false);
+      expect(store.getState().recovery).toBe(true);
+      expect((await store.getState().updatePassword('long-enough-1')).ok).toBe(true);
+      expect(store.getState().recovery).toBe(false);
+    });
+
     it('shows a load failure as an error, not as an empty account', async () => {
       const backend = createMemoryBackend({ signedInAs: 'a@example.test' });
       backend.failNext(1);

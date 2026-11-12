@@ -1,7 +1,5 @@
 -- Road to Goals: initial database schema. Run once in the Supabase SQL Editor (or psql).
 -- Later changes go in supabase/migrations/ as new, ordered .sql files.
-
--- Road to Goals: initial schema.
 --
 -- Every row belongs to one user (auth.users.id, which never changes when sign-in
 -- methods are linked). Row Level Security restricts every table to its owner, so the
@@ -128,6 +126,10 @@ begin
   on conflict (user_id, id) do update set
     name = excluded.name, description = excluded.description, color = excluded.color
     where public.phases.goal_id = excluded.goal_id;
+  -- Ids are unique per user, so an id already used by another plan updates nothing.
+  if not found then
+    raise exception 'phase id % is already used in another plan', p_phase ->> 'id' using errcode = '23505';
+  end if;
 end $$;
 
 create function public.save_resource(p_goal_id text, p_resource jsonb) returns void
@@ -153,6 +155,9 @@ begin
     done = excluded.done, done_at = excluded.done_at, started_at = excluded.started_at,
     phase_id = excluded.phase_id, created_at = excluded.created_at
     where public.resources.goal_id = excluded.goal_id;
+  if not found then
+    raise exception 'resource id % is already used in another plan', p_resource ->> 'id' using errcode = '23505';
+  end if;
 end $$;
 
 -- Numbers every row of the plan 0..n-1: the ids in p_ids first, in that order, then any
@@ -239,6 +244,20 @@ language sql stable security invoker set search_path = public as $$
   );
 $$;
 
+-- Adds plans after the existing ones; nothing already saved is touched.
+create function public.append_goals(p_goals jsonb, p_active_goal_id text) returns void
+language plpgsql security invoker set search_path = public as $$
+declare
+  g jsonb;
+begin
+  for g in select value from jsonb_array_elements(coalesce(p_goals, '[]')) loop
+    perform public.save_goal_tree(g);
+  end loop;
+  if p_active_goal_id is not null then
+    perform public.set_active_goal(p_active_goal_id);
+  end if;
+end $$;
+
 create function public.set_active_goal(p_goal_id text) returns void
 language sql security invoker set search_path = public as $$
   insert into public.profiles (active_goal_id) values (p_goal_id)
@@ -249,11 +268,11 @@ revoke all on function
   public.save_goal(jsonb), public.save_phase(text, jsonb), public.save_resource(text, jsonb),
   public.reorder_resources(text, text[]), public.reorder_phases(text, text[]),
   public.save_goal_tree(jsonb), public.delete_all_data(), public.replace_all_data(jsonb),
-  public.set_active_goal(text), public.load_all_data()
+  public.set_active_goal(text), public.load_all_data(), public.append_goals(jsonb, text)
   from public, anon;
 grant execute on function
   public.save_goal(jsonb), public.save_phase(text, jsonb), public.save_resource(text, jsonb),
   public.reorder_resources(text, text[]), public.reorder_phases(text, text[]),
   public.save_goal_tree(jsonb), public.delete_all_data(), public.replace_all_data(jsonb),
-  public.set_active_goal(text), public.load_all_data()
+  public.set_active_goal(text), public.load_all_data(), public.append_goals(jsonb, text)
   to authenticated;

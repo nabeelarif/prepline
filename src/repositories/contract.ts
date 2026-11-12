@@ -127,6 +127,14 @@ export function describeRepositoryContract(name: string, make: () => Promise<Con
       expect(data).toEqual(createEmptyAppData());
     });
 
+    it('adds plans without touching what is already saved', async () => {
+      await repo.saveGoalTree(tree('old'));
+      await repo.addGoals([tree('new1'), tree('new2')], 'new1');
+      const data = await repo.loadAll();
+      expect(data.goals.map((g) => g.id)).toEqual(['old', 'new1', 'new2']);
+      expect(data.activeGoalId).toBe('new1');
+    });
+
     it('keeps each user’s data private', async () => {
       await repo.saveGoalTree(tree('mine'));
       await subject.switchUser('b');

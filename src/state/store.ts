@@ -70,6 +70,8 @@ export interface Store {
   sync: SyncState;
   /** A restore, add or delete-all is running; further ones are refused. */
   busy: boolean;
+  /** The user arrived from a password-reset link and must choose a new password. */
+  recovery: boolean;
 
   /** Starts watching the session and loads the signed-in user's data. Returns a cleanup. */
   init(): () => void;
@@ -82,6 +84,8 @@ export interface Store {
   signInWithPassword(email: string, password: string): Promise<AuthOutcome>;
   signUpWithPassword(email: string, password: string): Promise<AuthOutcome>;
   sendPasswordReset(email: string): Promise<AuthOutcome>;
+  /** Sets the new password after a reset link and returns to the app. */
+  updatePassword(password: string): Promise<AuthOutcome>;
   linkProvider(p: Exclude<AuthProviderId, 'password'>): Promise<AuthOutcome>;
   linkPassword(email: string, password: string): Promise<AuthOutcome>;
   unlinkProvider(p: AuthProviderId): Promise<AuthOutcome>;
@@ -278,7 +282,13 @@ export function createAppStore({ repo, auth }: Backend) {
       userId = user?.id ?? null;
       loadSeq++;
       queue.clear();
-      const reset = { data: createEmptyAppData(), ui: freshUi(), sync: IDLE_SYNC, busy: false };
+      const reset = {
+        data: createEmptyAppData(),
+        ui: freshUi(),
+        sync: IDLE_SYNC,
+        busy: false,
+        recovery: false,
+      };
       if (!user) {
         set({
           ...reset,
@@ -311,9 +321,11 @@ export function createAppStore({ repo, auth }: Backend) {
       load: { status: 'idle', error: null },
       sync: IDLE_SYNC,
       busy: false,
+      recovery: false,
 
       init: () => {
         const stop = auth.onChange((user) => handleUser(user));
+        const stopRecovery = auth.onPasswordRecovery(() => set({ recovery: true }));
         // Warn before leaving the page with changes the backend has not confirmed.
         const warn = (e: BeforeUnloadEvent) => {
           if (get().sync.status === 'saving' || get().sync.status === 'error') e.preventDefault();
@@ -321,6 +333,7 @@ export function createAppStore({ repo, auth }: Backend) {
         window.addEventListener('beforeunload', warn);
         return () => {
           stop();
+          stopRecovery();
           window.removeEventListener('beforeunload', warn);
         };
       },
@@ -330,6 +343,8 @@ export function createAppStore({ repo, auth }: Backend) {
       discardUnsaved: async () => {
         // Let a write already sent finish first, or it could land after the reload read.
         const inFlight = queue.settled();
+        // Show the loading screen now, so nothing can be edited between clearing and loading.
+        set({ load: { status: 'loading', error: null } });
         queue.clear();
         await inFlight;
         await loadData();
@@ -338,6 +353,11 @@ export function createAppStore({ repo, auth }: Backend) {
       signInWithPassword: (e, p) => attempt(() => auth.signInWithPassword(e, p)),
       signUpWithPassword: (e, p) => attempt(() => auth.signUpWithPassword(e, p)),
       sendPasswordReset: (e) => attempt(() => auth.sendPasswordReset(e)),
+      updatePassword: async (password) => {
+        const out = await attempt(() => auth.updatePassword(password));
+        if (out.ok) set({ recovery: false });
+        return out;
+      },
       linkProvider: (p) => attempt(() => auth.linkProvider(p)),
       linkPassword: (e, p) => attempt(() => auth.linkPassword(e, p)),
       unlinkProvider: (p) => attempt(() => auth.unlinkProvider(p)),
@@ -545,10 +565,15 @@ export function createAppStore({ repo, auth }: Backend) {
           overlay: { kind: 'data' },
         }),
 
-      addPlans: (data) =>
-        replaceData((clean) => repo.replaceAll(clean), mergePlans(get().data, data), {
-          overlay: { kind: 'data' },
-        }),
+      // Appends only the new plans, so plans another device saved meanwhile stay untouched.
+      addPlans: (data) => {
+        const existing = get().data.goals.length;
+        return replaceData(
+          (clean) => repo.addGoals(clean.goals.slice(existing), clean.activeGoalId),
+          mergePlans(get().data, data),
+          { overlay: { kind: 'data' } },
+        );
+      },
 
       deleteAllData: () =>
         replaceData(

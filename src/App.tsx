@@ -11,6 +11,7 @@ import { MyPlans } from './components/MyPlans';
 import { Overlay } from './components/Overlay';
 import { Sidebar } from './components/Sidebar';
 import { AuthGate } from './components/AuthGate';
+import { NewPasswordScreen } from './components/NewPasswordScreen';
 import { AccountPanel } from './components/forms/AccountPanel';
 import { ConfigErrorScreen, LoadErrorScreen, LoadingScreen } from './components/StatusScreens';
 import { SyncBanner } from './components/SyncBanner';
@@ -120,12 +121,14 @@ function Shell() {
 export function App() {
   const auth = useStore((s) => s.auth.status);
   const load = useStore((s) => s.load.status);
+  const recovery = useStore((s) => s.recovery);
 
   useEffect(() => (backendConfigError ? undefined : useStore.getState().init()), []);
 
   if (backendConfigError) return <ConfigErrorScreen />;
   if (auth === 'loading') return <LoadingScreen label="Loading…" />;
   if (auth === 'signedOut') return <AuthGate />;
+  if (recovery) return <NewPasswordScreen />;
   if (load === 'error') return <LoadErrorScreen />;
   if (load !== 'ready') return <LoadingScreen />;
   return <Shell />;

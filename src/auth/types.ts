@@ -54,6 +54,13 @@ export interface AuthService {
   /** `confirmEmail` when the email must be confirmed before the first sign-in. */
   signUpWithPassword(email: string, password: string): Promise<AuthResult>;
   sendPasswordReset(email: string): Promise<void>;
+  /**
+   * Calls back when the user arrives from a password-reset link: they are signed in, and
+   * the app must ask for a new password before anything else. Returns an unsubscribe.
+   */
+  onPasswordRecovery(cb: () => void): () => void;
+  /** Sets a new password for the signed-in user. */
+  updatePassword(password: string): Promise<void>;
   /** Attaches another method to the signed-in account (same user id, same data). */
   linkProvider(provider: Exclude<AuthProviderId, 'password'>): Promise<AuthResult>;
   /** Adds email & password to the signed-in account (may need email confirmation). */

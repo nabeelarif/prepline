@@ -1,7 +1,7 @@
 -- pgTAP tests. Run with: supabase test db   (needs the local stack: supabase start)
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(23);
+select plan(26);
 
 -- Two users and some data for each, created as the table owner.
 insert into auth.users (id, instance_id, aud, role, email)
@@ -78,6 +78,17 @@ $$, '42501', null, 'cannot insert a row owned by another user');
 reset role;
 set local role anon;
 select throws_ok($$ select count(*) from public.goals $$, '42501', null, 'anon cannot read plans');
+
+-- Appending keeps what is saved; an id used by another plan is an error, not a silent skip.
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
+select lives_ok($$
+  select public.append_goals('[{"id": "g2", "name": "Second", "description": "", "target_date": "2027-01-01",
+    "created_at": "2026-01-01", "phases": [], "resources": []}]'::jsonb, 'g2')
+$$, 'append_goals adds a plan');
+select is((select array_agg(id order by position) from public.goals), array['g1', 'g2'], 'and keeps the existing plan first');
+select throws_ok($$
+  select public.save_resource('g2', '{"id": "r1", "title": "x", "type": "article", "minutes": 5, "created_at": "2026-01-01"}'::jsonb)
+$$, '23505', null, 'a resource id used by another plan is rejected');
 
 select * from finish();
 rollback;

@@ -40,7 +40,10 @@ export class WriteQueue {
     for (const op of ops) {
       if (op.key) {
         // A later whole-order write replaces an earlier waiting one for the same list.
-        const i = this.ops.findIndex((o) => o.key === op.key && o !== this.current);
+        // The failed op at the head stays: it is what retry or discard refers to.
+        const i = this.ops.findIndex(
+          (o, n) => o.key === op.key && o !== this.current && !(n === 0 && this.failed),
+        );
         if (i >= 0) {
           const [old] = this.ops.splice(i, 1);
           if (old!.after) {

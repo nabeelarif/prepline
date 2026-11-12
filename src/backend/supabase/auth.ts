@@ -44,14 +44,35 @@ export function createSupabaseAuth(client: SupabaseClient): AuthService {
     return data?.identities ?? [];
   };
 
+  const recoveryListeners = new Set<() => void>();
+  // The reset link lands with `type=recovery` in the URL; remember it in case the event
+  // fires before the app has subscribed.
+  let recoveryPending = /[#&?]type=recovery\b/.test(window.location.hash + window.location.search);
+
   return {
     onChange(cb) {
-      const { data } = client.auth.onAuthStateChange((_event, session) => {
+      const { data } = client.auth.onAuthStateChange((event, session) => {
         // Supabase calls back while holding an internal lock, so defer anything slow.
         const user = toUser(session?.user);
-        setTimeout(() => cb(user), 0);
+        setTimeout(() => {
+          cb(user);
+          if (event === 'PASSWORD_RECOVERY') recoveryListeners.forEach((l) => l());
+        }, 0);
       });
       return () => data.subscription.unsubscribe();
+    },
+
+    onPasswordRecovery(cb) {
+      recoveryListeners.add(cb);
+      if (recoveryPending) {
+        recoveryPending = false;
+        setTimeout(cb, 0);
+      }
+      return () => recoveryListeners.delete(cb);
+    },
+
+    async updatePassword(password) {
+      await wrap(client.auth.updateUser({ password }));
     },
 
     async signInWithProvider(provider) {
@@ -105,7 +126,9 @@ export function createSupabaseAuth(client: SupabaseClient): AuthService {
       const all = await identities();
       if (all.length <= 1) throw new AuthError('lastMethod', 'This is your only sign-in method.');
       const target = all.find((i) => FROM_SUPABASE[i.provider] === provider);
-      if (!target) return;
+      if (!target) {
+        throw new AuthError('unknown', 'That sign-in method is not linked. Refresh and try again.');
+      }
       await wrap(client.auth.unlinkIdentity(target));
     },
 

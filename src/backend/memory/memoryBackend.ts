@@ -193,6 +193,13 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
         if (!clean) throw new RepositoryError('validation', 'invalid data');
         Object.assign(d, clean);
       }),
+    addGoals: (goals, activeGoalId) =>
+      run('addGoals', (d) => {
+        const added = parseAppData(clone({ version: 1, activeGoalId: null, goals }));
+        if (!added) throw new RepositoryError('validation', 'invalid data');
+        for (const g of added.goals) upsert(d.goals, g);
+        if (activeGoalId) d.activeGoalId = activeGoalId;
+      }),
     deleteAll: () =>
       run('deleteAll', (d) => {
         Object.assign(d, createEmptyAppData());
@@ -239,6 +246,12 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
       return signInAs(a);
     },
     async sendPasswordReset() {},
+    onPasswordRecovery: () => () => {},
+    async updatePassword(password) {
+      if (password.length < 8) throw new AuthError('weakPassword', 'Password too short');
+      requireUser().password = password;
+      persist();
+    },
     async linkProvider(provider) {
       const a = requireUser();
       const other = accounts.find((x) => x.id !== a.id && x.methods.includes(provider));

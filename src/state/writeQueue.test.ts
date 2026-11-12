@@ -53,4 +53,17 @@ describe('WriteQueue', () => {
     await tick();
     expect(run).toHaveBeenCalledTimes(1);
   });
+
+  it('does not replace the failed write at the head with a later one for the same list', async () => {
+    let state!: SyncState;
+    const queue = new WriteQueue((s) => (state = s));
+    const failing = vi.fn(async () => {
+      throw new RepositoryError('validation', 'bad');
+    });
+    queue.enqueue([{ key: 'order', run: failing }]);
+    await vi.waitFor(() => expect(state.status).toBe('error'));
+    queue.enqueue([{ key: 'order', run: async () => {} }]);
+    expect(state.pending).toBe(2);
+    expect(state.retryable).toBe(false);
+  });
 });

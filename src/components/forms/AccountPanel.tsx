@@ -129,7 +129,7 @@ export function AccountPanel() {
           onClick={() => {
             const warn = pending > 0 ? 'Some changes are not saved yet and will be lost. ' : '';
             if (warn && !window.confirm(`${warn}Sign out anyway?`)) return;
-            void store.signOut();
+            void act(() => store.signOut());
           }}
         >
           Sign out

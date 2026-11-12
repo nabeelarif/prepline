@@ -21,6 +21,8 @@ export function describeError(e: unknown): string {
         return 'Your session has expired. Sign in again.';
       case 'validation':
         return 'The server rejected this data.';
+      case 'conflict':
+        return 'This changed somewhere else, for example on another device.';
       default:
         return 'Something went wrong while talking to the server.';
     }

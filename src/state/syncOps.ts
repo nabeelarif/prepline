@@ -29,6 +29,14 @@ const planFields = (g: Goal): Omit<Goal, 'resources' | 'phases'> => ({
   createdAt: g.createdAt,
 });
 
+/** True when `ids` is not what the backend would produce from `old` minus deletions plus appended new items. */
+function reordered(old: { id: string }[], ids: string[], kept: Set<string>): boolean {
+  const oldIds = old.map((x) => x.id);
+  const oldSet = new Set(oldIds);
+  const expected = [...oldIds.filter((id) => kept.has(id)), ...ids.filter((id) => !oldSet.has(id))];
+  return !sameOrder(expected, ids);
+}
+
 /**
  * The repository calls that turn `prev` into `next`. The store applies every change in
  * memory first (Immer keeps unchanged objects identical, so a reference check finds what
@@ -41,9 +49,10 @@ export function diffData(prev: AppData, next: AppData, repo: AppRepository): Syn
   const deletes: SyncOp[] = [];
   const orders: SyncOp[] = [];
   const nextIds = new Set(next.goals.map((g) => g.id));
+  const prevGoals = new Map(prev.goals.map((g) => [g.id, g]));
 
   for (const g of next.goals) {
-    const old = prev.goals.find((x) => x.id === g.id);
+    const old = prevGoals.get(g.id);
     if (!old) {
       saves.push({ run: () => repo.saveGoalTree(g) });
       continue;
@@ -71,29 +80,12 @@ export function diffData(prev: AppData, next: AppData, repo: AppRepository): Syn
     }
 
     // New items are appended by the backend, so only a different order needs a write.
-    const order = (oldIds: string[], ids: string[], set: Set<string>) => {
-      const kept = oldIds.filter((id) => set.has(id));
-      const oldSet = new Set(oldIds);
-      return sameOrder([...kept, ...ids.filter((id) => !oldSet.has(id))], ids);
-    };
     const rIds = g.resources.map((r) => r.id);
-    if (
-      !order(
-        old.resources.map((r) => r.id),
-        rIds,
-        resourceIds,
-      )
-    ) {
+    if (reordered(old.resources, rIds, resourceIds)) {
       orders.push({ key: `resources:${g.id}`, run: () => repo.reorderResources(g.id, rIds) });
     }
     const pIds = g.phases.map((p) => p.id);
-    if (
-      !order(
-        old.phases.map((p) => p.id),
-        pIds,
-        phaseIds,
-      )
-    ) {
+    if (reordered(old.phases, pIds, phaseIds)) {
       orders.push({ key: `phases:${g.id}`, run: () => repo.reorderPhases(g.id, pIds) });
     }
   }

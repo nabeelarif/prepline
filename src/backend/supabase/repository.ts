@@ -14,21 +14,16 @@ import {
   type ResourceRow,
 } from './rows';
 
-/** Throws a `RepositoryError` for a failed Supabase response; returns its data otherwise. */
-function check<T>(res: { data: T; error: unknown; status?: number }): T {
-  if (res.error) {
-    const e = res.error as object;
-    throw toRepositoryError({ ...e, status: res.status });
-  }
-  return res.data;
-}
-
+/** Awaits a Supabase call; throws a `RepositoryError` for a thrown or returned error. */
 async function call<T>(op: PromiseLike<{ data: T; error: unknown; status?: number }>): Promise<T> {
+  let res;
   try {
-    return check(await op);
+    res = await op;
   } catch (e) {
     throw toRepositoryError(e);
   }
+  if (res.error) throw toRepositoryError({ ...(res.error as object), status: res.status });
+  return res.data;
 }
 
 /** Table names, queries and RPCs live here and nowhere else. */

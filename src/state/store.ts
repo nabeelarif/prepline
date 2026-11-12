@@ -193,7 +193,6 @@ export function createAppStore({ repo, auth }: Backend) {
     const queue = new WriteQueue((sync) => set({ sync }));
     let userId: string | null = null;
     let loadSeq = 0;
-    let replacing = false;
 
     /**
      * Applies a change to the data in memory at once, then saves it through the write queue.
@@ -225,10 +224,9 @@ export function createAppStore({ repo, auth }: Backend) {
       next: AppData,
       ui?: Partial<UiState>,
     ): Promise<boolean> => {
-      if (replacing) return false;
+      if (get().busy) return false;
       const clean = parseAppData(JSON.parse(JSON.stringify(next)));
       if (!clean) return false;
-      replacing = true;
       set({ busy: true });
       try {
         await queue.exclusive(() => save(clean));
@@ -237,7 +235,6 @@ export function createAppStore({ repo, auth }: Backend) {
       } catch {
         return false;
       } finally {
-        replacing = false;
         set({ busy: false });
       }
     };

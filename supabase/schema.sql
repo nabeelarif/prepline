@@ -100,6 +100,8 @@ grant select, insert, update, delete
 create function public.save_goal(p_goal jsonb) returns void
 language plpgsql security invoker set search_path = public as $$
 begin
+  -- Two tabs adding at once would read the same max(position); take turns instead.
+  perform pg_advisory_xact_lock(hashtext('goals:' || auth.uid()));
   insert into public.goals (id, name, description, target_date, hours_per_day, created_at, position)
   values (
     p_goal ->> 'id', p_goal ->> 'name', coalesce(p_goal ->> 'description', ''),
@@ -116,6 +118,7 @@ end $$;
 create function public.save_phase(p_goal_id text, p_phase jsonb) returns void
 language plpgsql security invoker set search_path = public as $$
 begin
+  perform pg_advisory_xact_lock(hashtext('phases:' || auth.uid() || ':' || p_goal_id));
   insert into public.phases (goal_id, id, name, description, color, position)
   values (
     p_goal_id, p_phase ->> 'id', p_phase ->> 'name', coalesce(p_phase ->> 'description', ''),
@@ -130,6 +133,7 @@ end $$;
 create function public.save_resource(p_goal_id text, p_resource jsonb) returns void
 language plpgsql security invoker set search_path = public as $$
 begin
+  perform pg_advisory_xact_lock(hashtext('resources:' || auth.uid() || ':' || p_goal_id));
   insert into public.resources (
     goal_id, id, title, url, type, minutes, done_minutes, notes, done,
     done_at, started_at, phase_id, created_at, position
@@ -151,18 +155,30 @@ begin
     where public.resources.goal_id = excluded.goal_id;
 end $$;
 
+-- Numbers every row of the plan 0..n-1: the ids in p_ids first, in that order, then any
+-- row not in the list (added by another device meanwhile) after them in its old order.
 create function public.reorder_resources(p_goal_id text, p_ids text[]) returns void
 language sql security invoker set search_path = public as $$
-  update public.resources r set position = o.pos - 1
-  from unnest(p_ids) with ordinality as o(id, pos)
-  where r.goal_id = p_goal_id and r.id = o.id;
+  update public.resources r set position = n.pos
+  from (
+    select x.id, row_number() over (order by o.pos nulls last, x.position, x.id) - 1 as pos
+    from public.resources x
+    left join unnest(p_ids) with ordinality as o(id, pos) on o.id = x.id
+    where x.goal_id = p_goal_id
+  ) n
+  where r.goal_id = p_goal_id and r.id = n.id;
 $$;
 
 create function public.reorder_phases(p_goal_id text, p_ids text[]) returns void
 language sql security invoker set search_path = public as $$
-  update public.phases p set position = o.pos - 1
-  from unnest(p_ids) with ordinality as o(id, pos)
-  where p.goal_id = p_goal_id and p.id = o.id;
+  update public.phases p set position = n.pos
+  from (
+    select x.id, row_number() over (order by o.pos nulls last, x.position, x.id) - 1 as pos
+    from public.phases x
+    left join unnest(p_ids) with ordinality as o(id, pos) on o.id = x.id
+    where x.goal_id = p_goal_id
+  ) n
+  where p.goal_id = p_goal_id and p.id = n.id;
 $$;
 
 -- Writes one plan with its phases and resources. Phases and resources of the plan that

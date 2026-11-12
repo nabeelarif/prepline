@@ -26,6 +26,26 @@ async function call<T>(op: PromiseLike<{ data: T; error: unknown; status?: numbe
   return res.data;
 }
 
+/** PostgREST returns at most 1000 rows per request by default, so larger tables are read in pages. */
+const PAGE = 1000;
+
+/** Every row of a table in position order (ties broken by id, so pages never overlap). */
+async function readAll(client: SupabaseClient, table: string): Promise<unknown[]> {
+  const rows: unknown[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const page = (await call(
+      client
+        .from(table)
+        .select('*')
+        .order('position')
+        .order('id')
+        .range(from, from + PAGE - 1),
+    )) as unknown[];
+    rows.push(...page);
+    if (page.length < PAGE) return rows;
+  }
+}
+
 /** Table names, queries and RPCs live here and nowhere else. */
 export function createSupabaseRepository(client: SupabaseClient): AppRepository {
   const rpc = (fn: string, args: Record<string, unknown>) =>
@@ -33,11 +53,11 @@ export function createSupabaseRepository(client: SupabaseClient): AppRepository 
 
   return {
     async loadAll() {
-      // Separate reads are fine: a plan's data is small, and the order of rows is by position.
+      // Separate reads are fine; each is paged because a user can have more than 1000 rows.
       const [goals, phases, resources, profile] = await Promise.all([
-        call(client.from('goals').select('*').order('position')),
-        call(client.from('phases').select('*').order('position')),
-        call(client.from('resources').select('*').order('position')),
+        readAll(client, 'goals'),
+        readAll(client, 'phases'),
+        readAll(client, 'resources'),
         call(client.from('profiles').select('active_goal_id').maybeSingle()),
       ]);
       return rowsToAppData(

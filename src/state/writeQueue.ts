@@ -1,4 +1,4 @@
-import { describeError } from '../repositories/errors';
+import { describeError, RepositoryError } from '../repositories/errors';
 import type { SyncOp } from './syncOps';
 
 export interface SyncState {
@@ -7,9 +7,16 @@ export interface SyncState {
   /** Writes not yet confirmed, including the one in flight. */
   pending: number;
   error: string | null;
+  /** False when the server rejected a write for good: retrying cannot help, only discarding. */
+  retryable: boolean;
 }
 
-export const IDLE_SYNC: SyncState = { status: 'idle', pending: 0, error: null };
+export const IDLE_SYNC: SyncState = { status: 'idle', pending: 0, error: null, retryable: true };
+
+/** A write the server refused because of its content or a clash; sending it again fails again. */
+function isPermanent(e: unknown): boolean {
+  return e instanceof RepositoryError && (e.code === 'validation' || e.code === 'conflict');
+}
 
 /**
  * Saves repository writes one at a time, in order, so an older save can never overwrite a
@@ -24,6 +31,7 @@ export class WriteQueue {
   private paused = false;
   private generation = 0;
   private error: string | null = null;
+  private retryable = true;
   private saved = false;
 
   constructor(private readonly onState: (s: SyncState) => void) {}
@@ -53,6 +61,7 @@ export class WriteQueue {
   /** Runs the failed write again, then the rest. */
   retry() {
     if (!this.failed) return;
+    if (!this.retryable) return;
     this.failed = false;
     this.error = null;
     this.start();
@@ -62,8 +71,13 @@ export class WriteQueue {
   clear() {
     this.generation++;
     this.ops = [];
+    // The old drain loop exits on its own once it sees the new generation. Detach it so
+    // writes queued from now on start a loop of their own.
+    this.loop = null;
+    this.current = null;
     this.failed = false;
     this.error = null;
+    this.retryable = true;
     this.saved = false;
     this.emit();
   }
@@ -83,6 +97,7 @@ export class WriteQueue {
         this.ops.splice(0, waiting);
         this.failed = false;
         this.error = null;
+        this.retryable = true;
       }
       return result;
     } finally {
@@ -97,10 +112,12 @@ export class WriteQueue {
       this.emit();
       return;
     }
-    this.loop = this.drain().finally(() => {
-      this.loop = null;
+    const loop: Promise<void> = this.drain().finally(() => {
+      // A cleared queue may already have started a newer loop; leave that one alone.
+      if (this.loop === loop) this.loop = null;
       this.emit();
     });
+    this.loop = loop;
   }
 
   private async drain() {
@@ -112,17 +129,22 @@ export class WriteQueue {
       try {
         await op.run();
       } catch (e) {
-        this.current = null;
         if (generation !== this.generation) return;
+        this.current = null;
         this.failed = true;
+        this.retryable = !isPermanent(e);
         this.error = describeError(e);
         return;
       }
-      this.current = null;
       if (generation !== this.generation) return;
+      this.current = null;
       this.ops.shift();
       this.saved = true;
-      op.after?.();
+      try {
+        op.after?.();
+      } catch {
+        // A faulty callback (a toast) must not stop saving or leave a rejected promise.
+      }
     }
   }
 
@@ -135,6 +157,6 @@ export class WriteQueue {
         : this.saved
           ? 'saved'
           : 'idle';
-    this.onState({ status, pending, error: this.error });
+    this.onState({ status, pending, error: this.error, retryable: this.retryable });
   }
 }

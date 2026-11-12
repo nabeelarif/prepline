@@ -20,6 +20,7 @@ function fakeClient(answer: (call: string, args?: unknown) => { data?: unknown; 
     Object.assign(chain, {
       select: () => chain,
       order: () => chain,
+      range: () => chain,
       maybeSingle: () => respond(`${name}.maybeSingle`),
       delete: () => {
         const filters: unknown[] = [];
@@ -176,6 +177,35 @@ describe('repository', () => {
     await expect(createSupabaseRepository(failing.client).loadAll()).rejects.toMatchObject({
       code: 'network',
     });
+  });
+
+  it('reads tables in pages so large accounts are not cut off at 1000 rows', async () => {
+    const ranges: Record<string, number[][]> = {};
+    const rows = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `g${i}` }));
+    const reads: Record<string, number> = {};
+    const table = (name: string) => {
+      const chain: Record<string, unknown> = {};
+      Object.assign(chain, {
+        select: () => chain,
+        order: () => chain,
+        range: (from: number, to: number) => ((ranges[name] ??= []).push([from, to]), chain),
+        maybeSingle: () => Promise.resolve({ data: null, error: null }),
+        then: (cb: (v: unknown) => unknown) =>
+          Promise.resolve({
+            data: (reads[name] = (reads[name] ?? 0) + 1) === 1 ? rows(1000) : rows(5),
+            error: null,
+          }).then(cb),
+      });
+      return chain;
+    };
+    const client = { from: table } as unknown as SupabaseClient;
+    await createSupabaseRepository(client)
+      .loadAll()
+      .catch(() => undefined);
+    expect(ranges.goals).toEqual([
+      [0, 999],
+      [1000, 1999],
+    ]);
   });
 
   it('sends every multi-row write as one RPC call, and deletes by id', async () => {

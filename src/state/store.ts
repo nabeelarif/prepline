@@ -1,6 +1,6 @@
 import { produce, type Draft } from 'immer';
 import { create } from 'zustand';
-import { createEmptyAppData, mergePlans } from '../domain/backup';
+import { createEmptyAppData, mergePlans, uniqueIds } from '../domain/backup';
 import { todayISO } from '../domain/dates';
 import { uid } from '../domain/format';
 import type { RoadmapView } from '../domain/roadmap';
@@ -76,6 +76,8 @@ export interface Store {
   reload(): Promise<void>;
   /** Saves again from the failed write on. */
   retrySync(): void;
+  /** Gives up the writes the server refused and loads what it has saved. */
+  discardUnsaved(): Promise<void>;
   signInWithProvider(p: Exclude<AuthProviderId, 'password'>): Promise<AuthOutcome>;
   signInWithPassword(email: string, password: string): Promise<AuthOutcome>;
   signUpWithPassword(email: string, password: string): Promise<AuthOutcome>;
@@ -203,6 +205,9 @@ export function createAppStore({ repo, auth }: Backend) {
       recipe: (d: Draft<AppData>) => void | AppData,
       ui?: Partial<UiState> | (() => Partial<UiState>),
     ) => {
+      // A restore or delete-all is replacing the data; an edit now would be wiped from
+      // memory when it finishes yet still be sent to the backend.
+      if (get().busy) return;
       const prev = get().data;
       const data = produce(prev, recipe);
       const { toast: confirmed, ...patch } = (typeof ui === 'function' ? ui() : ui) ?? {};
@@ -232,7 +237,8 @@ export function createAppStore({ repo, auth }: Backend) {
         await queue.exclusive(() => save(clean));
         set((s) => ({ data: clean, ui: { ...s.ui, ...planUi(), ...ui } }));
         return true;
-      } catch {
+      } catch (e) {
+        setUi({ toast: toast(describeError(e)).toast });
         return false;
       } finally {
         set({ busy: false });
@@ -309,8 +315,13 @@ export function createAppStore({ repo, auth }: Backend) {
           window.removeEventListener('beforeunload', warn);
         };
       },
-      reload: loadData,
+      // Never replaces edits the backend has not confirmed; Retry or Discard comes first.
+      reload: () => (get().sync.pending > 0 ? Promise.resolve() : loadData()),
       retrySync: () => queue.retry(),
+      discardUnsaved: () => {
+        queue.clear();
+        return loadData();
+      },
       signInWithProvider: (p) => attempt(() => auth.signInWithProvider(p)),
       signInWithPassword: (e, p) => attempt(() => auth.signInWithPassword(e, p)),
       signUpWithPassword: (e, p) => attempt(() => auth.signUpWithPassword(e, p)),
@@ -518,7 +529,9 @@ export function createAppStore({ repo, auth }: Backend) {
       dismissToast: () => setUi({ toast: null }),
 
       restoreBackup: (data) =>
-        replaceData((clean) => repo.replaceAll(clean), data, { overlay: { kind: 'data' } }),
+        replaceData((clean) => repo.replaceAll(clean), uniqueIds(data), {
+          overlay: { kind: 'data' },
+        }),
 
       addPlans: (data) =>
         replaceData((clean) => repo.replaceAll(clean), mergePlans(get().data, data), {

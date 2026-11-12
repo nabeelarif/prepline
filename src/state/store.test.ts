@@ -305,6 +305,44 @@ describe('store', () => {
   });
 
   describe('failed saves', () => {
+    it('offers discarding, not retrying, when the server rejects a write for good', async () => {
+      const { s, backend, add, saved } = await setup();
+      await vi.waitFor(() => expect(s().sync.pending).toBe(0));
+      backend.failNext(1, 'validation');
+      add({ title: 'Rejected' });
+      await vi.waitFor(() => expect(s().sync.status).toBe('error'));
+      expect(s().sync.retryable).toBe(false);
+      s().retrySync();
+      expect(s().sync.status).toBe('error');
+      await s().discardUnsaved();
+      expect(s().sync).toMatchObject({ status: 'idle', pending: 0 });
+      expect(s().data.goals[0]!.resources).toEqual(saved().goals[0]!.resources);
+    });
+
+    it('does not reload over edits that are not saved yet', async () => {
+      const { s, backend, add } = await setup();
+      await vi.waitFor(() => expect(s().sync.pending).toBe(0));
+      backend.failNext(1);
+      add({ title: 'Unsaved' });
+      await vi.waitFor(() => expect(s().sync.status).toBe('error'));
+      expect(s().sync.retryable).toBe(true);
+      await s().reload();
+      expect(s().data.goals[0]!.resources).toHaveLength(1);
+    });
+
+    it('ignores edits made while a restore or delete-all is running', async () => {
+      const { s, backend, add } = await setup();
+      await vi.waitFor(() => expect(s().sync.pending).toBe(0));
+      const release = backend.hold();
+      const done = s().deleteAllData();
+      add({ title: 'Too late' });
+      release();
+      expect(await done).toBe(true);
+      expect(s().data.goals).toEqual([]);
+      await vi.waitFor(() => expect(s().sync.pending).toBe(0));
+      expect(backend.dataOf(backend.userId()!).goals).toEqual([]);
+    });
+
     it('keeps the change in memory, reports it, and retry saves it', async () => {
       const { s, add, saved, flush, backend } = await setup();
       await flush();
@@ -401,7 +439,10 @@ describe('store', () => {
       expect(await s().restoreBackup(backup)).toBe(false);
       expect(await s().deleteAllData()).toBe(false);
       expect(s().data).toBe(before.data);
-      expect(s().ui).toEqual(before.ui);
+      expect(s().ui).toEqual({
+        ...before.ui,
+        toast: expect.objectContaining({ text: expect.any(String) }),
+      });
       expect(saved()).toEqual(before.server);
       expect(s().busy).toBe(false);
     });

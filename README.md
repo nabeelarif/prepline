@@ -47,3 +47,7 @@ Built with Vite, React, TypeScript, Zustand and Zod.
 ## Data
 
 Everything lives in your browser's localStorage under the key `prepline:v1`. Clearing site data erases it, and it does not sync between browsers or devices. Use **Backup and restore** to export a JSON file now and then.
+
+## License
+
+Prepline is licensed under the [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0-only).

@@ -2,9 +2,9 @@ import { CirclePlay, CodeXml, FileText, GraduationCap, type LucideIcon } from 'l
 import type { ResourceType } from '../domain/types';
 import logoUrl from '../assets/logo.png';
 
-/** Brand mark: the Road to Goals icon (three steps rising to a star). */
+/** Brand mark: the Road to Goals "R" road icon. */
 export function Logo() {
-  return <img className="logo" src={logoUrl} alt="" width="30" height="30" />;
+  return <img className="logo" src={logoUrl} alt="" />;
 }
 
 const TYPE_ICONS: Record<ResourceType, LucideIcon> = {

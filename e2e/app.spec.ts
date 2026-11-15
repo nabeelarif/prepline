@@ -48,7 +48,7 @@ const restoreFromReview = async (page: Page) => {
   await expect(page.getByText('Backup restored successfully')).toBeVisible();
   await page.getByRole('button', { name: 'Continue to Dashboard' }).click();
 };
-const titles = (page: Page) => resources(page).locator('.res-name > :first-child').allInnerTexts();
+const titles = (page: Page) => resources(page).locator('.res-title > :first-child').allInnerTexts();
 
 test('asks for sign-in first, then invites the user to create a plan', async ({ page }) => {
   await page.goto('./');
@@ -99,7 +99,7 @@ test('selecting a journey step highlights its resource', async ({ page }) => {
   await journey(page)
     .getByRole('button', { name: /^Second/ })
     .click();
-  await expect(page.locator('.res-row.is-selected')).toContainText('Second');
+  await expect(page.locator('.res-card.is-selected')).toContainText('Second');
   // Picking a step never completes it.
   await expect(statusOf(page, 'Second')).toHaveText('Not Started');
 });
@@ -120,7 +120,7 @@ test('phases are optional, group resources, and deleting one keeps its resources
 
   await resources(page).getByRole('button', { name: 'Actions for Arrays' }).click();
   await page.getByRole('menuitemradio', { name: 'Basics' }).click();
-  await expect(resources(page).locator('.ph-tag')).toHaveText('Basics');
+  await expect(resources(page).locator('.band-name')).toContainText(['Basics', 'Unassigned']);
 
   await expect(journey(page).getByRole('button', { name: /^Basics/ })).toContainText(
     '0 / 1 resources',
@@ -131,10 +131,10 @@ test('phases are optional, group resources, and deleting one keeps its resources
   await journey(page)
     .getByRole('button', { name: /^Basics/ })
     .click();
-  await expect(resources(page).locator('.res-row')).toHaveCount(1);
+  await expect(resources(page).locator('.res-card')).toHaveCount(1);
 
   await page.reload();
-  await expect(resources(page).locator('.ph-tag')).toHaveText('Basics');
+  await expect(resources(page).locator('.band-name').first()).toContainText('Basics');
   await journey(page)
     .getByRole('button', { name: /^Phases/ })
     .click();
@@ -144,8 +144,8 @@ test('phases are optional, group resources, and deleting one keeps its resources
   await resources(page).getByRole('button', { name: 'Edit phase' }).click();
   await page.getByRole('button', { name: 'Delete phase' }).click();
   await page.getByRole('button', { name: 'Delete? Its resources are kept' }).click();
-  await expect(resources(page).locator('.ph-tag')).toHaveCount(0);
-  await expect(resources(page).locator('.res-row')).toHaveCount(2);
+  await expect(resources(page).locator('.band-name')).toHaveText([/^Unassigned/]);
+  await expect(resources(page).locator('.res-card')).toHaveCount(2);
 });
 
 test('my plans: switch, duplicate, and import a backup from an older version', async ({ page }) => {
@@ -256,7 +256,7 @@ test('definition of done: two resources in progress at once, then export and res
 
   // Filter by status.
   await resources(page).getByLabel('Filter by status').selectOption('completed');
-  await expect(resources(page).locator('.res-row')).toHaveCount(1);
+  await expect(resources(page).locator('.res-card')).toHaveCount(1);
   await resources(page).getByLabel('Filter by status').selectOption('all');
 
   await page.reload();
@@ -351,7 +351,7 @@ test('on a phone the journey is a vertical stepper and the list is stacked cards
   const bb = (await b!.boundingBox())!;
   expect(bb.y).toBeGreaterThan(ba.y);
   expect(Math.abs(bb.x - ba.x)).toBeLessThan(2);
-  await expect(resources(page).locator('thead')).toBeHidden();
+  await expect(resources(page).locator('.res-card').first()).toBeVisible();
   const width = await page.evaluate(() => document.documentElement.scrollWidth);
   expect(width).toBeLessThanOrEqual(390);
   await expect(page.getByRole('link', { name: 'Dashboard' })).toBeVisible();
@@ -400,9 +400,9 @@ test('drag a resource to reorder the list, or move it with the arrow keys', asyn
   const handle = resources(page).getByRole('button', { name: 'Reorder Three' });
   // Centre the table so the drag stays clear of the auto-scroll edges.
   await resources(page)
-    .getByRole('table')
+    .locator('.res-list')
     .evaluate((t) => t.scrollIntoView({ block: 'center' }));
-  const first = await resources(page).getByRole('row').nth(1).boundingBox();
+  const first = await resources(page).locator('.res-card').first().boundingBox();
   const from = await handle.boundingBox();
   await page.mouse.move(from!.x + from!.width / 2, from!.y + from!.height / 2);
   await page.mouse.down();

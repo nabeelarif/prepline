@@ -28,16 +28,14 @@ afterEach(() => {
 describe('Resource notes', () => {
   it('shows nothing extra for a resource without notes', async () => {
     await show({ Plain: '' });
-    expect(resources().querySelector('.res-notes-row')).toBeNull();
-    expect(resources().querySelector('.res-row')).not.toHaveClass('has-notes');
+    expect(resources().querySelector('.res-notes-line')).toBeNull();
   });
 
-  it('shows short notes on their own line under the row, with no Show more', async () => {
+  it('shows short notes inside the card, with no Show more', async () => {
     await show({ Short: 'Read the intro.' });
     const line = within(resources()).getByText('Read the intro.');
-    expect(line.closest('tr')).toHaveClass('res-notes-row');
-    expect(line.closest('tr')!.previousElementSibling).toHaveClass('res-row', 'has-notes');
-    expect(resources().querySelector('.res-name .res-notes')).toBeNull();
+    expect(line.closest('.res-card')).not.toBeNull();
+    expect(line.closest('.res-notes-line')).not.toBeNull();
     expect(within(resources()).queryByRole('button', { name: /Show/ })).toBeNull();
   });
 
@@ -108,33 +106,83 @@ describe('Resource notes', () => {
     expect(within(resources()).getByText('<b>bold</b>')).toBeVisible();
     expect(resources().querySelector('.res-notes b')).toBeNull();
   });
+});
 
-  it("alternates backgrounds by visible resource, with notes in their row's color", async () => {
+describe('Resource links', () => {
+  it('opens the title in a new tab, with Start as a separate plain button', async () => {
     await resetApp(
       parseAppData({
-        goals: [
-          {
-            name: 'Prep',
-            resources: [
-              { title: 'A', type: 'video', notes: 'Watch closely.' },
-              { title: 'B', type: 'article' },
-              { title: 'C', type: 'video', notes: 'Again.' },
-            ],
-          },
-        ],
+        goals: [{ id: 'g', name: 'Prep', resources: [{ title: 'Doc', url: 'https://a.dev/x' }] }],
       })!,
     );
     renderApp();
     await screen.findByRole('region', { name: /^Resources/ });
-    const alt = () =>
-      [...resources().querySelectorAll('tbody tr')].map(
-        (tr) =>
-          `${tr.className.includes('res-notes-row') ? 'notes' : 'row'}:${tr.classList.contains('alt')}`,
-      );
-    expect(alt()).toEqual(['row:false', 'notes:false', 'row:true', 'row:false', 'notes:false']);
+    const link = within(resources()).getByRole('link', { name: 'Doc' });
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link.querySelector('svg.ext')).not.toBeNull();
+    const start = within(resources()).getByRole('button', { name: 'Start' });
+    expect(start.tagName).toBe('BUTTON');
+    expect(start.querySelector('svg.lucide-external-link')).toBeNull();
+  });
+});
 
-    // Filtered, the visible rows alternate from the first one.
-    fireEvent.click(within(resources()).getByRole('button', { name: /^Videos/ }));
-    expect(alt()).toEqual(['row:false', 'notes:false', 'row:true', 'notes:true']);
+describe('Resource groups', () => {
+  const plan = (resources: object[], phases: object[] = []) =>
+    resetApp(parseAppData({ goals: [{ id: 'g', name: 'Prep', phases, resources }] })!);
+  const bands = () =>
+    [...resources().querySelectorAll('.phase-band .band-name')].map((n) =>
+      n.firstChild?.textContent?.trim(),
+    );
+
+  it('offers to create a phase when the plan has none', async () => {
+    await plan([{ title: 'A' }]);
+    renderApp();
+    await screen.findByRole('region', { name: /^Resources/ });
+    expect(bands()).toEqual(['Unassigned']);
+    expect(within(resources()).getByText(/Group your resources into phases/)).toBeVisible();
+    fireEvent.click(within(resources()).getByRole('button', { name: 'Create phase' }));
+    expect(await screen.findByRole('dialog')).toBeVisible();
+  });
+
+  it('groups by phase in phase order, with unassigned last and hidden when empty', async () => {
+    await plan(
+      [
+        { id: 'a', title: 'A', phaseId: 'p2' },
+        { id: 'b', title: 'B', phaseId: 'p1' },
+        { id: 'c', title: 'C' },
+      ],
+      [
+        { id: 'p1', name: 'First', color: 'blue' },
+        { id: 'p2', name: 'Second', color: 'green' },
+      ],
+    );
+    renderApp();
+    await screen.findByRole('region', { name: /^Resources/ });
+    expect(bands()).toEqual(['First', 'Second', 'Unassigned']);
+    expect(within(resources()).getByText('1 resource needs a phase')).toBeVisible();
+    expect(within(resources()).getByRole('button', { name: /Assign C to a phase/ })).toBeVisible();
+
+    fireEvent.click(within(resources()).getByRole('button', { name: /Assign C to a phase/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'First' }));
+    expect(bands()).toEqual(['First', 'Second']);
+  });
+
+  it('folds a finished phase and opens it again on click', async () => {
+    await plan(
+      [
+        { title: 'Done one', phaseId: 'p1', done: true, minutes: 30 },
+        { title: 'Todo', phaseId: 'p2' },
+      ],
+      [
+        { id: 'p1', name: 'Finished', color: 'blue' },
+        { id: 'p2', name: 'Open', color: 'green' },
+      ],
+    );
+    renderApp();
+    await screen.findByRole('region', { name: /^Resources/ });
+    expect(within(resources()).queryByText('Done one')).toBeNull();
+    expect(within(resources()).getByText('Todo')).toBeVisible();
+    fireEvent.click(within(resources()).getByRole('button', { name: /^Finished/ }));
+    expect(within(resources()).getByText('Done one')).toBeVisible();
   });
 });

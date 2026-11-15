@@ -1,14 +1,12 @@
-import type { CSSProperties } from 'react';
-import { Pencil, Plus, X } from 'lucide-react';
+import { useState } from 'react';
 import { RESOURCE_TYPES, STATUS_TEXT } from '../domain/constants';
-import { fmtHours } from '../domain/format';
 import { metrics } from '../domain/metrics';
-import { phaseResources } from '../domain/roadmap';
-import { resStatus } from '../domain/resources';
-import type { Goal, ResourceStatus, ResourceType } from '../domain/types';
+import { focusResource, isDone, resStatus } from '../domain/resources';
+import type { Goal, Phase, Resource, ResourceStatus, ResourceType } from '../domain/types';
 import { useStore } from '../state/store';
 import { TypeIcon } from './icons';
-import { ResourceRow } from './ResourceRow';
+import { PhaseBand } from './PhaseBand';
+import { ResourceCard } from './ResourceCard';
 import { useReorderDrag } from './useReorderDrag';
 
 const PLURAL: Record<ResourceType, string> = {
@@ -18,52 +16,70 @@ const PLURAL: Record<ResourceType, string> = {
   practice: 'Practice',
 };
 
-/** The selected phase's name, description and progress, with shortcuts. */
-function PhasePanel({ goal, phaseId }: { goal: Goal; phaseId: string }) {
-  const { setPhaseFilter, openOverlay } = useStore.getState();
-  const phase = goal.phases.find((p) => p.id === phaseId);
-  const m = metrics(phaseResources(goal, phase ? phase.id : null));
+interface Group {
+  key: string;
+  phase: Phase | null;
+  /** Visible rows, with each resource's index in the plan's priority order. */
+  rows: { r: Resource; i: number }[];
+  /** Every resource of the group, however filtered. */
+  all: Resource[];
+}
+
+/** One band with its cards. Reordering stays inside the group; "Move to phase" crosses it. */
+function ResourceGroup({
+  goal,
+  group,
+  open,
+  onToggle,
+  selected,
+  focusId,
+}: {
+  goal: Goal;
+  group: Group;
+  open: boolean;
+  onToggle(): void;
+  selected: string | null;
+  focusId: string | null;
+}) {
+  const placeResource = useStore((s) => s.placeResource);
+  const reorder = useReorderDrag(
+    group.rows.map(({ r }) => r.id),
+    placeResource,
+  );
+  const listId = `group-${group.key || 'none'}`;
   return (
-    <div
-      className="phase-panel"
-      style={phase ? ({ '--ph': `var(--ph-${phase.color})` } as CSSProperties) : undefined}
-    >
-      <div className="phase-panel-main">
-        <p className="phase-panel-title">
-          {phase && <i className="ph-dot" aria-hidden="true" />}
-          {phase ? phase.name : 'Unorganized resources'}
-        </p>
-        {phase?.description && <p className="muted">{phase.description}</p>}
-        <p className="muted small">
-          {m.doneCount} / {m.count} resources · {fmtHours(m.done)} of {fmtHours(m.total)} · {m.pct}%
-        </p>
-      </div>
-      <div className="btn-row">
-        <button
-          className="btn sm"
-          onClick={() =>
-            openOverlay({ kind: 'resource', resourceId: null, phaseId: phase?.id ?? null })
-          }
-        >
-          <Plus size={15} aria-hidden="true" /> Add resource{phase ? ' to this phase' : ''}
-        </button>
-        {phase && (
-          <button
-            className="btn sm ghost"
-            onClick={() => openOverlay({ kind: 'phase', phaseId: phase.id })}
-          >
-            <Pencil size={15} aria-hidden="true" /> Edit phase
-          </button>
-        )}
-        <button
-          className="icon-btn"
-          aria-label="Show all resources"
-          onClick={() => setPhaseFilter(null)}
-        >
-          <X size={18} />
-        </button>
-      </div>
-    </div>
+    <section className="res-group" aria-label={group.phase ? group.phase.name : 'Unassigned'}>
+      <PhaseBand
+        phase={group.phase}
+        met={metrics(group.all)}
+        hasPhases={goal.phases.length > 0}
+        open={open}
+        onToggle={onToggle}
+        listId={listId}
+      />
+      {open &&
+        (group.rows.length ? (
+          <ul id={listId} className={`res-list${reorder.active ? ' is-reordering' : ''}`}>
+            {group.rows.map(({ r, i }) => (
+              <ResourceCard
+                key={r.id}
+                r={r}
+                index={i}
+                count={goal.resources.length}
+                phases={goal.phases}
+                selected={r.id === selected}
+                focus={r.id === focusId}
+                handle={reorder.handleProps(r.id)}
+                drag={reorder.rowState(r.id)}
+              />
+            ))}
+          </ul>
+        ) : (
+          <p id={listId} className="empty-note group-empty">
+            No resources in this phase yet.
+          </p>
+        ))}
+    </section>
   );
 }
 
@@ -74,26 +90,42 @@ export function ResourceList({ goal }: { goal: Goal }) {
   const setTypeFilter = useStore((s) => s.setTypeFilter);
   const statusFilter = useStore((s) => s.ui.statusFilter);
   const setStatusFilter = useStore((s) => s.setStatusFilter);
-  const placeResource = useStore((s) => s.placeResource);
+  const setPhaseFilter = useStore((s) => s.setPhaseFilter);
+  const [toggled, setToggled] = useState<Record<string, boolean>>({});
 
   const all = goal.resources;
   const inPhase = phaseFilter === null ? all : all.filter((r) => (r.phaseId ?? '') === phaseFilter);
   const counts = Object.fromEntries(
     RESOURCE_TYPES.map((t) => [t, inPhase.filter((r) => r.type === t).length]),
   ) as Record<ResourceType, number>;
-  const rows = all
-    .map((r, i) => ({ r, i }))
-    .filter(
-      ({ r }) =>
-        inPhase.includes(r) &&
-        (typeFilter === 'all' || r.type === typeFilter) &&
-        (statusFilter === 'all' || resStatus(r) === statusFilter),
-    );
   const filtered = typeFilter !== 'all' || statusFilter !== 'all';
-  const reorder = useReorderDrag(
-    rows.map(({ r }) => r.id),
-    placeResource,
-  );
+  const visible = (r: Resource) =>
+    (typeFilter === 'all' || r.type === typeFilter) &&
+    (statusFilter === 'all' || resStatus(r) === statusFilter);
+
+  // Bands follow the phase order, then the resources in no phase.
+  const indexed = all.map((r, i) => ({ r, i }));
+  const groups: Group[] = [
+    ...goal.phases.map((phase) => ({ key: phase.id, phase })),
+    { key: '', phase: null },
+  ]
+    .filter((g) => phaseFilter === null || g.key === phaseFilter)
+    .map(({ key, phase }) => {
+      const mine = indexed.filter(({ r }) => (r.phaseId ?? '') === key);
+      return { key, phase, all: mine.map(({ r }) => r), rows: mine.filter(({ r }) => visible(r)) };
+    })
+    // A phase stays while empty so resources can be added; with no phases, or while
+    // filtering, only bands with something to show remain.
+    .filter((g) => (g.phase && !filtered ? true : g.rows.length > 0));
+  const focusId = focusResource(all)?.id ?? null;
+
+  /** Finished phases fold away; a filter, a selection or the user's choice overrides that. */
+  const isOpen = (g: Group) => {
+    if (filtered || phaseFilter !== null) return true;
+    if (selected && g.all.some((r) => r.id === selected)) return true;
+    const complete = g.all.length > 0 && g.all.every(isDone);
+    return toggled[g.key] ?? !complete;
+  };
 
   return (
     <section className="card resources" aria-labelledby="resH">
@@ -124,45 +156,28 @@ export function ResourceList({ goal }: { goal: Goal }) {
           </select>
         </div>
       </div>
-      {phaseFilter !== null && <PhasePanel goal={goal} phaseId={phaseFilter} />}
-      {!rows.length ? (
+      {phaseFilter !== null && (
+        <button type="button" className="link-btn show-all" onClick={() => setPhaseFilter(null)}>
+          Show all phases
+        </button>
+      )}
+      {!groups.some((g) => g.rows.length) && !groups.some((g) => g.phase) ? (
         <p className="empty-note">
           {filtered ? 'Nothing matches these filters.' : 'No resources here yet.'}
         </p>
       ) : (
-        <div className="table-scroll">
-          <table className={`res-table${reorder.active ? ' is-reordering' : ''}`}>
-            <thead>
-              <tr>
-                <th className="c-drag">
-                  <span className="sr-only">Order</span>
-                </th>
-                <th>Title</th>
-                <th className="c-type">Type</th>
-                <th className="c-time">Est. Time</th>
-                <th className="c-status">Status</th>
-                <th className="c-phase">Phase</th>
-                <th className="c-actions">
-                  <span className="sr-only">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map(({ r, i }, pos) => (
-                <ResourceRow
-                  key={r.id}
-                  r={r}
-                  index={i}
-                  count={all.length}
-                  phases={goal.phases}
-                  selected={r.id === selected}
-                  alt={pos % 2 === 1}
-                  handle={reorder.handleProps(r.id)}
-                  drag={reorder.rowState(r.id)}
-                />
-              ))}
-            </tbody>
-          </table>
+        <div className="res-groups">
+          {groups.map((g) => (
+            <ResourceGroup
+              key={g.key}
+              goal={goal}
+              group={g}
+              open={isOpen(g)}
+              onToggle={() => setToggled({ ...toggled, [g.key]: !isOpen(g) })}
+              selected={selected}
+              focusId={focusId}
+            />
+          ))}
         </div>
       )}
     </section>

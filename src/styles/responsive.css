@@ -1,9 +1,5 @@
 /* Breakpoints, kept last so they override the rules above. */
 @media (max-width: 1100px) {
-  /* The type icon next to each title already shows the type. */
-  .res-table .c-type {
-    display: none;
-  }
   .metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     row-gap: 12px;
@@ -82,78 +78,24 @@
     padding: 16px;
   }
 
-  /* Resource table becomes stacked cards. */
-  .res-table thead {
-    display: none;
-  }
-  .res-table,
-  .res-table tbody {
-    display: block;
-  }
-  .res-row {
-    display: flex;
+  /* The status pill and actions drop under the text of each card. */
+  .res-card {
     flex-wrap: wrap;
-    align-items: center;
-    gap: 6px 0;
-    padding: 10px 0;
-    border-bottom: 1px solid var(--line);
   }
-  .res-row:last-child {
-    border-bottom: none;
+  .res-body {
+    flex-basis: calc(100% - 100px);
   }
-  .res-table td {
-    display: block;
-    border: none;
-    padding: 0 4px;
-  }
-  .res-row .c-title {
-    flex: 1 1 0;
-    min-width: 0;
-  }
-  .res-row .c-type,
-  .res-row .c-time,
-  .res-row .c-status,
-  .res-row .c-phase {
-    order: 1;
-  }
-  .res-row::after {
-    content: '';
+  .res-side {
     flex-basis: 100%;
-    order: 0;
+    justify-content: flex-start;
+    padding-left: 70px;
+    min-height: 0;
   }
-  /* First cell of the second line lines up with the title. */
-  .res-row .c-type {
-    display: block;
-    margin-left: 36px;
+  .phase-band {
+    flex-wrap: wrap;
   }
-  .res-row .c-time {
-    font-size: 12.5px;
-    color: var(--muted);
-  }
-  .res-row .c-phase .muted {
-    display: none;
-  }
-  .res-row.has-notes {
-    border-bottom: none;
-    padding-bottom: 4px;
-  }
-  .res-notes-row {
-    display: block;
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--line);
-  }
-  .res-notes-row:last-child {
-    border-bottom: none;
-  }
-  .res-notes-row .c-drag {
-    display: none;
-  }
-  /* Lines up with the title: past the drag handle and the type icon. */
-  .res-notes-row .res-notes-line {
-    margin-left: 64px;
-  }
-  .res-notes-row.open .res-notes-line {
-    margin-left: 0;
+  .band-hint {
+    white-space: normal;
   }
 }
 @media (max-width: 560px) {

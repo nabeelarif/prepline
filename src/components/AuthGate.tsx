@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { MailCheck } from 'lucide-react';
 import { AUTH_PROVIDERS } from '../auth/types';
+import { useLocation } from 'react-router-dom';
+import { rememberReturnPath } from '../routes';
 import { useStore, type AuthOutcome } from '../state/store';
 import { Logo } from './icons';
 
@@ -15,6 +17,7 @@ export function AuthGate() {
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const store = useStore.getState();
+  const { pathname, search } = useLocation();
 
   const run = async (action: () => Promise<AuthOutcome>, done?: (r: string) => void) => {
     if (busy) return;
@@ -82,9 +85,13 @@ export function AuthGate() {
                 type="button"
                 className="btn"
                 disabled={busy}
-                onClick={() =>
-                  run(() => store.signInWithProvider(p.id as Exclude<typeof p.id, 'password'>))
-                }
+                onClick={() => {
+                  // The provider sends the browser back to `/`; remember the page asked for.
+                  rememberReturnPath(pathname + search);
+                  return run(() =>
+                    store.signInWithProvider(p.id as Exclude<typeof p.id, 'password'>),
+                  );
+                }}
               >
                 Continue with {p.label}
               </button>

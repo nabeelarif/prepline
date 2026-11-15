@@ -35,8 +35,9 @@ describe('architecture', () => {
     const users = sources().filter(
       (f) => /localStorage|sessionStorage|indexedDB/.test(read(f)) && !f.startsWith('test/'),
     );
-    // theme.ts: the UI preference. The backend factory: sessionStorage for the e2e build only.
-    expect(users.sort()).toEqual(['backend/index.ts', 'theme.ts']);
+    // theme.ts: the UI preference. routes.ts: the page to return to after an OAuth redirect,
+    // in sessionStorage. The backend factory: sessionStorage for the e2e build only.
+    expect(users.sort()).toEqual(['backend/index.ts', 'routes.ts', 'theme.ts']);
     expect(read('backend/index.ts')).toMatch(/MODE === 'e2e'/);
   });
 

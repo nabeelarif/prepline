@@ -7,6 +7,8 @@ import {
   FileJson,
   TriangleAlert,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { paths } from '../../routes';
 import { useStore } from '../../state/store';
 import { ConfirmPanel } from './ConfirmPanel';
 import type { RestoreFailure, RestoreFlow } from './useRestoreFlow';
@@ -146,12 +148,12 @@ const fmtExported = (s: string) =>
 export function RestoreFlowPanel({ flow }: { flow: RestoreFlow }) {
   const { state, reset, add, restore, retry, confirm, backToReview } = flow;
   const heading = useStepFocus(state.step);
+  const navigate = useNavigate();
 
   if (state.step === 'success') {
     const done = () => {
-      const { closeOverlay, setPage } = useStore.getState();
-      setPage('dashboard');
-      closeOverlay();
+      useStore.getState().closeOverlay();
+      navigate(paths.dashboard);
     };
     const added = state.mode === 'add';
     return (

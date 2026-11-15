@@ -1,20 +1,21 @@
 import { House, LayoutList, UserRound } from 'lucide-react';
-import { useStore, type Page } from '../state/store';
+import { NavLink } from 'react-router-dom';
+import { paths } from '../routes';
+import { useStore } from '../state/store';
 import { Logo } from './icons';
 import { ThemeSwitch } from './ThemeSwitch';
 
-const NAV: [Page, string, typeof House][] = [
-  ['dashboard', 'Dashboard', House],
-  ['plans', 'My Plans', LayoutList],
+/** My Plans stays active on a plan's own page, which is where its "Open plan" leads. */
+const NAV: [string, string, typeof House][] = [
+  [paths.dashboard, 'Dashboard', House],
+  [paths.plans, 'My Plans', LayoutList],
 ];
 
 export function Sidebar() {
-  const page = useStore((s) => s.ui.page);
   const navOpen = useStore((s) => s.ui.navOpen);
   const sync = useStore((s) => s.sync.status);
   const email = useStore((s) => s.auth.user?.email);
   const openOverlay = useStore((s) => s.openOverlay);
-  const setPage = useStore((s) => s.setPage);
   const setNavOpen = useStore((s) => s.setNavOpen);
 
   return (
@@ -26,16 +27,12 @@ export function Sidebar() {
         </div>
         <nav aria-label="Main">
           <ul className="nav">
-            {NAV.map(([p, label, Icon]) => (
-              <li key={p}>
-                <button
-                  className="nav-btn"
-                  aria-current={page === p ? 'page' : undefined}
-                  onClick={() => setPage(p)}
-                >
+            {NAV.map(([to, label, Icon]) => (
+              <li key={to}>
+                <NavLink to={to} className="nav-btn" onClick={() => setNavOpen(false)}>
                   <Icon size={19} aria-hidden="true" />
                   {label}
-                </button>
+                </NavLink>
               </li>
             ))}
           </ul>

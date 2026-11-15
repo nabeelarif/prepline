@@ -15,7 +15,6 @@ import { describeError } from '../repositories/errors';
 import { diffData } from './syncOps';
 import { IDLE_SYNC, WriteQueue, type SyncState } from './writeQueue';
 
-export type Page = 'dashboard' | 'plans';
 export type Overlay =
   | { kind: 'goal'; goalId: string | null }
   | { kind: 'resource'; resourceId: string | null; phaseId?: string | null }
@@ -33,7 +32,6 @@ export type PhaseInput = Pick<Phase, 'name' | 'description' | 'color'>;
 
 /** Per-session view state; never persisted. */
 export interface UiState {
-  page: Page;
   /** Journey shows resources (simple) or phases. */
   view: RoadmapView;
   typeFilter: ResourceType | 'all';
@@ -117,7 +115,6 @@ export interface Store {
   deletePhase(id: string): void;
   movePhase(id: string, dir: -1 | 1): void;
 
-  setPage(p: Page): void;
   setView(v: RoadmapView): void;
   setTypeFilter(f: UiState['typeFilter']): void;
   setStatusFilter(f: UiState['statusFilter']): void;
@@ -143,7 +140,6 @@ export interface Store {
 }
 
 const freshUi = (): UiState => ({
-  page: 'dashboard',
   view: 'simple',
   typeFilter: 'all',
   statusFilter: 'all',
@@ -157,7 +153,6 @@ const freshUi = (): UiState => ({
 
 /** UI state that belongs to one plan and is reset when the plan changes. */
 const planUi = (): Partial<UiState> => ({
-  page: 'dashboard',
   typeFilter: 'all',
   statusFilter: 'all',
   phaseFilter: null,
@@ -270,6 +265,7 @@ export function createAppStore({ repo, auth }: Backend) {
         });
       } catch (e) {
         if (seq !== loadSeq) return;
+        console.error('Loading data failed:', e, (e as Error | undefined)?.cause);
         set({ load: { status: 'error', error: describeError(e) } });
       }
     };
@@ -541,7 +537,6 @@ export function createAppStore({ repo, auth }: Backend) {
           if (g) move(g.phases, id, dir);
         }),
 
-      setPage: (page) => setUi({ page, navOpen: false }),
       setView: (view) => setUi({ view }),
       setTypeFilter: (typeFilter) => setUi({ typeFilter }),
       setStatusFilter: (statusFilter) => setUi({ statusFilter }),

@@ -1,6 +1,6 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
-import { App } from '../App';
+import { act, fireEvent, screen, within } from '@testing-library/react';
 import { parseAppData } from '../domain/schema';
+import { renderApp } from '../test/renderApp';
 import { resetApp } from '../test/harness';
 
 const resources = () => screen.getByRole('region', { name: /^Resources/ });
@@ -16,7 +16,7 @@ async function show(notes: Record<string, string>) {
     ],
   })!;
   await resetApp(data);
-  render(<App />);
+  renderApp();
   await screen.findByRole('region', { name: /^Resources/ });
 }
 
@@ -124,7 +124,7 @@ describe('Resource notes', () => {
         ],
       })!,
     );
-    render(<App />);
+    renderApp();
     await screen.findByRole('region', { name: /^Resources/ });
     const alt = () =>
       [...resources().querySelectorAll('tbody tr')].map(

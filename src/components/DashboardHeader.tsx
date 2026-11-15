@@ -2,6 +2,8 @@ import { CalendarDays, Check, ChevronDown, FileText, Flag, Pencil, Plus } from '
 import { diffDays, fmtDate } from '../domain/dates';
 import { pl } from '../domain/format';
 import type { Goal, ISODate } from '../domain/types';
+import { useNavigate, useParams } from 'react-router-dom';
+import { paths } from '../routes';
 import { useStore } from '../state/store';
 import { Menu } from './Menu';
 
@@ -16,6 +18,9 @@ function until(today: ISODate, target: ISODate): string {
 export function DashboardHeader({ goal, today }: { goal: Goal; today: ISODate }) {
   const goals = useStore((s) => s.data.goals);
   const { selectGoal, openOverlay } = useStore.getState();
+  const navigate = useNavigate();
+  // On a plan's own page the address names the plan, so switching changes the address too.
+  const onPlanPage = useParams().planId !== undefined;
 
   return (
     <header className="dash-head">
@@ -35,7 +40,7 @@ export function DashboardHeader({ goal, today }: { goal: Goal; today: ISODate })
               label: g.name,
               checked: g.id === goal.id,
               icon: g.id === goal.id ? <Check size={16} /> : <span className="menu-gap" />,
-              onSelect: () => selectGoal(g.id),
+              onSelect: () => (onPlanPage ? navigate(paths.plan(g.id)) : selectGoal(g.id)),
             })),
             'divider',
             {

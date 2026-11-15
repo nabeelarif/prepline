@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LogOut, Monitor, Moon, Settings, Sun, UserRound } from 'lucide-react';
+import { DatabaseBackup, LogOut, Monitor, Moon, Settings, Sun, UserRound } from 'lucide-react';
 import { loadTheme, saveTheme, type Theme } from '../theme';
 import { useStore } from '../state/store';
 import { confirmSignOut } from './confirmSignOut';
@@ -11,7 +11,7 @@ const THEMES: [Theme, string, typeof Sun][] = [
   ['dark', 'Dark', Moon],
 ];
 
-/** Profile button: signed-in email, theme, account settings and sign out. */
+/** Profile button: signed-in email, theme, backup and restore, account settings and sign out. */
 export function AccountMenu() {
   const email = useStore((s) => s.auth.user?.email);
   const openOverlay = useStore((s) => s.openOverlay);
@@ -31,6 +31,11 @@ export function AccountMenu() {
       },
     })),
     'divider',
+    {
+      label: 'Backup and restore',
+      icon: <DatabaseBackup size={16} aria-hidden="true" />,
+      onSelect: () => openOverlay({ kind: 'data' }),
+    },
     {
       label: 'Account settings',
       icon: <Settings size={16} aria-hidden="true" />,

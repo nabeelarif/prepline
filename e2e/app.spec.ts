@@ -32,6 +32,11 @@ async function addResource(page: Page, title: string, hours: string, url = '') {
   await expect(sheet).toBeHidden();
 }
 
+async function openBackup(page: Page) {
+  await page.getByRole('button', { name: 'Account menu' }).click();
+  await page.getByRole('menuitem', { name: 'Backup and restore' }).click();
+}
+
 const summary = (page: Page) => page.getByRole('region', { name: 'Plan overview' });
 const journey = (page: Page) => page.getByRole('region', { name: 'Your Preparation Journey' });
 const resources = (page: Page) => page.getByRole('region', { name: /^Resources/ });
@@ -181,7 +186,7 @@ test('my plans: switch, duplicate, and import a backup from an older version', a
       },
     ],
   };
-  await page.getByRole('button', { name: 'Backup and restore' }).click();
+  await openBackup(page);
   await chooseBackup(page, JSON.stringify(backup), 'old-backup.json');
   const contents = page.getByRole('region', { name: 'File contents' });
   await expect(contents).toContainText('old-backup.json');
@@ -266,7 +271,7 @@ test('definition of done: two resources in progress at once, then export and res
 
   // Download, delete everything, and restore.
   await page.getByRole('link', { name: 'My Plans' }).click();
-  await page.getByRole('button', { name: 'Backup and restore' }).click();
+  await openBackup(page);
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.getByRole('button', { name: 'Download Backup' }).click(),
@@ -299,7 +304,7 @@ test('definition of done: two resources in progress at once, then export and res
 test('adds the documented agent plan next to an existing plan', async ({ page }) => {
   await createPlan(page, 'Keep me');
   await page.getByRole('link', { name: 'My Plans' }).click();
-  await page.getByRole('button', { name: 'Backup and restore' }).click();
+  await openBackup(page);
   await chooseBackup(page, readFileSync('docs/examples/ios-interview-prep.json'), 'plan.json');
   await expect(page.getByRole('region', { name: 'File contents' })).toBeVisible();
   await page.getByRole('button', { name: 'Add to My Plans' }).click();
@@ -317,7 +322,7 @@ test('adds the documented agent plan next to an existing plan', async ({ page })
 test('rejects a file that is not a Road to Goals backup', async ({ page }) => {
   await createPlan(page, 'Keep me');
   await page.getByRole('link', { name: 'My Plans' }).click();
-  await page.getByRole('button', { name: 'Backup and restore' }).click();
+  await openBackup(page);
   await chooseBackup(page, '{"version": 2, "goals": []}');
   const alert = page.getByRole('dialog').getByRole('alert');
   await expect(alert).toContainText("This backup couldn't be opened.");

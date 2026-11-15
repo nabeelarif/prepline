@@ -20,8 +20,10 @@ async function createPlan(page: Page, name: string) {
 }
 
 async function addResource(page: Page, title: string, hours: string, url = '') {
-  await page.getByRole('button', { name: 'Add', exact: true }).click();
-  await page.getByRole('menuitem', { name: /Add Resource/ }).click();
+  await page
+    .getByRole('region', { name: 'Plan overview' })
+    .getByRole('button', { name: 'Add Resource' })
+    .click();
   const sheet = page.getByRole('dialog', { name: 'Add Resource' });
   if (url) await sheet.getByRole('textbox', { name: /^Resource URL/ }).fill(url);
   await sheet.getByLabel('Title', { exact: true }).fill(title);
@@ -30,7 +32,7 @@ async function addResource(page: Page, title: string, hours: string, url = '') {
   await expect(sheet).toBeHidden();
 }
 
-const summary = (page: Page) => page.getByRole('region', { name: 'Progress summary' });
+const summary = (page: Page) => page.getByRole('region', { name: 'Plan overview' });
 const journey = (page: Page) => page.getByRole('region', { name: 'Your Preparation Journey' });
 const resources = (page: Page) => page.getByRole('region', { name: /^Resources/ });
 const statusOf = (page: Page, title: string) =>

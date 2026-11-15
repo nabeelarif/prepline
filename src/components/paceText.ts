@@ -1,6 +1,6 @@
-import { diffDays } from '../domain/dates';
+import { diffDays, fmtDate } from '../domain/dates';
 import { fmtHours, pl } from '../domain/format';
-import type { Pace } from '../domain/pace';
+import type { Pace, Velocity } from '../domain/pace';
 import type { Goal, ISODate } from '../domain/types';
 
 /** Short status for a pill, and one line explaining it. */
@@ -32,4 +32,31 @@ export function paceText(p: Pace, g: Goal): { label: string; detail: string } {
 export function daysLeftText(today: ISODate, target: ISODate): string {
   const dl = diffDays(today, target);
   return dl < 0 ? `${pl(-dl, 'day')} past` : dl === 0 ? 'Due today' : pl(dl, 'day');
+}
+
+/** Headline, tag and one sentence for the velocity strip. */
+export function velocityText(
+  v: Velocity,
+  g: Goal,
+  remaining: number,
+): { headline: string; tag: string; detail: string } {
+  const req = `${fmtHours(v.requiredMin)}/day`;
+  const plan = `${fmtHours(v.plannedMin)}/day`;
+  const left = `${fmtHours(remaining)} by ${fmtDate(g.targetDate)}`;
+  const gap = `${fmtHours(Math.abs(v.diffMin))} / day`;
+  if (v.kind === 'behind') {
+    return {
+      headline: `Velocity Gap: ${gap} short`,
+      tag: 'Over Capacity',
+      detail: `You planned ${plan} but need ${req} to finish the remaining ${left}. Raise your daily hours or move the target date.`,
+    };
+  }
+  return {
+    headline: `Velocity Buffer: +${gap} ahead`,
+    tag: v.kind === 'on_track' ? 'Safe Margin' : 'Tight Margin',
+    detail:
+      v.kind === 'on_track'
+        ? `You planned ${plan}, but only require ${req} to comfortably complete the remaining ${left}.`
+        : `You planned ${plan} and require ${req}, close to your limit, to finish the remaining ${left}.`,
+  };
 }

@@ -16,6 +16,12 @@
   }
 }
 @media (max-width: 860px) {
+  .velocity {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .vel-compare {
+    grid-column: 1 / -1;
+  }
   .topbar {
     padding: 10px 16px;
     gap: 10px 14px;
@@ -45,9 +51,23 @@
     flex: 1;
     min-height: 44px;
   }
-  .summary {
+  .plan-stats {
     grid-template-columns: minmax(0, 1fr);
     justify-items: center;
+  }
+  .estimate {
+    margin-left: 0;
+    flex-basis: 100%;
+  }
+  .plan-head {
+    flex-wrap: wrap;
+  }
+  .plan-actions {
+    flex: 1 0 100%;
+  }
+  .plan-actions .btn {
+    flex: 1;
+    justify-content: center;
   }
   .metrics {
     width: 100%;
@@ -60,12 +80,6 @@
   }
   .card {
     padding: 16px;
-  }
-  .target {
-    order: 3;
-  }
-  .dash-head > .menu-wrap {
-    margin-left: auto;
   }
 
   /* Resource table becomes stacked cards. */

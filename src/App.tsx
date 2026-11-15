@@ -18,7 +18,7 @@ import { SyncBanner } from './components/SyncBanner';
 import { Toast } from './components/Toast';
 import { useEffect } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
-import { paths, takeReturnPath } from './routes';
+import { clearReturnPath, paths, peekReturnPath } from './routes';
 import { backendConfigError, useActiveGoal, useStore } from './state/store';
 
 function OverlayContent() {
@@ -85,7 +85,9 @@ function NoPlans() {
 
 /** `/`: on to the page asked for before sign-in, else the dashboard. */
 function Home() {
-  return <Navigate to={takeReturnPath() ?? paths.dashboard} replace />;
+  // Render must not change anything (StrictMode renders twice), so the path is only read here;
+  // Shell forgets it once the app is up.
+  return <Navigate to={peekReturnPath() ?? paths.dashboard} replace />;
 }
 
 function Dashboard() {
@@ -137,6 +139,10 @@ function Shell() {
 
   // Back, Forward and links leave no form open for a plan that is no longer on screen.
   useEffect(() => useStore.getState().closeOverlay(), [pathname]);
+
+  // Signed in with the app showing: a remembered page was used or is stale (an abandoned
+  // OAuth attempt, then a password sign-in), and must not hijack a later visit to `/`.
+  useEffect(clearReturnPath, []);
 
   return (
     <>

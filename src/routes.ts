@@ -20,13 +20,21 @@ export function rememberReturnPath(path: string): void {
   }
 }
 
-/** The remembered path, once. Only in-app paths are accepted, never another site. */
-export function takeReturnPath(): string | null {
+/** The remembered path, if any. Only in-app paths are accepted, never another site. */
+export function peekReturnPath(): string | null {
   try {
     const path = sessionStorage.getItem(RETURN_KEY);
-    sessionStorage.removeItem(RETURN_KEY);
     return path && /^\/(?!\/|\\)/.test(path) && path !== paths.home ? path : null;
   } catch {
     return null;
+  }
+}
+
+/** Forgets the remembered path, once it has been used. */
+export function clearReturnPath(): void {
+  try {
+    sessionStorage.removeItem(RETURN_KEY);
+  } catch {
+    /* nothing to clear */
   }
 }

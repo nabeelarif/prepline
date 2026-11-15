@@ -116,3 +116,41 @@ describe('routes', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Page not found' })).toBeVisible();
   });
 });
+
+describe('routes: return path and deletion', () => {
+  const twoPlans = () =>
+    resetApp({
+      version: 1,
+      activeGoalId: 'a',
+      goals: [goal([], { id: 'a', name: 'Alpha plan' }), goal([], { id: 'b', name: 'Beta plan' })],
+    });
+
+  it('goes to the remembered page from /, even when it renders twice, and forgets it', async () => {
+    const { rememberReturnPath, peekReturnPath } = await import('./routes');
+    await twoPlans();
+    rememberReturnPath('/plans/b');
+    renderApp('/');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Beta plan' })).toBeVisible();
+    expect(peekReturnPath()).toBeNull();
+  });
+
+  it('forgets a remembered page once signed in, so it cannot redirect a later visit', async () => {
+    const { rememberReturnPath, peekReturnPath } = await import('./routes');
+    await twoPlans();
+    rememberReturnPath('/plans/b');
+    renderApp('/plans/a');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Alpha plan' })).toBeVisible();
+    expect(peekReturnPath()).toBeNull();
+  });
+
+  it('leaves a plan page for My Plans when that plan is deleted from it', async () => {
+    await twoPlans();
+    renderApp('/plans/b');
+    await screen.findByRole('heading', { level: 1, name: 'Beta plan' });
+    fireEvent.click(screen.getByRole('button', { name: 'Edit plan' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete plan' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete plan, phases and resources?' }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'My Plans' })).toBeVisible();
+    expect(screen.queryByText('Beta plan')).toBeNull();
+  });
+});

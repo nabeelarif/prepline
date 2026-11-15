@@ -13,6 +13,7 @@ export function GoalForm({ goal }: { goal: Goal | null }) {
   const { createGoal, updateGoal, deleteGoal, closeOverlay } = useStore.getState();
   const navigate = useNavigate();
   const onDashboard = useMatch(paths.dashboard) !== null;
+  const viewedPlan = useMatch(`${paths.plans}/:planId`)?.params.planId;
   const [name, setName] = useState(goal?.name ?? '');
   const [date, setDate] = useState(goal?.targetDate ?? addDays(todayISO(), 42));
   const [hours, setHours] = useState(goal?.hoursPerDay == null ? '' : String(goal.hoursPerDay));
@@ -115,7 +116,12 @@ export function GoalForm({ goal }: { goal: Goal | null }) {
           <ConfirmButton
             className="btn danger"
             confirmText="Delete plan, phases and resources?"
-            onConfirm={() => deleteGoal(goal.id)}
+            onConfirm={() => {
+              deleteGoal(goal.id);
+              // Its own page no longer exists. Leave it, unless the delete was refused.
+              const gone = !useStore.getState().data.goals.some((g) => g.id === goal.id);
+              if (gone && viewedPlan === goal.id) navigate(paths.plans);
+            }}
           >
             Delete plan
           </ConfirmButton>

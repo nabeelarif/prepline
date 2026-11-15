@@ -435,6 +435,7 @@ test('keeps plans after reload and hides them after sign-out', async ({ page }) 
 
   await page.getByRole('button', { name: 'Account menu' }).click();
   await page.getByRole('menuitem', { name: 'Sign out' }).click();
+  await page.getByRole('menuitem', { name: 'Click again to sign out' }).click();
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
   await expect(page.getByText('Private plan')).toBeHidden();
 

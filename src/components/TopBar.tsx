@@ -41,7 +41,7 @@ export function TopBar() {
         </ul>
       </nav>
       <div className="top-tools">
-        <p className={`sync-icon${sync === 'error' ? ' off' : ''}`} title={text}>
+        <p className={`sync-icon${sync === 'error' ? ' off' : ''}`} title={text} aria-live="polite">
           <StatusIcon
             size={18}
             className={sync === 'saving' ? 'spin' : undefined}

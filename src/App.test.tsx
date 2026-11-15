@@ -51,6 +51,7 @@ describe('App', () => {
     await screen.findByText('Plan created');
     fireEvent.click(screen.getByRole('button', { name: 'Account menu' }));
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Sign out' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Click again to sign out' }));
     expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeVisible();
     expect(screen.queryByText('Private plan')).toBeNull();
   });

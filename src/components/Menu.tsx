@@ -13,7 +13,10 @@ export type MenuEntry =
       /** Destructive: the first click arms the item, the second runs it. */
       confirm?: string;
     }
-  | { heading: string }
+  | {
+      heading: string;
+      /** Shown as written (an email, say), not as a small-caps label. */ plain?: boolean;
+    }
   | 'divider';
 
 interface Props {
@@ -94,7 +97,11 @@ export function Menu({ label, triggerClass, trigger, items, align = 'start', men
             if (it === 'divider') return <hr key={i} />;
             if ('heading' in it)
               return (
-                <p key={i} className="menu-heading" role="presentation">
+                <p
+                  key={i}
+                  className={`menu-heading${it.plain ? ' plain' : ''}`}
+                  role="presentation"
+                >
                   {it.heading}
                 </p>
               );

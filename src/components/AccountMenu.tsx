@@ -18,7 +18,7 @@ export function AccountMenu() {
   const [theme, setTheme] = useState(loadTheme);
 
   const items: MenuEntry[] = [
-    { heading: email ?? 'Signed in' },
+    { heading: email ?? 'Signed in', plain: true },
     'divider',
     { heading: 'Theme' },
     ...THEMES.map(([t, label, Icon]): MenuEntry => ({
@@ -40,6 +40,7 @@ export function AccountMenu() {
       label: 'Sign out',
       icon: <LogOut size={16} aria-hidden="true" />,
       danger: true,
+      confirm: 'Click again to sign out',
       onSelect: () => {
         if (confirmSignOut()) void useStore.getState().signOut();
       },

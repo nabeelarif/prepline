@@ -13,12 +13,14 @@ interface Props {
   hasPhases: boolean;
   open: boolean;
   onToggle(): void;
+  /** A filter keeps the band open. */
+  locked: boolean;
   /** Id of the list this band shows and hides. */
   listId: string;
 }
 
 /** Full-width header of a group of resources: a phase, or the resources in no phase. */
-export function PhaseBand({ phase, met, hasPhases, open, onToggle, listId }: Props) {
+export function PhaseBand({ phase, met, hasPhases, open, onToggle, locked, listId }: Props) {
   const { openOverlay } = useStore.getState();
   const complete = met.count > 0 && met.doneCount === met.count;
   const name = phase ? phase.name : 'Unassigned';
@@ -48,6 +50,7 @@ export function PhaseBand({ phase, met, hasPhases, open, onToggle, listId }: Pro
         className="band-toggle"
         aria-expanded={open}
         aria-controls={listId}
+        disabled={locked}
         onClick={onToggle}
       >
         {open ? (
@@ -88,17 +91,19 @@ export function PhaseBand({ phase, met, hasPhases, open, onToggle, listId }: Pro
             New phase
           </button>
         )}
+        <button
+          type="button"
+          className="icon-btn"
+          aria-label={phase ? `Add resource to ${phase.name}` : 'Add unassigned resource'}
+          title={phase ? 'Add resource to this phase' : 'Add resource without a phase'}
+          onClick={() =>
+            openOverlay({ kind: 'resource', resourceId: null, phaseId: phase?.id ?? null })
+          }
+        >
+          <Plus size={16} aria-hidden="true" />
+        </button>
         {phase && (
           <>
-            <button
-              type="button"
-              className="icon-btn"
-              aria-label={`Add resource to ${phase.name}`}
-              title="Add resource to this phase"
-              onClick={() => openOverlay({ kind: 'resource', resourceId: null, phaseId: phase.id })}
-            >
-              <Plus size={16} aria-hidden="true" />
-            </button>
             <button
               type="button"
               className="icon-btn"

@@ -39,8 +39,9 @@ import { changeStatus } from './statusActions';
 
 interface Props {
   r: Resource;
-  index: number;
-  count: number;
+  /** Neighbours among the visible cards of the same band, for Move up / Move down. */
+  prevId: string | null;
+  nextId: string | null;
   phases: Phase[];
   selected: boolean;
   /** The resource to do next: highlighted with a "Next up" tag. */
@@ -78,7 +79,7 @@ function useClamped(ref: RefObject<HTMLElement | null>, text: string, shown: boo
   return clamped;
 }
 
-export function ResourceCard({ r, index, count, phases, selected, focus, handle, drag }: Props) {
+export function ResourceCard({ r, prevId, nextId, phases, selected, focus, handle, drag }: Props) {
   const a = useStore.getState();
   const row = useRef<HTMLLIElement>(null);
   const status = resStatus(r);
@@ -129,14 +130,14 @@ export function ResourceCard({ r, index, count, phases, selected, focus, handle,
     {
       label: 'Move up',
       icon: <ArrowUp size={16} />,
-      disabled: index === 0,
-      onSelect: () => a.moveResource(r.id, -1),
+      disabled: !prevId,
+      onSelect: () => prevId && a.placeResource(r.id, prevId, false),
     },
     {
       label: 'Move down',
       icon: <ArrowDown size={16} />,
-      disabled: index === count - 1,
-      onSelect: () => a.moveResource(r.id, 1),
+      disabled: !nextId,
+      onSelect: () => nextId && a.placeResource(r.id, nextId, true),
     },
   );
   if (phases.length)

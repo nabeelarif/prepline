@@ -31,7 +31,10 @@
   text-align: left;
   cursor: pointer;
 }
-.band-toggle:hover .band-name {
+.band-toggle:disabled {
+  cursor: default;
+}
+.band-toggle:hover:not(:disabled) .band-name {
   color: var(--accent);
 }
 .band-toggle > svg {

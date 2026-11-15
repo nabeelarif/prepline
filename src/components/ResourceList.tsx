@@ -19,8 +19,8 @@ const PLURAL: Record<ResourceType, string> = {
 interface Group {
   key: string;
   phase: Phase | null;
-  /** Visible rows, with each resource's index in the plan's priority order. */
-  rows: { r: Resource; i: number }[];
+  /** Visible resources, in priority order. */
+  rows: { r: Resource }[];
   /** Every resource of the group, however filtered. */
   all: Resource[];
 }
@@ -31,6 +31,7 @@ function ResourceGroup({
   group,
   open,
   onToggle,
+  locked,
   selected,
   focusId,
 }: {
@@ -38,6 +39,8 @@ function ResourceGroup({
   group: Group;
   open: boolean;
   onToggle(): void;
+  /** A filter keeps every band open. */
+  locked: boolean;
   selected: string | null;
   focusId: string | null;
 }) {
@@ -55,17 +58,18 @@ function ResourceGroup({
         hasPhases={goal.phases.length > 0}
         open={open}
         onToggle={onToggle}
+        locked={locked}
         listId={listId}
       />
       {open &&
         (group.rows.length ? (
           <ul id={listId} className={`res-list${reorder.active ? ' is-reordering' : ''}`}>
-            {group.rows.map(({ r, i }) => (
+            {group.rows.map(({ r }, pos) => (
               <ResourceCard
                 key={r.id}
                 r={r}
-                index={i}
-                count={goal.resources.length}
+                prevId={group.rows[pos - 1]?.r.id ?? null}
+                nextId={group.rows[pos + 1]?.r.id ?? null}
                 phases={goal.phases}
                 selected={r.id === selected}
                 focus={r.id === focusId}
@@ -91,7 +95,9 @@ export function ResourceList({ goal }: { goal: Goal }) {
   const statusFilter = useStore((s) => s.ui.statusFilter);
   const setStatusFilter = useStore((s) => s.setStatusFilter);
   const setPhaseFilter = useStore((s) => s.setPhaseFilter);
-  const [toggled, setToggled] = useState<Record<string, boolean>>({});
+  // The user's choice per band, which lasts only while the same resource is selected:
+  // selecting another one (a journey click) opens its band again.
+  const [toggled, setToggled] = useState<Record<string, { open: boolean; sel: string | null }>>({});
 
   const all = goal.resources;
   const inPhase = phaseFilter === null ? all : all.filter((r) => (r.phaseId ?? '') === phaseFilter);
@@ -104,7 +110,7 @@ export function ResourceList({ goal }: { goal: Goal }) {
     (statusFilter === 'all' || resStatus(r) === statusFilter);
 
   // Bands follow the phase order, then the resources in no phase.
-  const indexed = all.map((r, i) => ({ r, i }));
+  const indexed = all.map((r) => ({ r }));
   const groups: Group[] = [
     ...goal.phases.map((phase) => ({ key: phase.id, phase })),
     { key: '', phase: null },
@@ -119,12 +125,17 @@ export function ResourceList({ goal }: { goal: Goal }) {
     .filter((g) => (g.phase && !filtered ? true : g.rows.length > 0));
   const focusId = focusResource(all)?.id ?? null;
 
-  /** Finished phases fold away; a filter, a selection or the user's choice overrides that. */
+  const locked = filtered || phaseFilter !== null;
+  const stateKey = (g: Group) => `${goal.id}:${g.key}`;
+  /** Finished phases fold away. A choice by the user wins, except that a selection or a filter opens the band. */
   const isOpen = (g: Group) => {
-    if (filtered || phaseFilter !== null) return true;
-    if (selected && g.all.some((r) => r.id === selected)) return true;
-    const complete = g.all.length > 0 && g.all.every(isDone);
-    return toggled[g.key] ?? !complete;
+    if (locked) return true;
+    const choice = toggled[stateKey(g)];
+    if (selected && g.all.some((r) => r.id === selected)) {
+      return choice && choice.sel === selected ? choice.open : true;
+    }
+    if (choice && choice.sel === null) return choice.open;
+    return !(g.all.length > 0 && g.all.every(isDone));
   };
 
   return (
@@ -173,7 +184,16 @@ export function ResourceList({ goal }: { goal: Goal }) {
               goal={goal}
               group={g}
               open={isOpen(g)}
-              onToggle={() => setToggled({ ...toggled, [g.key]: !isOpen(g) })}
+              onToggle={() =>
+                setToggled({
+                  ...toggled,
+                  [stateKey(g)]: {
+                    open: !isOpen(g),
+                    sel: selected && g.all.some((r) => r.id === selected) ? selected : null,
+                  },
+                })
+              }
+              locked={locked}
               selected={selected}
               focusId={focusId}
             />

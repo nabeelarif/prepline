@@ -2,6 +2,7 @@ import { act, fireEvent, screen, within } from '@testing-library/react';
 import { parseAppData } from '../domain/schema';
 import { renderApp } from '../test/renderApp';
 import { resetApp } from '../test/harness';
+import { useStore } from '../state/store';
 
 const resources = () => screen.getByRole('region', { name: /^Resources/ });
 
@@ -184,5 +185,49 @@ describe('Resource groups', () => {
     expect(within(resources()).getByText('Todo')).toBeVisible();
     fireEvent.click(within(resources()).getByRole('button', { name: /^Finished/ }));
     expect(within(resources()).getByText('Done one')).toBeVisible();
+  });
+
+  it('moves a card within its band, and disables Move up on the first card of a band', async () => {
+    await plan(
+      [
+        { id: 'a', title: 'A', phaseId: 'p1' },
+        { id: 'b', title: 'B', phaseId: 'p2' },
+        { id: 'c', title: 'C', phaseId: 'p2' },
+      ],
+      [
+        { id: 'p1', name: 'One', color: 'blue' },
+        { id: 'p2', name: 'Two', color: 'green' },
+      ],
+    );
+    renderApp();
+    await screen.findByRole('region', { name: /^Resources/ });
+    fireEvent.click(within(resources()).getByRole('button', { name: 'Actions for B' }));
+    expect(screen.getByRole('menuitem', { name: 'Move up' })).toBeDisabled();
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+    fireEvent.click(within(resources()).getByRole('button', { name: 'Actions for B' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Move down' }));
+    const titles = () => [...resources().querySelectorAll('.res-title')].map((n) => n.textContent);
+    expect(titles()).toEqual(['A', 'C', 'B']);
+  });
+
+  it('adds a resource without a phase from the Unassigned band', async () => {
+    await plan([{ title: 'A' }], [{ id: 'p1', name: 'One', color: 'blue' }]);
+    renderApp();
+    await screen.findByRole('region', { name: /^Resources/ });
+    fireEvent.click(within(resources()).getByRole('button', { name: 'Add unassigned resource' }));
+    expect(await screen.findByRole('dialog')).toBeVisible();
+  });
+
+  it('lets the user fold a band that a selected resource opened', async () => {
+    await plan(
+      [{ id: 'a', title: 'Done one', phaseId: 'p1', done: true, minutes: 30 }],
+      [{ id: 'p1', name: 'Finished', color: 'blue' }],
+    );
+    renderApp();
+    await screen.findByRole('region', { name: /^Resources/ });
+    act(() => useStore.getState().selectResource('a'));
+    expect(within(resources()).getByText('Done one')).toBeVisible();
+    fireEvent.click(within(resources()).getByRole('button', { name: /^Finished/ }));
+    expect(within(resources()).queryByText('Done one')).toBeNull();
   });
 });

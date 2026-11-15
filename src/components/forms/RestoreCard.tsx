@@ -7,6 +7,8 @@ import {
   FileJson,
   TriangleAlert,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { paths } from '../../routes';
 import { useStore } from '../../state/store';
 import { ConfirmPanel } from './ConfirmPanel';
 import type { RestoreFailure, RestoreFlow } from './useRestoreFlow';
@@ -66,7 +68,7 @@ export function RestoreCard({ flow }: { flow: RestoreFlow }) {
         <div>
           <h3 id="restoreTitle">Restore Backup</h3>
           <p className="muted">
-            Recover a previously downloaded backup, or add plans from a Prepline file.
+            Recover a previously downloaded backup, or add plans from a Road to Goals file.
           </p>
         </div>
       </div>
@@ -146,12 +148,12 @@ const fmtExported = (s: string) =>
 export function RestoreFlowPanel({ flow }: { flow: RestoreFlow }) {
   const { state, reset, add, restore, retry, confirm, backToReview } = flow;
   const heading = useStepFocus(state.step);
+  const navigate = useNavigate();
 
   if (state.step === 'success') {
     const done = () => {
-      const { closeOverlay, setPage } = useStore.getState();
-      setPage('dashboard');
-      closeOverlay();
+      useStore.getState().closeOverlay();
+      navigate(paths.dashboard);
     };
     const added = state.mode === 'add';
     return (
@@ -187,8 +189,8 @@ export function RestoreFlowPanel({ flow }: { flow: RestoreFlow }) {
           onCancel={backToReview}
         >
           <p>
-            All existing Prepline plans, phases, resources, and progress in this browser will be
-            replaced with the selected backup.
+            All existing Road to Goals plans, phases, resources, and progress in your account will
+            be replaced with the selected backup.
           </p>
           <p className="backup-warn">This cannot be undone unless you have another backup.</p>
         </ConfirmPanel>
@@ -270,10 +272,10 @@ export function RestoreFlowPanel({ flow }: { flow: RestoreFlow }) {
         </ul>
       )}
       <p className="muted">
-        Add to My Plans keeps everything saved in this browser and adds the plans from this file.
+        Add to My Plans keeps everything saved in your account and adds the plans from this file.
       </p>
       <p className="backup-warn">
-        Replace All Data deletes everything saved in this browser and restores this file instead.
+        Replace All Data deletes everything saved in your account and restores this file instead.
       </p>
       <div className="btn-row confirm-actions">
         <button type="button" className="btn" onClick={reset}>

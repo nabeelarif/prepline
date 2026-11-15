@@ -101,7 +101,7 @@ const AppDataSchema = z
     return { version: 1, activeGoalId: active, goals };
   });
 
-/** Returns cleaned data, or null when the input is not a Prepline backup (no `goals` array). */
+/** Returns cleaned data, or null when the input is not a Road to Goals backup (no `goals` array). */
 export function parseAppData(raw: unknown): AppData | null {
   if (!isObject(raw) || !Array.isArray((raw as { goals?: unknown }).goals)) return null;
   return AppDataSchema.parse(raw);
@@ -205,12 +205,12 @@ function describeIssue(raw: unknown, path: PropertyKey[]): string {
   return `${subject} ${problem}, so this file can't be imported.`;
 }
 
-/** Why a backup was rejected: not a Prepline file, another version, or malformed entries. */
+/** Why a backup was rejected: not a Road to Goals file, another version, or malformed entries. */
 export type ImportErrorKind = 'not-backup' | 'version' | 'invalid';
 
 /**
  * Checks a backup before it replaces saved data. Anything that is not a well-formed
- * Prepline backup is rejected with the first problem found. A valid backup from an
+ * Road to Goals backup is rejected with the first problem found. A valid backup from an
  * older version is converted as on load, and the conversions are listed so the user
  * can decide before confirming.
  */
@@ -221,14 +221,14 @@ export function previewImport(
     return {
       ok: false,
       kind: 'not-backup',
-      error: 'This file has no "goals" list, so it is not a Prepline backup.',
+      error: 'This file has no "goals" list, so it is not a Road to Goals backup.',
     };
   const version = (raw as { version?: unknown }).version;
   if (version !== undefined && version !== 1)
     return {
       ok: false,
       kind: 'version',
-      error: `This backup was made by a different version of Prepline (version ${String(version)}) and cannot be imported here.`,
+      error: `This backup was made by a different version of Road to Goals (version ${String(version)}) and cannot be imported here.`,
     };
   const checked = BackupShape.safeParse(raw);
   if (!checked.success)

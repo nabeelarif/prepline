@@ -26,7 +26,7 @@ describe('theme', () => {
   });
 
   it('ignores unknown saved values', () => {
-    localStorage.setItem('prepline:theme', 'sepia');
+    localStorage.setItem('roadtogoals:theme', 'sepia');
     expect(loadTheme()).toBe('system');
   });
 });

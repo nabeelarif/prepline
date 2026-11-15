@@ -5,7 +5,7 @@
  */
 export type Theme = 'system' | 'light' | 'dark';
 
-const KEY = 'prepline:theme';
+const KEY = 'roadtogoals:theme';
 
 export function loadTheme(): Theme {
   try {

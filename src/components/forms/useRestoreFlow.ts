@@ -42,7 +42,7 @@ export function useRestoreFlow() {
       try {
         raw = JSON.parse(String(rd.result ?? ''));
       } catch {
-        return fail(fileName, 'json', 'The file is damaged or is not a Prepline backup.');
+        return fail(fileName, 'json', 'The file is damaged or is not a Road to Goals backup.');
       }
       const r = previewImport(raw);
       if (!r.ok) return fail(fileName, r.kind, r.error);
@@ -61,9 +61,9 @@ export function useRestoreFlow() {
   /**
    * Applies the checked file. Adding is allowed straight from review because it
    * keeps saved data; replacing needs the confirmation step first. Retry after an
-   * error repeats the same action.
+   * error repeats the same action. Waits for the backend to confirm before reporting success.
    */
-  const apply = (mode: RestoreMode) => {
+  const apply = async (mode: RestoreMode) => {
     if (!('preview' in state)) return;
     const allowed =
       state.step === 'error'
@@ -75,7 +75,7 @@ export function useRestoreFlow() {
     const { fileName, preview } = state;
     setState({ step: 'restoring', fileName, preview, mode });
     const { addPlans, restoreBackup } = useStore.getState();
-    const ok = (mode === 'add' ? addPlans : restoreBackup)(preview.data);
+    const ok = await (mode === 'add' ? addPlans : restoreBackup)(preview.data);
     setState(ok ? { step: 'success', mode } : { step: 'error', fileName, preview, mode });
   };
 

@@ -1,5 +1,7 @@
 import { useRef, useState } from 'react';
 import { Trash2, TriangleAlert } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { paths } from '../../routes';
 import { useStore } from '../../state/store';
 import { ConfirmPanel } from './ConfirmPanel';
 
@@ -8,6 +10,7 @@ type DeleteState = 'idle' | 'confirming' | 'deleting' | 'error';
 /** The only destructive action in the backup modal, guarded by a confirmation. */
 export function DeleteAllData() {
   const [state, setState] = useState<DeleteState>('idle');
+  const navigate = useNavigate();
   const deleteBtn = useRef<HTMLButtonElement>(null);
 
   const cancel = () => {
@@ -15,9 +18,10 @@ export function DeleteAllData() {
     requestAnimationFrame(() => deleteBtn.current?.focus());
   };
   // On success the store closes the modal and the empty onboarding screen shows.
-  const remove = () => {
+  const remove = async () => {
     setState('deleting');
-    if (!useStore.getState().deleteAllData()) setState('error');
+    if (await useStore.getState().deleteAllData()) navigate(paths.dashboard);
+    else setState('error');
   };
 
   return (
@@ -25,7 +29,7 @@ export function DeleteAllData() {
       {state === 'confirming' || state === 'deleting' ? (
         <ConfirmPanel
           danger
-          title="Delete all Prepline data?"
+          title="Delete all Road to Goals data?"
           confirmLabel={state === 'deleting' ? 'Deleting…' : 'Delete All Data'}
           busy={state === 'deleting'}
           onConfirm={remove}
@@ -33,7 +37,7 @@ export function DeleteAllData() {
         >
           <p>
             This will permanently delete all plans, phases, resources, and preparation progress
-            saved in this browser.
+            saved in your account.
           </p>
           <p className="backup-warn">This action cannot be undone unless you have a backup.</p>
         </ConfirmPanel>
@@ -45,8 +49,8 @@ export function DeleteAllData() {
           <div>
             <h3>We couldn't delete your data.</h3>
             <p>
-              Nothing was deleted. This browser refused to save the change, which can happen in
-              private browsing or when storage is blocked.
+              Nothing was deleted. The server did not confirm the change, so your data is unchanged.
+              Check your connection and try again.
             </p>
             <div className="btn-row">
               <button type="button" className="btn" onClick={cancel}>
@@ -65,7 +69,7 @@ export function DeleteAllData() {
           </span>
           <div>
             <h3>Delete All Data</h3>
-            <p>Permanently delete your preparation data saved in this browser.</p>
+            <p>Permanently delete your preparation data saved in your account.</p>
             <button
               ref={deleteBtn}
               type="button"

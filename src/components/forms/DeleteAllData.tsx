@@ -1,5 +1,7 @@
 import { useRef, useState } from 'react';
 import { Trash2, TriangleAlert } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { paths } from '../../routes';
 import { useStore } from '../../state/store';
 import { ConfirmPanel } from './ConfirmPanel';
 
@@ -8,6 +10,7 @@ type DeleteState = 'idle' | 'confirming' | 'deleting' | 'error';
 /** The only destructive action in the backup modal, guarded by a confirmation. */
 export function DeleteAllData() {
   const [state, setState] = useState<DeleteState>('idle');
+  const navigate = useNavigate();
   const deleteBtn = useRef<HTMLButtonElement>(null);
 
   const cancel = () => {
@@ -17,7 +20,8 @@ export function DeleteAllData() {
   // On success the store closes the modal and the empty onboarding screen shows.
   const remove = async () => {
     setState('deleting');
-    if (!(await useStore.getState().deleteAllData())) setState('error');
+    if (await useStore.getState().deleteAllData()) navigate(paths.dashboard);
+    else setState('error');
   };
 
   return (

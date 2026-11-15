@@ -434,7 +434,6 @@ describe('store', () => {
       expect(s().ui).toMatchObject({
         selectedResourceId: null,
         statusFilter: 'all',
-        page: 'dashboard',
         overlay: { kind: 'data' },
       });
     });

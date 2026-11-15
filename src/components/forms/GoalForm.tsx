@@ -2,6 +2,8 @@ import { useState, type FormEvent } from 'react';
 import { Target } from 'lucide-react';
 import { addDays, todayISO, validISO } from '../../domain/dates';
 import type { Goal } from '../../domain/types';
+import { useMatch, useNavigate } from 'react-router-dom';
+import { paths } from '../../routes';
 import { useStore } from '../../state/store';
 import { ConfirmButton } from '../ConfirmButton';
 import { DIALOG_TITLE } from '../Overlay';
@@ -9,6 +11,8 @@ import { DIALOG_TITLE } from '../Overlay';
 /** Create a plan (goal is null) or edit one. */
 export function GoalForm({ goal }: { goal: Goal | null }) {
   const { createGoal, updateGoal, deleteGoal, closeOverlay } = useStore.getState();
+  const navigate = useNavigate();
+  const onDashboard = useMatch(paths.dashboard) !== null;
   const [name, setName] = useState(goal?.name ?? '');
   const [date, setDate] = useState(goal?.targetDate ?? addDays(todayISO(), 42));
   const [hours, setHours] = useState(goal?.hoursPerDay == null ? '' : String(goal.hoursPerDay));
@@ -40,7 +44,13 @@ export function GoalForm({ goal }: { goal: Goal | null }) {
       hoursPerDay: hrs === null ? null : Math.min(16, Math.max(0.25, hrs)),
     };
     if (goal) updateGoal(goal.id, input);
-    else createGoal(input);
+    else {
+      const before = useStore.getState().data.activeGoalId;
+      createGoal(input);
+      // The new plan is current. Anywhere but the dashboard, open it at its own address.
+      const after = useStore.getState().data.activeGoalId;
+      if (!onDashboard && after && after !== before) navigate(paths.plan(after));
+    }
   };
 
   return (

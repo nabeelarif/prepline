@@ -8,7 +8,7 @@ async function signIn(page: Page, email = 'e2e@example.test') {
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password').fill('correct horse battery');
   await page.getByRole('button', { name: 'Create account' }).click();
-  await expect(page.getByRole('button', { name: 'My Plans' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'My Plans' })).toBeVisible();
 }
 
 async function createPlan(page: Page, name: string) {
@@ -150,7 +150,7 @@ test('phases are optional, group resources, and deleting one keeps its resources
 
 test('my plans: switch, duplicate, and import a backup from an older version', async ({ page }) => {
   await createPlan(page, 'First plan');
-  await page.getByRole('button', { name: 'My Plans' }).click();
+  await page.getByRole('link', { name: 'My Plans' }).click();
   await page.getByRole('button', { name: 'Actions for First plan' }).click();
   await page.getByRole('menuitem', { name: 'Duplicate plan' }).click();
   await expect(page.getByRole('heading', { name: 'First plan (copy)' })).toBeVisible();
@@ -194,7 +194,7 @@ test('my plans: switch, duplicate, and import a backup from an older version', a
   await expect(resources(page).getByText('Old article')).toBeVisible();
   // The old course's sections became 1h of 2h done.
   await expect(resources(page).getByText('In Progress · 50%')).toBeVisible();
-  await page.getByRole('button', { name: 'My Plans' }).click();
+  await page.getByRole('link', { name: 'My Plans' }).click();
   await expect(page.locator('.plan-card')).toHaveCount(1);
 });
 
@@ -263,7 +263,7 @@ test('definition of done: two resources in progress at once, then export and res
   await expect(status('Async video')).toHaveText('Completed');
 
   // Download, delete everything, and restore.
-  await page.getByRole('button', { name: 'My Plans' }).click();
+  await page.getByRole('link', { name: 'My Plans' }).click();
   await page.getByRole('button', { name: 'Backup and restore' }).click();
   const [download] = await Promise.all([
     page.waitForEvent('download'),
@@ -296,7 +296,7 @@ test('definition of done: two resources in progress at once, then export and res
 
 test('adds the documented agent plan next to an existing plan', async ({ page }) => {
   await createPlan(page, 'Keep me');
-  await page.getByRole('button', { name: 'My Plans' }).click();
+  await page.getByRole('link', { name: 'My Plans' }).click();
   await page.getByRole('button', { name: 'Backup and restore' }).click();
   await chooseBackup(page, readFileSync('docs/examples/ios-interview-prep.json'), 'plan.json');
   await expect(page.getByRole('region', { name: 'File contents' })).toBeVisible();
@@ -308,13 +308,13 @@ test('adds the documented agent plan next to an existing plan', async ({ page })
   );
   expect(await titles(page)).toHaveLength(8);
   await page.reload();
-  await page.getByRole('button', { name: 'My Plans' }).click();
+  await page.getByRole('link', { name: 'My Plans' }).click();
   await expect(page.locator('.plan-card')).toHaveCount(2);
 });
 
 test('rejects a file that is not a Road to Goals backup', async ({ page }) => {
   await createPlan(page, 'Keep me');
-  await page.getByRole('button', { name: 'My Plans' }).click();
+  await page.getByRole('link', { name: 'My Plans' }).click();
   await page.getByRole('button', { name: 'Backup and restore' }).click();
   await chooseBackup(page, '{"version": 2, "goals": []}');
   const alert = page.getByRole('dialog').getByRole('alert');
@@ -322,7 +322,7 @@ test('rejects a file that is not a Road to Goals backup', async ({ page }) => {
   await expect(alert).toContainText('Unsupported backup version');
   await expect(page.getByRole('region', { name: 'File contents' })).toHaveCount(0);
   await page.reload();
-  await page.getByRole('button', { name: 'My Plans' }).click();
+  await page.getByRole('link', { name: 'My Plans' }).click();
   await expect(page.locator('.plan-card')).toHaveCount(1);
 });
 
@@ -443,4 +443,74 @@ test('linking Google keeps the same account, so a Google sign-in opens the same 
   const account = page.getByRole('dialog', { name: 'Account' });
   await account.getByRole('listitem').filter({ hasText: 'Google' }).getByRole('button').click();
   await expect(account.getByText('linked')).toHaveCount(2);
+});
+
+test('the address bar follows the screen: dashboard, My Plans, a plan, Back, Forward, refresh, new tab', async ({
+  page,
+  context,
+}) => {
+  await createPlan(page, 'Routing plan');
+  await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(page.getByRole('link', { name: 'Dashboard' })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+
+  await page.getByRole('link', { name: 'My Plans' }).click();
+  await expect(page).toHaveURL(/\/plans$/);
+  await page.getByRole('link', { name: 'Open plan' }).click();
+  await expect(page).toHaveURL(/\/plans\/[^/]+$/);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Routing plan');
+  await expect(page.getByRole('link', { name: 'My Plans' })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+  const planUrl = page.url();
+
+  await page.goBack();
+  await expect(page).toHaveURL(/\/plans$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'My Plans' })).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL(/\/dashboard$/);
+  await page.goForward();
+  await page.goForward();
+  await expect(page).toHaveURL(planUrl);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Routing plan');
+
+  // Refresh: the same plan, still signed in.
+  await page.reload();
+  await expect(page).toHaveURL(planUrl);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Routing plan');
+
+  // A new tab with the same session (the e2e backend keeps it in sessionStorage).
+  const stored = await page.evaluate(() => JSON.stringify({ ...sessionStorage }));
+  const tab = await context.newPage();
+  await tab.addInitScript((s) => {
+    for (const [k, v] of Object.entries(JSON.parse(s) as Record<string, string>)) {
+      sessionStorage.setItem(k, v);
+    }
+  }, stored);
+  await tab.goto(planUrl);
+  await expect(tab.getByRole('heading', { level: 1 })).toHaveText('Routing plan');
+
+  // A plan that is not in the account.
+  await tab.goto(planUrl.replace(/\/plans\/.*/, '/plans/someone-elses'));
+  await expect(tab.getByRole('heading', { level: 1, name: 'Plan not found' })).toBeVisible();
+  await tab.goto(planUrl.replace(/\/plans\/.*/, '/'));
+  await expect(tab).toHaveURL(/\/dashboard$/);
+});
+
+test('signed out, a plan address shows sign-in and returns to the plan after signing in', async ({
+  page,
+}) => {
+  await page.goto('./plans/wanted-plan');
+  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+  await expect(page).toHaveURL(/\/plans\/wanted-plan$/);
+  await page.getByRole('button', { name: 'Create an account' }).click();
+  await page.getByLabel('Email').fill('route@example.test');
+  await page.getByLabel('Password').fill('correct horse battery');
+  await page.getByRole('button', { name: 'Create account' }).click();
+  // Signed in, still at the requested address (no such plan in a fresh account).
+  await expect(page).toHaveURL(/\/plans\/wanted-plan$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Plan not found' })).toBeVisible();
 });

@@ -1,8 +1,8 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { App } from '../../App';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import type { AppData } from '../../domain/types';
 import { useStore } from '../../state/store';
 import { memory, resetApp, serverData } from '../../test/harness';
+import { renderApp } from '../../test/renderApp';
 
 const plan = (id: string, name: string) => ({
   id,
@@ -39,8 +39,8 @@ const saved = () => JSON.stringify(serverData());
 const dialog = () => screen.getByRole('dialog');
 
 async function open() {
-  render(<App />);
-  fireEvent.click(await screen.findByRole('button', { name: 'My Plans' }));
+  renderApp();
+  fireEvent.click(await screen.findByRole('link', { name: 'My Plans' }));
   fireEvent.click(screen.getByRole('button', { name: 'Backup and restore' }));
 }
 

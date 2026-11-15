@@ -12,6 +12,8 @@ import { fmtDate, todayISO } from '../domain/dates';
 import { fmtHours } from '../domain/format';
 import { metrics } from '../domain/metrics';
 import { pace } from '../domain/pace';
+import { Link } from 'react-router-dom';
+import { paths } from '../routes';
 import { useStore } from '../state/store';
 import { EmptyState } from './EmptyState';
 import { Menu } from './Menu';
@@ -21,7 +23,7 @@ import { ProgressRing } from './ProgressRing';
 export function MyPlans() {
   const goals = useStore((s) => s.data.goals);
   const activeId = useStore((s) => s.data.activeGoalId);
-  const { selectGoal, openOverlay, duplicateGoal, deleteGoal } = useStore.getState();
+  const { openOverlay, duplicateGoal, deleteGoal } = useStore.getState();
   const today = todayISO();
   const newPlan = () => openOverlay({ kind: 'goal', goalId: null });
 
@@ -121,9 +123,9 @@ export function MyPlans() {
                   <span className={`pace pace-${p.kind}`}>
                     <span className="pill">{paceText(p, g).label}</span>
                   </span>
-                  <button className="btn sm primary" onClick={() => selectGoal(g.id)}>
+                  <Link className="btn sm primary" to={paths.plan(g.id)}>
                     Open plan
-                  </button>
+                  </Link>
                 </div>
               </li>
             );

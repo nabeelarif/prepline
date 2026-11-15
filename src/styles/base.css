@@ -366,12 +366,6 @@ textarea {
   width: 16px;
   flex: none;
 }
-.add-menu {
-  min-width: 290px;
-}
-.add-menu .menu-item span:first-child {
-  font-weight: 600;
-}
 
 /* Toast */
 .toast-region {

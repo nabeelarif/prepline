@@ -40,8 +40,8 @@ const dialog = () => screen.getByRole('dialog');
 
 async function open() {
   renderApp();
-  fireEvent.click(await screen.findByRole('link', { name: 'My Plans' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Backup and restore' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Account menu' }));
+  fireEvent.click(screen.getByRole('menuitem', { name: 'Backup and restore' }));
 }
 
 function pick(contents: string, name = 'roadtogoals-backup-2026-10-20.json') {

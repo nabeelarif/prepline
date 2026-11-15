@@ -5,12 +5,11 @@ import { roadmap } from '../domain/roadmap';
 import type { Goal } from '../domain/types';
 import { useStore } from '../state/store';
 import { ContinueCard } from './ContinueCard';
-import { DashboardHeader } from './DashboardHeader';
 import { Journey } from './Journey';
-import { ProgressSummary } from './ProgressSummary';
+import { PlanBox } from './PlanBox';
 import { ResourceList } from './ResourceList';
 
-/** Dashboard for one plan: header, progress summary, journey, and resources. */
+/** Dashboard for one plan: plan box, journey, and resources. */
 export function GoalView({ goal }: { goal: Goal }) {
   const view = useStore((s) => s.ui.view);
   const today = todayISO();
@@ -20,8 +19,7 @@ export function GoalView({ goal }: { goal: Goal }) {
 
   return (
     <>
-      <DashboardHeader goal={goal} today={today} />
-      <ProgressSummary goal={goal} met={met} pace={p} today={today} />
+      <PlanBox goal={goal} met={met} pace={p} today={today} />
       <Journey goal={goal} nodes={nodes} />
       {goal.resources.length > 0 && (
         <>

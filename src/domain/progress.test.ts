@@ -1,6 +1,7 @@
+import { addDays } from './dates';
 import { goal, res, TODAY } from '../test/fixtures';
 import { metrics } from './metrics';
-import { pace } from './pace';
+import { estimatedFinish, pace, velocity } from './pace';
 import { resDone, resStatus } from './resources';
 
 describe('resource progress', () => {
@@ -69,5 +70,52 @@ describe('pace', () => {
     const done = [res({ id: 'a', done: true })];
     expect(pace(goal(done), metrics(done), TODAY).kind).toBe('done');
     expect(at(1, { targetDate: '2026-03-09' }).kind).toBe('past');
+  });
+});
+
+describe('estimatedFinish', () => {
+  const met = metrics([res({ id: 'a', minutes: 600 })]);
+
+  it('counts today as the first day of work', () => {
+    expect(estimatedFinish(met, 2, TODAY)).toBe(addDays(TODAY, 4)); // 5 days of 2h
+    expect(estimatedFinish(met, 10, TODAY)).toBe(TODAY);
+    expect(estimatedFinish(met, 4, TODAY)).toBe(addDays(TODAY, 2)); // 2.5 rounds up to 3 days
+  });
+
+  it('has no estimate without capacity, work, or resources', () => {
+    expect(estimatedFinish(met, null, TODAY)).toBeNull();
+    expect(estimatedFinish(met, 0, TODAY)).toBeNull();
+    expect(estimatedFinish(metrics([]), 2, TODAY)).toBeNull();
+    expect(estimatedFinish(metrics([res({ id: 'a', done: true })]), 2, TODAY)).toBeNull();
+  });
+});
+
+describe('velocity', () => {
+  // 10h of work over 11 days needs about 54.5 minutes a day.
+  const work = [res({ id: 'a', minutes: 600 })];
+  const at = (hoursPerDay: number | null) => {
+    const g = goal(work, { hoursPerDay });
+    return velocity(pace(g, metrics(g.resources), TODAY), hoursPerDay);
+  };
+
+  it('shows spare time when the plan is on track or at risk', () => {
+    expect(at(2)).toMatchObject({ kind: 'on_track', plannedMin: 120, ratio: 2.2 });
+    expect(at(2)!.diffMin).toBeCloseTo(120 - 600 / 11);
+    expect(at(1)).toMatchObject({ kind: 'at_risk' });
+  });
+
+  it('shows a shortfall when behind', () => {
+    const v = at(0.5)!;
+    expect(v.kind).toBe('behind');
+    expect(v.diffMin).toBeLessThan(0);
+    expect(v.ratio).toBe(0.5);
+  });
+
+  it('has nothing to compare without daily hours, work, or time', () => {
+    expect(at(null)).toBeNull();
+    const none = goal([], { hoursPerDay: 2 });
+    expect(velocity(pace(none, metrics([]), TODAY), 2)).toBeNull();
+    const late = goal(work, { hoursPerDay: 2, targetDate: '2026-03-09' });
+    expect(velocity(pace(late, metrics(late.resources), TODAY), 2)).toBeNull();
   });
 });

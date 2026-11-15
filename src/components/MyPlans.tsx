@@ -1,13 +1,4 @@
-import {
-  CalendarDays,
-  Copy,
-  DatabaseBackup,
-  Ellipsis,
-  Pencil,
-  Plus,
-  Target,
-  Trash2,
-} from 'lucide-react';
+import { CalendarDays, Copy, Ellipsis, Pencil, Plus, Target, Trash2 } from 'lucide-react';
 import { fmtDate, todayISO } from '../domain/dates';
 import { fmtHours } from '../domain/format';
 import { metrics } from '../domain/metrics';
@@ -32,9 +23,6 @@ export function MyPlans() {
       <header className="page-head">
         <h1>My Plans</h1>
         <div className="btn-row">
-          <button className="btn" onClick={() => openOverlay({ kind: 'data' })}>
-            <DatabaseBackup size={17} aria-hidden="true" /> Backup and restore
-          </button>
           <button className="btn primary" onClick={newPlan}>
             <Plus size={18} aria-hidden="true" /> New plan
           </button>

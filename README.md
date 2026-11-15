@@ -48,7 +48,7 @@ Built with Vite, React, TypeScript, Zustand, Zod and Supabase. Set up the backen
 
 ## Data
 
-Your plans, resources, progress, notes and order live in your Supabase account and are loaded on every visit. Only your sign-in session and the theme choice stay in the browser. Use **Backup and restore** to export a JSON file now and then, or to import one.
+Your plans, resources, progress, notes and order live in your Supabase account and are loaded on every visit. Only your sign-in session and the theme choice stay in the browser. Use **Backup and restore** in the account menu to export a JSON file now and then, or to import one.
 
 ## License
 

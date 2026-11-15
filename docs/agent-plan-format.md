@@ -3,8 +3,8 @@
 These are instructions for an AI agent. Give them to the agent along with a request
 such as "Make me an iOS developer interview preparation plan, target date
 2026-12-31, 2 hours a day." The agent researches real study resources and returns
-one JSON file. Road to Goals imports it with **Backup and restore → Choose File → Add to
-My Plans**, which keeps the user's existing plans.
+one JSON file. Road to Goals imports it with **account menu → Backup and restore → Choose File →
+Add to My Plans**, which keeps the user's existing plans.
 
 ## 1. Your task
 

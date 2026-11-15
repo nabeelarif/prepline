@@ -11,16 +11,16 @@ const NAV: [string, string, typeof House][] = [
   [paths.plans, 'My Plans', LayoutList],
 ];
 
+const STATUS = {
+  error: [TriangleAlert, 'Not saved: retry needed'],
+  saving: [LoaderCircle, 'Saving…'],
+  saved: [Check, 'All changes saved'],
+  idle: [Check, 'Saved to your account'],
+} as const;
+
 export function TopBar() {
   const sync = useStore((s) => s.sync.status);
-  const text =
-    sync === 'error'
-      ? 'Not saved: retry needed'
-      : sync === 'saving'
-        ? 'Saving…'
-        : sync === 'saved'
-          ? 'All changes saved'
-          : 'Saved to your account';
+  const [StatusIcon, text] = STATUS[sync];
 
   return (
     <header className="topbar">
@@ -42,13 +42,11 @@ export function TopBar() {
       </nav>
       <div className="top-tools">
         <p className={`sync-icon${sync === 'error' ? ' off' : ''}`} title={text}>
-          {sync === 'error' ? (
-            <TriangleAlert size={18} aria-hidden="true" />
-          ) : sync === 'saving' ? (
-            <LoaderCircle size={18} className="spin" aria-hidden="true" />
-          ) : (
-            <Check size={18} aria-hidden="true" />
-          )}
+          <StatusIcon
+            size={18}
+            className={sync === 'saving' ? 'spin' : undefined}
+            aria-hidden="true"
+          />
           <span className="sr-only">{text}</span>
         </p>
         <AccountMenu />

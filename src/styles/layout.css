@@ -11,6 +11,7 @@
   z-index: 20;
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px 24px;
   padding: 12px 28px;
   background: var(--side-bg);
@@ -89,11 +90,6 @@
 }
 .spin {
   animation: spin 900ms linear infinite;
-}
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
 }
 .avatar-btn {
   width: 34px;

@@ -77,7 +77,7 @@ describe('routes', () => {
       goals: [plan('a', 'Alpha plan'), plan('b', 'Beta plan')],
     });
 
-  it('redirects / to the dashboard and marks the sidebar item', async () => {
+  it('redirects / to the dashboard and marks the nav item', async () => {
     await two();
     renderApp('/');
     expect(await screen.findByRole('heading', { level: 1, name: 'Alpha plan' })).toBeVisible();

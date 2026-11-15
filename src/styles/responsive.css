@@ -9,25 +9,22 @@
     row-gap: 12px;
   }
 }
+/* Tablet widths: the logo alone is enough. On phones there is room again. */
+@media (min-width: 681px) and (max-width: 860px) {
+  .topbar .brand span {
+    display: none;
+  }
+}
 @media (max-width: 860px) {
   .topbar {
     padding: 10px 16px;
     gap: 10px 14px;
-  }
-  .topbar .brand span {
-    display: none;
   }
   .main {
     padding: 16px 16px 56px;
   }
 }
 @media (max-width: 680px) {
-  .topbar {
-    flex-wrap: wrap;
-  }
-  .topbar .brand span {
-    display: inline;
-  }
   .top-tools {
     margin-left: auto;
   }

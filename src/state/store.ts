@@ -41,8 +41,6 @@ export interface UiState {
   /** Resource picked on the journey, highlighted in the list. */
   selectedResourceId: string | null;
   showFullJourney: boolean;
-  /** Mobile navigation drawer. */
-  navOpen: boolean;
   overlay: Overlay | null;
   toast: { id: number; text: string } | null;
 }
@@ -121,7 +119,6 @@ export interface Store {
   setPhaseFilter(id: string | null): void;
   selectResource(id: string | null): void;
   toggleFullJourney(): void;
-  setNavOpen(open: boolean): void;
   openOverlay(o: Overlay): void;
   closeOverlay(): void;
   showToast(text: string): void;
@@ -146,7 +143,6 @@ const freshUi = (): UiState => ({
   phaseFilter: null,
   selectedResourceId: null,
   showFullJourney: false,
-  navOpen: false,
   overlay: null,
   toast: null,
 });
@@ -158,7 +154,6 @@ const planUi = (): Partial<UiState> => ({
   phaseFilter: null,
   selectedResourceId: null,
   showFullJourney: false,
-  navOpen: false,
   overlay: null,
 });
 
@@ -549,7 +544,6 @@ export function createAppStore({ repo, auth }: Backend) {
             : { selectedResourceId },
         ),
       toggleFullJourney: () => setUi({ showFullJourney: !get().ui.showFullJourney }),
-      setNavOpen: (navOpen) => setUi({ navOpen }),
       openOverlay: (overlay) => setUi({ overlay }),
       closeOverlay: () => setUi({ overlay: null }),
       showToast: (text) => setUi(toast(text)),

@@ -15,7 +15,7 @@ Collect the articles, videos, courses and practice you plan to get through, and 
 - **Accounts and sync:** sign in with Google, X, or email and password. Plans are saved to your account (Supabase), so they follow you across devices, and you can link several sign-in methods to the same account.
 - **Backups:** you can export your data as JSON. Importing checks the file and shows a preview, then either adds its plans to yours or replaces everything.
 - **Agent-made plans:** give an AI agent [docs/agent-plan-format.md](docs/agent-plan-format.md) and ask for a plan, for example "iOS developer interview preparation, ready by 2026-12-31, 2 hours a day". It returns a JSON file you import with **Add to My Plans**.
-- **Responsive design** with light and dark themes. The sidebar switch follows your system setting or keeps the one you pick.
+- **Responsive design** with light and dark themes. The theme option in the account menu follows your system setting or keeps the one you pick.
 
 ## Architecture
 

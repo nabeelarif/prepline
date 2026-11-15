@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { UserRound } from 'lucide-react';
 import { AUTH_PROVIDERS, type AuthProviderId, type LinkedMethod } from '../../auth/types';
 import { useStore } from '../../state/store';
+import { confirmSignOut } from '../confirmSignOut';
 import { DIALOG_TITLE } from '../Overlay';
 
 /**
@@ -10,7 +11,6 @@ import { DIALOG_TITLE } from '../Overlay';
  */
 export function AccountPanel() {
   const user = useStore((s) => s.auth.user);
-  const pending = useStore((s) => s.sync.pending);
   const store = useStore.getState();
   const [methods, setMethods] = useState<LinkedMethod[] | null>(null);
   const [error, setError] = useState('');
@@ -127,8 +127,7 @@ export function AccountPanel() {
           className="btn"
           disabled={busy}
           onClick={() => {
-            const warn = pending > 0 ? 'Some changes are not saved yet and will be lost. ' : '';
-            if (warn && !window.confirm(`${warn}Sign out anyway?`)) return;
+            if (!confirmSignOut()) return;
             void act(() => store.signOut());
           }}
         >

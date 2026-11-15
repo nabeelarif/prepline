@@ -354,6 +354,9 @@ test('on a phone the journey is a vertical stepper and the list is stacked cards
   await expect(resources(page).locator('thead')).toBeHidden();
   const width = await page.evaluate(() => document.documentElement.scrollWidth);
   expect(width).toBeLessThanOrEqual(390);
+  await expect(page.getByRole('link', { name: 'Dashboard' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'My Plans' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Account menu' })).toBeVisible();
 });
 
 test('the theme switch overrides the system setting and is remembered', async ({ page }) => {
@@ -362,15 +365,22 @@ test('the theme switch overrides the system setting and is remembered', async ({
   const bg = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
   const darkBg = await bg();
 
-  await page.getByRole('radio', { name: 'Light' }).click();
-  await expect(page.getByRole('radio', { name: 'Light' })).toHaveAttribute('aria-checked', 'true');
+  await page.getByRole('button', { name: 'Account menu' }).click();
+  await page.getByRole('menuitemradio', { name: 'Light' }).click();
+  await page.getByRole('button', { name: 'Account menu' }).click();
+  await expect(page.getByRole('menuitemradio', { name: 'Light' })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  );
+  await page.keyboard.press('Escape');
   await expect.poll(bg).not.toBe(darkBg);
   const lightBg = await bg();
 
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 
-  await page.getByRole('radio', { name: 'Auto' }).click();
+  await page.getByRole('button', { name: 'Account menu' }).click();
+  await page.getByRole('menuitemradio', { name: 'Auto' }).click();
   await expect(page.locator('html')).not.toHaveAttribute('data-theme', /.+/);
   await expect.poll(bg).toBe(darkBg);
 
@@ -423,8 +433,8 @@ test('keeps plans after reload and hides them after sign-out', async ({ page }) 
   await page.reload();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Private plan');
 
-  await page.getByRole('button', { name: /e2e@example.test/ }).click();
-  await page.getByRole('button', { name: 'Sign out' }).click();
+  await page.getByRole('button', { name: 'Account menu' }).click();
+  await page.getByRole('menuitem', { name: 'Sign out' }).click();
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
   await expect(page.getByText('Private plan')).toBeHidden();
 
@@ -439,7 +449,8 @@ test('linking Google keeps the same account, so a Google sign-in opens the same 
   page,
 }) => {
   await createPlan(page, 'Shared plan');
-  await page.getByRole('button', { name: /e2e@example.test/ }).click();
+  await page.getByRole('button', { name: 'Account menu' }).click();
+  await page.getByRole('menuitem', { name: 'Account settings' }).click();
   const account = page.getByRole('dialog', { name: 'Account' });
   await account.getByRole('listitem').filter({ hasText: 'Google' }).getByRole('button').click();
   await expect(account.getByText('linked')).toHaveCount(2);
@@ -466,6 +477,10 @@ test('the address bar follows the screen: dashboard, My Plans, a plan, Back, For
     'page',
   );
   const planUrl = page.url();
+  await page.getByRole('link', { name: 'Road to Goals home' }).click();
+  await expect(page).toHaveURL(/\/dashboard$/);
+  await page.goBack();
+  await expect(page).toHaveURL(planUrl);
 
   await page.goBack();
   await expect(page).toHaveURL(/\/plans$/);

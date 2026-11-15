@@ -1,4 +1,4 @@
-import { Menu as MenuIcon, Target } from 'lucide-react';
+import { Target } from 'lucide-react';
 import { DataPanel } from './components/forms/DataPanel';
 import { GoalForm } from './components/forms/GoalForm';
 import { PhaseForm } from './components/forms/PhaseForm';
@@ -6,10 +6,9 @@ import { ResourceDetails } from './components/forms/ResourceDetails';
 import { ResourceForm } from './components/forms/ResourceForm';
 import { EmptyState } from './components/EmptyState';
 import { GoalView } from './components/GoalView';
-import { Logo } from './components/icons';
 import { MyPlans } from './components/MyPlans';
 import { Overlay } from './components/Overlay';
-import { Sidebar } from './components/Sidebar';
+import { TopBar } from './components/TopBar';
 import { AuthGate } from './components/AuthGate';
 import { NewPasswordScreen } from './components/NewPasswordScreen';
 import { AccountPanel } from './components/forms/AccountPanel';
@@ -134,8 +133,6 @@ function PlanPage() {
 
 function Shell() {
   const { pathname } = useLocation();
-  const navOpen = useStore((s) => s.ui.navOpen);
-  const setNavOpen = useStore((s) => s.setNavOpen);
 
   // Back, Forward and links leave no form open for a plan that is no longer on screen.
   useEffect(() => useStore.getState().closeOverlay(), [pathname]);
@@ -147,22 +144,7 @@ function Shell() {
   return (
     <>
       <div className="app">
-        <div className="topbar">
-          <button
-            className="icon-btn"
-            aria-label="Open menu"
-            aria-controls="sidebar"
-            aria-expanded={navOpen}
-            onClick={() => setNavOpen(true)}
-          >
-            <MenuIcon size={22} />
-          </button>
-          <span className="brand">
-            <Logo />
-            Road to Goals
-          </span>
-        </div>
-        <Sidebar />
+        <TopBar />
         <main className="main">
           <SyncBanner />
           <Routes>

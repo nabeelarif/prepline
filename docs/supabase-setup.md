@@ -24,7 +24,7 @@ Optional, with the local stack running (`supabase start`, needs Docker): `supaba
 - **Sign In / Providers → Email:** enabled, **Confirm email: on**, minimum password length 8. Confirmation matters for account linking: Supabase links identities that share a _verified_ email, so an unconfirmed sign-up must never count.
 - **Providers → Google:** create an OAuth client in Google Cloud Console (type Web). Set the authorized redirect URI to `https://YOUR-PROJECT-REF.supabase.co/auth/v1/callback`. Paste the client id and secret into Supabase.
 - **Providers → X / Twitter (OAuth 2.0):** create a project and app in the X Developer Portal with the same callback URL, then paste the client id and secret into Supabase.
-- **Sign In / Providers → Allow manual linking: on.** This lets a signed-in user add Google, X or a password to the same account (Account in the sidebar).
+- **Sign In / Providers → Allow manual linking: on.** This lets a signed-in user add Google, X or a password to the same account (Account in the top bar).
 - **Anonymous sign-ins: off.**
 - **URL Configuration:**
   - Site URL: `https://roadtogoals.com`

@@ -10,58 +10,36 @@
   }
 }
 @media (max-width: 860px) {
-  .app {
-    grid-template-columns: minmax(0, 1fr);
-    /* Short pages would otherwise stretch the top bar's row. */
-    align-content: start;
-  }
   .topbar {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 12px;
-    background: var(--side-bg);
-    position: sticky;
-    top: 0;
-    z-index: 20;
+    padding: 10px 16px;
+    gap: 10px 14px;
   }
-  .topbar .icon-btn {
-    color: #fff;
-  }
-  .topbar .icon-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
-  }
-  .topbar .brand {
-    font-size: 18px;
-  }
-  .topbar .logo {
-    width: 26px;
-    height: 26px;
-  }
-  .side {
-    position: fixed;
-    inset: 0 auto 0 0;
-    width: 250px;
-    z-index: 41;
-    transform: translateX(-100%);
-    transition: transform 200ms ease;
-  }
-  .side.open {
-    transform: none;
-    box-shadow: var(--shadow-lg);
-  }
-  .side-scrim {
-    display: block;
-    position: fixed;
-    inset: 0;
-    z-index: 40;
-    background: rgba(15, 23, 42, 0.45);
+  .topbar .brand span {
+    display: none;
   }
   .main {
     padding: 16px 16px 56px;
   }
 }
 @media (max-width: 680px) {
+  .topbar {
+    flex-wrap: wrap;
+  }
+  .topbar .brand span {
+    display: inline;
+  }
+  .top-tools {
+    margin-left: auto;
+  }
+  .top-nav {
+    order: 3;
+    flex: 1 0 100%;
+    margin-right: 0;
+  }
+  .top-nav .nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   .backup-grid {
     grid-template-columns: minmax(0, 1fr);
   }

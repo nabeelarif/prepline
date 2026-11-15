@@ -49,8 +49,8 @@ describe('App', () => {
     renderApp();
     await createPlan('Private plan');
     await screen.findByText('Plan created');
-    fireEvent.click(screen.getByRole('button', { name: /test@example.test/ }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Sign out' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Account menu' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Sign out' }));
     expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeVisible();
     expect(screen.queryByText('Private plan')).toBeNull();
   });
@@ -83,6 +83,14 @@ describe('routes', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Alpha plan' })).toBeVisible();
     expect(screen.getByRole('link', { name: 'Dashboard' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('link', { name: 'My Plans' })).not.toHaveAttribute('aria-current');
+  });
+
+  it('takes you to the dashboard when you click the app name', async () => {
+    await two();
+    renderApp('/plans');
+    fireEvent.click(await screen.findByRole('link', { name: 'Road to Goals home' }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Alpha plan' })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Dashboard' })).toHaveAttribute('aria-current', 'page');
   });
 
   it('opens a plan directly by its id, and My Plans is the active section', async () => {

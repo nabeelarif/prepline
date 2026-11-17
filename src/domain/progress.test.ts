@@ -71,6 +71,16 @@ describe('pace', () => {
     expect(pace(goal(done), metrics(done), TODAY).kind).toBe('done');
     expect(at(1, { targetDate: '2026-03-09' }).kind).toBe('past');
   });
+
+  it('has no clock before the plan starts, and never runs late without a deadline', () => {
+    // Even a deadline that has already passed is ignored until the plan is started.
+    expect(at(1, { startDate: null, targetDate: null })).toMatchObject({
+      kind: 'not_started',
+      daysLeft: null,
+    });
+    expect(at(1, { startDate: null, targetDate: '2026-03-09' }).kind).toBe('not_started');
+    expect(at(0.5, { targetDate: null })).toMatchObject({ kind: 'open', daysLeft: null });
+  });
 });
 
 describe('estimatedFinish', () => {

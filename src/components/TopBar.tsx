@@ -1,4 +1,4 @@
-import { Check, House, LayoutList, LoaderCircle, TriangleAlert } from 'lucide-react';
+import { Check, Compass, House, LayoutList, LoaderCircle, TriangleAlert } from 'lucide-react';
 import { Link, NavLink } from 'react-router-dom';
 import { paths } from '../routes';
 import { useStore } from '../state/store';
@@ -9,6 +9,7 @@ import { Logo } from './icons';
 const NAV: [string, string, typeof House][] = [
   [paths.dashboard, 'Dashboard', House],
   [paths.plans, 'My Plans', LayoutList],
+  [paths.explore, 'Explore', Compass],
 ];
 
 const STATUS = {

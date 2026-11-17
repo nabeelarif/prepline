@@ -2,8 +2,13 @@
 export const paths = {
   home: '/',
   dashboard: '/dashboard',
+  /** The sign-in screen; it works signed out and goes back to the page asked for. */
+  signIn: '/signin',
   plans: '/plans',
   plan: (id: string) => `/plans/${encodeURIComponent(id)}`,
+  /** Public gallery, and one shared plan by its link. Both work without an account. */
+  explore: '/explore',
+  shared: (slug: string) => `/explore/${encodeURIComponent(slug)}`,
 };
 
 const RETURN_KEY = 'roadtogoals:returnTo';
@@ -13,6 +18,8 @@ const RETURN_KEY = 'roadtogoals:returnTo';
  * always comes back to `/`. Session storage only; failure just means landing on the dashboard.
  */
 export function rememberReturnPath(path: string): void {
+  // The sign-in screen is where the user is heading from, never where to come back to.
+  if (path.split('?')[0] === paths.signIn) return;
   try {
     sessionStorage.setItem(RETURN_KEY, path);
   } catch {

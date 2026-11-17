@@ -90,9 +90,15 @@ export function createSupabaseAuth(client: SupabaseClient): AuthService {
       return 'signedIn';
     },
 
-    async signUpWithPassword(email, password) {
+    async signUpWithPassword(email, password, displayName) {
+      // The name travels as user metadata; a trigger on auth.users turns it into the
+      // profile's display_name, so it works even before the email is confirmed.
       const data = await wrap(
-        client.auth.signUp({ email, password, options: { emailRedirectTo: redirectUrl() } }),
+        client.auth.signUp({
+          email,
+          password,
+          options: { emailRedirectTo: redirectUrl(), data: { display_name: displayName ?? '' } },
+        }),
       );
       // With confirmation on, there is no session until the link is opened. A user object
       // with no identities means the email is already registered (Supabase hides that).

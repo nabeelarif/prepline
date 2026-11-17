@@ -21,6 +21,19 @@ describe('parseAppData', () => {
     });
   });
 
+  it('treats a plan saved with a deadline and no start as already started', () => {
+    const data = parseAppData({
+      goals: [
+        { id: 'a', name: 'Old', targetDate: '2026-05-01', createdAt: '2026-04-01' },
+        { id: 'b', name: 'No date' },
+        { id: 'c', name: 'Open', startDate: '2026-04-02' },
+      ],
+    })!;
+    expect(data.goals[0]).toMatchObject({ startDate: '2026-04-01', targetDate: '2026-05-01' });
+    expect(data.goals[1]).toMatchObject({ startDate: null, targetDate: null });
+    expect(data.goals[2]).toMatchObject({ startDate: '2026-04-02', targetDate: null });
+  });
+
   it('fills defaults and clamps bad values', () => {
     const data = parseAppData({
       activeGoalId: 'missing',
@@ -42,7 +55,8 @@ describe('parseAppData', () => {
     expect(data.activeGoalId).toBe('g1');
     const g = data.goals[0]!;
     expect(g.name).toHaveLength(120);
-    expect(g.targetDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(g.targetDate).toBeNull();
+    expect(g.startDate).toBeNull();
     expect(g.hoursPerDay).toBe(16);
     expect(g.resources).toHaveLength(1);
     expect(g.resources[0]).toMatchObject({
@@ -66,6 +80,7 @@ describe('parseAppData', () => {
           id: 'g',
           name: 'Prep',
           description: 'Senior iOS',
+          startDate: '2026-04-01',
           targetDate: '2026-05-01',
           hoursPerDay: 1.5,
           createdAt: '2026-04-01',

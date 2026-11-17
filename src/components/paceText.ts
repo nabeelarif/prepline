@@ -12,6 +12,10 @@ export function paceText(p: Pace, g: Goal): { label: string; detail: string } {
       return { label: 'Nothing planned yet', detail: 'Add resources to see your pace.' };
     case 'done':
       return { label: 'Complete', detail: 'Every resource is done.' };
+    case 'not_started':
+      return { label: 'Not started', detail: 'Start the plan when you are ready.' };
+    case 'open':
+      return { label: 'No deadline', detail: 'Follow it at your own pace.' };
     case 'past':
       return { label: 'Past target date', detail: 'Pick a new target date in Edit plan.' };
     case 'no_capacity':
@@ -28,10 +32,30 @@ export function paceText(p: Pace, g: Goal): { label: string; detail: string } {
   }
 }
 
+/** Days from today to the deadline (negative once it has passed) and that count as words. */
+function untilDeadline(today: ISODate, target: ISODate) {
+  const dl = diffDays(today, target);
+  return { dl, days: pl(Math.abs(dl), 'day') };
+}
+
+/** Number and label for the "days left" tile: "24 days" / "Left", "Today" / "Due", "3 days" / "Past due". */
+export function daysLeftTile(today: ISODate, target: ISODate): [string, string] {
+  const { dl, days } = untilDeadline(today, target);
+  return dl > 0 ? [days, 'Left'] : dl === 0 ? ['Today', 'Due'] : [days, 'Past due'];
+}
+
+/** "(6 weeks left)" from two weeks out, otherwise days; "passed" and "due today" after. */
+export function untilText(today: ISODate, target: ISODate): string {
+  const { dl, days } = untilDeadline(today, target);
+  if (dl < 0) return 'passed';
+  if (dl === 0) return 'due today';
+  return `${dl >= 14 ? pl(Math.round(dl / 7), 'week') : days} left`;
+}
+
 /** "24 days", "Due today", "3 days past". */
 export function daysLeftText(today: ISODate, target: ISODate): string {
-  const dl = diffDays(today, target);
-  return dl < 0 ? `${pl(-dl, 'day')} past` : dl === 0 ? 'Due today' : pl(dl, 'day');
+  const { dl, days } = untilDeadline(today, target);
+  return dl < 0 ? `${days} past` : dl === 0 ? 'Due today' : days;
 }
 
 /** Headline, tag and one sentence for the velocity strip. */
@@ -42,7 +66,9 @@ export function velocityText(
 ): { headline: string; tag: string; detail: string } {
   const req = `${fmtHours(v.requiredMin)}/day`;
   const plan = `${fmtHours(v.plannedMin)}/day`;
-  const left = `${fmtHours(remaining)} by ${fmtDate(g.targetDate)}`;
+  const left = g.targetDate
+    ? `${fmtHours(remaining)} by ${fmtDate(g.targetDate)}`
+    : fmtHours(remaining);
   const gap = `${fmtHours(Math.abs(v.diffMin))} / day`;
   if (v.kind === 'behind') {
     return {

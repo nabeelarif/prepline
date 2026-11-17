@@ -23,7 +23,7 @@ export function toRepositoryError(e: unknown): RepositoryError {
   else if (f.code === '23505' || f.code === '23503') code = 'conflict';
   else if (f.code === '23514' || f.code === '22P02' || f.code === '22007' || f.code === '23502')
     code = 'validation';
-  else if (f.status === 404) code = 'notFound';
+  else if (f.status === 404 || f.code === 'P0002') code = 'notFound';
   return new RepositoryError(code, f.message ?? 'Request failed', { cause: e });
 }
 

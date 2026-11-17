@@ -54,8 +54,11 @@ export interface AuthService {
   /** OAuth providers redirect away; the result is `redirecting`. */
   signInWithProvider(provider: Exclude<AuthProviderId, 'password'>): Promise<AuthResult>;
   signInWithPassword(email: string, password: string): Promise<AuthResult>;
-  /** `confirmEmail` when the email must be confirmed before the first sign-in. */
-  signUpWithPassword(email: string, password: string): Promise<AuthResult>;
+  /**
+   * `confirmEmail` when the email must be confirmed before the first sign-in. The display
+   * name is what other people see as the author of a public plan.
+   */
+  signUpWithPassword(email: string, password: string, displayName?: string): Promise<AuthResult>;
   sendPasswordReset(email: string): Promise<void>;
   /**
    * Calls back when the user arrives from a password-reset link: they are signed in, and

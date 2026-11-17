@@ -23,6 +23,7 @@ export const goal = (resources: Resource[], o: Partial<Goal> = {}): Goal => ({
   id: 'g',
   name: 'Plan',
   description: '',
+  startDate: '2026-03-01',
   targetDate: '2026-03-20',
   hoursPerDay: 1,
   createdAt: TODAY,

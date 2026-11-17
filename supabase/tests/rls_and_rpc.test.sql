@@ -1,7 +1,7 @@
 -- pgTAP tests. Run with: supabase test db   (needs the local stack: supabase start)
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(26);
+select plan(69);
 
 -- Two users and some data for each, created as the table owner.
 insert into auth.users (id, instance_id, aud, role, email)
@@ -51,6 +51,16 @@ select is(jsonb_array_length(public.load_all_data() -> 'resources'), 3, 'load_al
 select lives_ok($$ select public.reorder_resources('g1', array['r3']) $$, 'reorder with a partial list runs');
 select is((select array_agg(id order by position) from public.resources), array['r3', 'r2', 'r1'], 'unlisted rows follow in their old order');
 
+-- Content and the owner's own state live in separate tables.
+select is((select hours_per_day from public.plan_settings where goal_id = 'g1'), 1.5, 'the schedule is stored in plan_settings');
+select lives_ok($$ select public.save_resource('g1', '{"id": "r3", "title": "R3b", "type": "course", "minutes": 90,
+  "created_at": "2026-01-01", "done": true, "done_minutes": 90, "done_at": "2026-02-01"}'::jsonb) $$, 'saving progress runs');
+select is((select count(*)::int from public.resource_progress where resource_id = 'r3'), 1, 'progress is stored in resource_progress');
+select is((select (e ->> 'done')::boolean from jsonb_array_elements(public.load_all_data() -> 'resources') e where e ->> 'id' = 'r3'), true, 'load_all_data joins progress back onto the resource');
+select lives_ok($$ select public.save_resource('g1', '{"id": "r3", "title": "R3b", "type": "course", "minutes": 90, "created_at": "2026-01-01"}'::jsonb) $$, 'saving without progress runs');
+select is((select count(*)::int from public.resource_progress where resource_id = 'r3'), 0, 'no progress is stored as no row');
+select lives_ok($$ select public.save_resource('g1', '{"id": "r3", "title": "R3b", "type": "course", "minutes": 90, "created_at": "2026-01-01", "started_at": "2026-02-01"}'::jsonb) $$, 're-adding progress for the isolation checks');
+
 -- Atomic: a bad row anywhere rolls back the whole replace.
 select throws_ok($$
   select public.replace_all_data('{"active_goal_id": null, "goals": [
@@ -63,6 +73,7 @@ select is((select count(*)::int from public.goals where id = 'g1'), 1, 'and the 
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000b');
 select is((select count(*)::int from public.goals), 0, 'B sees no plans of A');
 select is((select count(*)::int from public.resources), 0, 'B sees no resources of A');
+select is((select count(*)::int from public.resource_progress) + (select count(*)::int from public.plan_settings), 0, 'B sees no progress or schedule of A');
 select is(jsonb_array_length(public.load_all_data() -> 'goals'), 0, 'load_all_data returns none of A''s plans to B');
 delete from public.goals where id = 'g1';
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
@@ -70,14 +81,15 @@ select is((select count(*)::int from public.goals), 1, 'B cannot delete A''s pla
 
 -- Writing a row for someone else is refused.
 select throws_ok($$
-  insert into public.goals (user_id, id, name, target_date, created_at)
-  values ('00000000-0000-0000-0000-00000000000b', 'evil', 'x', '2027-01-01', '2026-01-01')
+  insert into public.goals (user_id, id, name, created_at)
+  values ('00000000-0000-0000-0000-00000000000b', 'evil', 'x', '2026-01-01')
 $$, '42501', null, 'cannot insert a row owned by another user');
 
 -- The anon role gets nothing.
 reset role;
 set local role anon;
 select throws_ok($$ select count(*) from public.goals $$, '42501', null, 'anon cannot read plans');
+select throws_ok($$ select count(*) from public.resource_progress $$, '42501', null, 'anon cannot read progress');
 
 -- Appending keeps what is saved; an id used by another plan is an error, not a silent skip.
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
@@ -89,6 +101,66 @@ select is((select array_agg(id order by position) from public.goals), array['g1'
 select throws_ok($$
   select public.save_resource('g2', '{"id": "r1", "title": "x", "type": "article", "minutes": 5, "created_at": "2026-01-01"}'::jsonb)
 $$, '23505', null, 'a resource id used by another plan is rejected');
+
+-- Sharing. Other people get content only, never progress, dates or daily hours.
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
+select throws_ok($$ select public.set_plan_sharing('g1', 'public', '{}') $$, '23514', null, 'public needs a display name');
+select lives_ok($$ select public.set_display_name('Ada') $$, 'set a display name');
+select lives_ok($$ select public.set_plan_sharing('g1', 'unlisted', '{}', ' Ada L ') $$, 'a name can travel with the sharing change');
+select is((select display_name from public.profiles), 'Ada L', 'and is trimmed and saved');
+select lives_ok($$ select public.set_display_name('Ada') $$, 'restore the name');
+select throws_ok($$ select public.set_plan_sharing('g1', 'public', '{}', '   ') $$, '23514', null, 'going public with a blank name is rejected');
+select is((select display_name from public.profiles), 'Ada', 'and the rejected call did not clear the saved name');
+select lives_ok($$ select public.set_plan_sharing('g1', 'unlisted', array['Swift', ' swift ', 'ios']) $$, 'share a plan by link');
+select is((select tags from public.plan_shares where goal_id = 'g1'), array['ios', 'swift'], 'tags are normalised');
+select lives_ok($$ select public.set_plan_sharing('g2', 'unlisted', '{}') $$, 'a plan can be shared before it has resources');
+select throws_ok($$ select public.set_plan_sharing('nope', 'unlisted', '{}') $$, 'P0002', null, 'only the owner''s plans can be shared');
+create temp table shared_slug as select slug from public.plan_shares where goal_id = 'g1';
+grant all on shared_slug to anon, authenticated;
+
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000b');
+select throws_ok($$ select public.set_plan_sharing('g1', 'public', '{}') $$, 'P0002', null, 'B cannot share A''s plan');
+select is((select count(*)::int from public.plan_shares), 0, 'B cannot read A''s sharing settings');
+
+reset role;
+set local role anon;
+select is((select public.get_shared_plan((select slug from shared_slug)) ->> 'name'), 'A plan', 'anyone with the link can open an unlisted plan');
+select is(jsonb_array_length(public.get_shared_plan((select slug from shared_slug)) -> 'resources'), 3, 'with its resources');
+select is((public.get_shared_plan((select slug from shared_slug))::text ~ '(done|started_at|target_date|start_date|hours_per_day|user_id)'), false, 'and no progress, dates, daily hours or user id');
+select is(jsonb_array_length(public.list_public_plans(null, null, 24, 0)), 0, 'an unlisted plan is not in the public list');
+select is(public.get_shared_plan('wrong'), null, 'an unknown link finds nothing');
+select throws_ok($$ select count(*) from public.plan_shares $$, '42501', null, 'anon cannot read the sharing table');
+
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
+select lives_ok($$ select public.set_plan_sharing('g1', 'public', '{}') $$, 'make it public');
+select throws_ok($$ update public.plan_shares set hidden = false, copy_count = 99 $$, '42501', null, 'the owner cannot edit moderation or copy counts');
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000b');
+select lives_ok($$ select public.record_plan_copy((select slug from shared_slug)) $$, 'B copies the plan');
+select lives_ok($$ select public.record_plan_copy((select slug from shared_slug)) $$, 'copying twice');
+reset role;
+select is((select copy_count from public.plan_shares where goal_id = 'g1'), 1, 'counts each person once');
+set local role anon;
+select is((public.list_public_plans('plan', null, 24, 0) -> 0 ->> 'resource_count')::int, 3, 'a public plan is listed with its counts');
+select is(jsonb_array_length(public.list_public_plans('100%', null, 24, 0)), 0, 'search treats % literally');
+reset role;
+update public.plan_shares set hidden = true where goal_id = 'g1';
+set local role anon;
+select is(public.get_shared_plan((select slug from shared_slug)), null, 'a taken-down plan is gone');
+reset role;
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
+select lives_ok($$ select public.set_plan_sharing('g1', 'private', '{}') $$, 'the owner of a taken-down plan can set it private');
+select lives_ok($$ select public.set_plan_sharing('g1', 'public', '{}') $$, 'and share it again');
+select is((select hidden from public.plan_shares where goal_id = 'g1'), true, 'but it stays taken down');
+reset role;
+update public.plan_shares set hidden = false where goal_id = 'g1';
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
+select lives_ok($$ select public.set_plan_sharing('g1', 'private', '{}') $$, 'stop sharing');
+set local role anon;
+select is(public.get_shared_plan((select slug from shared_slug)), null, 'a private plan has no link');
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
+select lives_ok($$ select public.set_plan_sharing('g2', 'public', '{}') $$, 'an empty plan can be made public');
+set local role anon;
+select is(jsonb_array_length(public.list_public_plans(null, null, 24, 0)), 0, 'but it is not listed until it has a resource');
 
 select * from finish();
 rollback;

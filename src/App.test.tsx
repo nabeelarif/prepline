@@ -1,4 +1,7 @@
-import { fireEvent, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter, useLocation } from 'react-router-dom';
+import { App } from './App';
+import { useStore } from './state/store';
 import { goal } from './test/fixtures';
 import { renderApp } from './test/renderApp';
 import { memory, resetApp, serverData } from './test/harness';
@@ -26,6 +29,42 @@ describe('App', () => {
     expect(await screen.findByText('All changes saved')).toBeVisible();
     expect(serverData().goals.map((g) => g.name)).toEqual(['System design']);
     expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('creates a plan that is not started, then starts it with a 30 day deadline', async () => {
+    renderApp();
+    await createPlan('Later');
+    const overview = screen.getByRole('region', { name: 'Plan overview' });
+    expect(overview).toHaveTextContent('Not started yet');
+    expect(overview).not.toHaveTextContent(/behind|at risk|past/i);
+
+    fireEvent.click(within(overview).getByRole('button', { name: 'Start plan' }));
+    fireEvent.click(screen.getByRole('radio', { name: '30 days from today' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Start plan' }));
+    expect(await screen.findByText('Plan started')).toBeVisible();
+    expect(screen.getByRole('region', { name: 'Plan overview' })).toHaveTextContent('Target:');
+    expect(serverData().goals[0]!.startDate).not.toBeNull();
+    expect(serverData().goals[0]!.targetDate).not.toBeNull();
+  });
+
+  it('can be shared from the create dialog, even though the new plan is still empty', async () => {
+    renderApp();
+    fireEvent.click(await screen.findByRole('button', { name: 'Create Your First Plan' }));
+    fireEvent.change(screen.getByLabelText('Plan Title'), { target: { value: 'Open plan' } });
+    fireEvent.click(screen.getByRole('radio', { name: /Public in Explore/ }));
+    // Public plans are credited to a name.
+    fireEvent.click(screen.getByRole('button', { name: 'Create Plan' }));
+    expect(await screen.findByText(/Add a display name/)).toBeVisible();
+    fireEvent.change(screen.getByLabelText('Display name'), { target: { value: 'Ada' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create Plan' }));
+    expect(await screen.findByText('Plan created')).toBeVisible();
+
+    const { useStore } = await import('./state/store');
+    await vi.waitFor(() => {
+      const [plan] = Object.values(useStore.getState().sharing.plans);
+      expect(plan).toMatchObject({ visibility: 'public' });
+    });
+    expect(useStore.getState().sharing.displayName).toBe('Ada');
   });
 
   it('shows the plan at once, warns when saving fails, and saves after Retry', async () => {
@@ -77,6 +116,26 @@ describe('routes', () => {
       activeGoalId: 'a',
       goals: [plan('a', 'Alpha plan'), plan('b', 'Beta plan')],
     });
+
+  it('opens sign-in at its own address from a public page, and comes back to that page', async () => {
+    await useStore.getState().signOut();
+    await waitFor(() => expect(useStore.getState().auth.status).toBe('signedOut'));
+    const Where = () => <output data-testid="where">{useLocation().pathname}</output>;
+    render(
+      <MemoryRouter initialEntries={['/explore']}>
+        <App />
+        <Where />
+      </MemoryRouter>,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Sign in' }));
+    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeVisible();
+    expect(screen.getByTestId('where')).toHaveTextContent('/signin');
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'test@example.test' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    expect(await screen.findByRole('heading', { name: 'Explore plans' })).toBeVisible();
+    expect(screen.getByTestId('where')).toHaveTextContent('/explore');
+  });
 
   it('redirects / to the dashboard and marks the nav item', async () => {
     await two();

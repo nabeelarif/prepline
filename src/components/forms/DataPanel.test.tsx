@@ -8,6 +8,7 @@ const plan = (id: string, name: string) => ({
   id,
   name,
   description: '',
+  startDate: '2026-01-01',
   targetDate: '2099-01-01',
   hoursPerDay: null,
   createdAt: '2026-01-01',

@@ -8,9 +8,11 @@ Add to My Plans**, which keeps the user's existing plans.
 
 ## 1. Your task
 
-1. Find out the topic, the **target date** and the **hours per day** the user can study.
-   If the date or hours are missing, ask for them. If you can't ask, use a date
-   8 weeks from today and 2 hours a day, and say so in the plan's `description`.
+1. Find out the topic, the **hours per day** the user can study, and whether they
+   have a **target date**. A date is optional: many plans have none. Ask once. If the
+   user has no date, or you can't ask, leave `targetDate` out (the plan then arrives
+   as "Not started", with no deadline, and the user starts it when ready). If hours
+   are missing and you can't ask, use 2 hours a day and say so in the plan's `description`.
 2. Research resources. Open every URL you include and check that it loads and is
    what you describe. **Never invent or guess a URL.**
 3. Group the resources into phases, put them in study order, and estimate each one's
@@ -56,15 +58,15 @@ Add to My Plans**, which keeps the user's existing plans.
 
 ### Plan (`goals[]`)
 
-| Field         | Required | Type             | Meaning and limits                                                                                                                           |
-| ------------- | -------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `name`        | yes      | string           | Plan title shown everywhere. Max 120 characters.                                                                                             |
-| `description` | no       | string           | One to three sentences on the aim and level. Max 1000 characters.                                                                            |
-| `targetDate`  | no       | `"YYYY-MM-DD"`   | The date the user wants to be ready. Must be a real calendar date. Defaults to 30 days from import.                                          |
-| `hoursPerDay` | no       | number or `null` | Daily study capacity, 0.25 to 16. Road to Goals uses it to say whether the plan is on track. With `null` it shows only the pace needed.      |
-| `id`          | no       | string           | Any unique string. Road to Goals gives every plan, phase and resource new ids on import. You only need ids so resources can point at phases. |
-| `phases`      | no       | array            | Optional groups, shown as milestones. See below.                                                                                             |
-| `resources`   | no       | array            | The study items, **in the order the user should do them**.                                                                                   |
+| Field         | Required | Type             | Meaning and limits                                                                                                                                                                                                                                              |
+| ------------- | -------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`        | yes      | string           | Plan title shown everywhere. Max 120 characters.                                                                                                                                                                                                                |
+| `description` | no       | string           | One to three sentences on the aim and level. Max 1000 characters.                                                                                                                                                                                               |
+| `targetDate`  | no       | `"YYYY-MM-DD"`   | The date the user wants to be ready. Must be a real calendar date. **Leave it out when the user has no deadline.** With a date the plan starts running on import; without one it arrives Not started and the user starts it, optionally adding a deadline then. |
+| `hoursPerDay` | no       | number or `null` | Daily study capacity, 0.25 to 16. Road to Goals uses it to say whether the plan is on track. With `null` it shows only the pace needed.                                                                                                                         |
+| `id`          | no       | string           | Any unique string. Road to Goals gives every plan, phase and resource new ids on import. You only need ids so resources can point at phases.                                                                                                                    |
+| `phases`      | no       | array            | Optional groups, shown as milestones. See below.                                                                                                                                                                                                                |
+| `resources`   | no       | array            | The study items, **in the order the user should do them**.                                                                                                                                                                                                      |
 
 ### Phase (`phases[]`)
 
@@ -88,7 +90,7 @@ Add to My Plans**, which keeps the user's existing plans.
 | `id`      | no       | string           | Any unique string.                                                                                  |
 
 Leave these out of a new plan. They record the user's own progress:
-`done`, `doneMinutes`, `doneAt`, `startedAt`, `createdAt`. Road to Goals ignores any other key.
+`done`, `doneMinutes`, `doneAt`, `startedAt`, `createdAt`, and the plan's `startDate`. Road to Goals ignores any other key.
 
 ## 4. Choosing `type`
 
@@ -125,6 +127,9 @@ Round to whole minutes.
 
 ## 6. Fitting the schedule
 
+This section applies only when the plan has a `targetDate`. Without one, skip it and
+size the plan by what the user needs to learn.
+
 - **Capacity** = days from today to `targetDate` × `hoursPerDay` × 60 minutes.
 - Keep the total of all `minutes` at or below **80% of capacity**, to leave room
   for review and missed days.
@@ -158,7 +163,7 @@ Round to whole minutes.
 - [ ] Every `phaseId` matches a phase `id` in the same plan.
 - [ ] `type` is one of `article`, `video`, `course`, `practice`.
 - [ ] `minutes` are whole numbers, and their total fits 80% of capacity.
-- [ ] `targetDate` is a real date written `YYYY-MM-DD`, and it is in the future.
+- [ ] `targetDate` is either left out, or a real date written `YYYY-MM-DD` in the future.
 - [ ] Every URL was opened and checked during this task.
 
 ## 10. Example

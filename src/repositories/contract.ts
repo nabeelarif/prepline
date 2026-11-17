@@ -251,6 +251,12 @@ export function describeSharingContract(name: string, make: () => Promise<Contra
       });
     });
 
+    it('saves the display name in the same step as going public', async () => {
+      await repo.saveGoalTree(planWithProgress('g1'));
+      await sharing.setSharing('g1', 'public', [], ' Ada ');
+      expect((await sharing.loadSharing()).displayName).toBe('Ada');
+    });
+
     it('lets an empty plan be shared, but lists it only once it has a resource', async () => {
       await repo.saveGoalTree({ ...planWithProgress('g1'), resources: [] });
       await sharing.setDisplayName('Ada');

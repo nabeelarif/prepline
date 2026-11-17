@@ -1,82 +1,16 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { cleanTags, type PlanSharing, type PlanSummary, type SharedPlan } from '../../domain/share';
-import type { Phase, ResourceType } from '../../domain/types';
+import { cleanTags, type PlanSharing } from '../../domain/share';
 import { RepositoryError } from '../../repositories/errors';
 import type { PlanSharingRepository } from '../../repositories/sharing';
 import { call } from './call';
-
-/** Shapes returned by the sharing functions in `supabase/schema.sql` (snake_case). */
-interface SharedPlanJson {
-  slug: string;
-  visibility: 'unlisted' | 'public';
-  name: string;
-  description: string;
-  author: string | null;
-  tags: string[];
-  published_at: string;
-  copy_count: number;
-  phases: Phase[];
-  resources: {
-    id: string;
-    title: string;
-    url: string;
-    type: ResourceType;
-    minutes: number;
-    notes: string;
-    phase_id: string | null;
-  }[];
-}
-interface SummaryJson {
-  slug: string;
-  name: string;
-  description: string;
-  author: string | null;
-  tags: string[];
-  published_at: string;
-  copy_count: number;
-  phase_count: number;
-  resource_count: number;
-  total_minutes: number;
-}
-interface SettingsJson {
-  visibility: PlanSharing['visibility'];
-  slug: string | null;
-  tags: string[];
-}
-
-const toShared = (j: SharedPlanJson): SharedPlan => ({
-  slug: j.slug,
-  visibility: j.visibility,
-  name: j.name,
-  description: j.description,
-  author: j.author,
-  tags: j.tags ?? [],
-  publishedAt: j.published_at,
-  copyCount: j.copy_count,
-  phases: j.phases,
-  resources: j.resources.map((r) => ({
-    id: r.id,
-    title: r.title,
-    url: r.url,
-    type: r.type,
-    minutes: r.minutes,
-    notes: r.notes,
-    phaseId: r.phase_id,
-  })),
-});
-
-const toSummary = (j: SummaryJson): PlanSummary => ({
-  slug: j.slug,
-  name: j.name,
-  description: j.description,
-  author: j.author,
-  tags: j.tags ?? [],
-  publishedAt: j.published_at,
-  copyCount: j.copy_count,
-  phaseCount: j.phase_count,
-  resourceCount: j.resource_count,
-  totalMinutes: j.total_minutes,
-});
+import {
+  toShared,
+  toSharing,
+  toSummary,
+  type SharedPlanJson,
+  type SharingJson,
+  type SummaryJson,
+} from './rows';
 
 /** Sharing tables and functions live here and nowhere else. */
 export function createSupabaseSharing(client: SupabaseClient): PlanSharingRepository {
@@ -104,33 +38,24 @@ export function createSupabaseSharing(client: SupabaseClient): PlanSharingReposi
         call(client.from('profiles').select('display_name').maybeSingle()),
       ]);
       const plans: Record<string, PlanSharing> = {};
+      // A taken-down plan reads as not shared: the owner has nothing to switch off, and
+      // sharing it again cannot bring it back (the row keeps `hidden`).
       for (const r of rows ?? []) {
-        plans[r.goal_id as string] = {
-          visibility: r.visibility as PlanSharing['visibility'],
-          slug: r.slug as string,
-          tags: (r.tags as string[]) ?? [],
-          hidden: !!r.hidden,
-          copyCount: Number(r.copy_count) || 0,
-        };
+        if (!r.hidden) plans[r.goal_id as string] = toSharing(r as SharingJson);
       }
       return { plans, displayName: (profile?.display_name as string | null) ?? null };
     },
-    async setSharing(goalId, visibility, tags) {
+    async setSharing(goalId, visibility, tags, displayName) {
       const j = (await call(
         client.rpc('set_plan_sharing', {
           p_goal_id: goalId,
           p_visibility: visibility,
           p_tags: cleanTags(tags),
+          p_display_name: displayName ?? null,
         }),
-      )) as SettingsJson | null;
+      )) as SharingJson | null;
       if (!j) throw new RepositoryError('unknown', 'No answer from the server');
-      return {
-        visibility: j.visibility,
-        slug: j.slug,
-        tags: j.tags ?? [],
-        hidden: false,
-        copyCount: 0,
-      };
+      return toSharing(j);
     },
     async setDisplayName(name) {
       await call(client.rpc('set_display_name', { p_name: name }));

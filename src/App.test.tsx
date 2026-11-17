@@ -1,4 +1,7 @@
-import { fireEvent, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter, useLocation } from 'react-router-dom';
+import { App } from './App';
+import { useStore } from './state/store';
 import { goal } from './test/fixtures';
 import { renderApp } from './test/renderApp';
 import { memory, resetApp, serverData } from './test/harness';
@@ -113,6 +116,26 @@ describe('routes', () => {
       activeGoalId: 'a',
       goals: [plan('a', 'Alpha plan'), plan('b', 'Beta plan')],
     });
+
+  it('opens sign-in at its own address from a public page, and comes back to that page', async () => {
+    await useStore.getState().signOut();
+    await waitFor(() => expect(useStore.getState().auth.status).toBe('signedOut'));
+    const Where = () => <output data-testid="where">{useLocation().pathname}</output>;
+    render(
+      <MemoryRouter initialEntries={['/explore']}>
+        <App />
+        <Where />
+      </MemoryRouter>,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Sign in' }));
+    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeVisible();
+    expect(screen.getByTestId('where')).toHaveTextContent('/signin');
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'test@example.test' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    expect(await screen.findByRole('heading', { name: 'Explore plans' })).toBeVisible();
+    expect(screen.getByTestId('where')).toHaveTextContent('/explore');
+  });
 
   it('redirects / to the dashboard and marks the nav item', async () => {
     await two();

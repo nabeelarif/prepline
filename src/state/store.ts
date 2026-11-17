@@ -237,6 +237,10 @@ function place<T extends { id: string }>(list: T[], id: string, targetId: string
 
 let toastSeq = 0;
 
+/** Error text for a sharing action: the server's own message for a rejected value. */
+const sharingError = (e: unknown): string =>
+  e instanceof RepositoryError && e.code === 'validation' ? e.message : describeError(e);
+
 const rethrowShown = (e: unknown): never => {
   throw new Error(describeError(e));
 };
@@ -284,6 +288,8 @@ export function createAppStore({ repo, auth, sharing }: Backend) {
       save: (clean: AppData) => Promise<void>,
       next: AppData,
       ui?: Partial<UiState>,
+      /** True when old plans go away, which also removes their share rows. */
+      dropsPlans = false,
     ): Promise<boolean> => {
       if (get().busy) return false;
       const clean = parseAppData(JSON.parse(JSON.stringify(next)));
@@ -295,6 +301,7 @@ export function createAppStore({ repo, auth, sharing }: Backend) {
         // The user signed out or changed meanwhile: the result belongs to someone else.
         if (userId !== startedFor) return false;
         set((s) => ({ data: clean, ui: { ...s.ui, ...planUi(), ...ui } }));
+        if (dropsPlans) void loadSharing();
         return true;
       } catch (e) {
         if (userId === startedFor) setUi({ toast: toast(describeError(e)).toast });
@@ -309,23 +316,20 @@ export function createAppStore({ repo, auth, sharing }: Backend) {
       const seq = ++loadSeq;
       set({ load: { status: 'loading', error: null } });
       try {
-        const loaded = await repo.loadAll();
+        const loading = repo.loadAll();
+        // Sharing does not depend on the plans, so it loads alongside them.
+        void loadSharing();
+        const loaded = await loading;
         if (seq !== loadSeq) return;
         set({
           data: parseAppData(loaded) ?? createEmptyAppData(),
           load: { status: 'ready', error: null },
         });
-        void loadSharing();
       } catch (e) {
         if (seq !== loadSeq) return;
         console.error('Loading data failed:', e, (e as Error | undefined)?.cause);
         set({ load: { status: 'error', error: describeError(e) } });
       }
-    };
-    /** Replacing everything drops the old plans' share rows; appending plans does not. */
-    const refreshSharing = (ok: boolean) => {
-      if (ok) void loadSharing();
-      return ok;
     };
     const loadSharing = async () => {
       const seq = loadSeq;
@@ -399,13 +403,15 @@ export function createAppStore({ repo, auth, sharing }: Backend) {
         try {
           // A plan created a moment ago may not be saved yet, and sharing needs it to exist.
           await queue.settled();
-          if (
-            displayName !== undefined &&
-            displayName.trim() !== (get().sharing.displayName ?? '')
-          ) {
-            await sharing.setDisplayName(displayName);
-          }
-          const result = await sharing.setSharing(goalId, visibility, tags);
+          // The name travels with the sharing change, so going public is one request.
+          const nameChanged =
+            displayName !== undefined && displayName.trim() !== (get().sharing.displayName ?? '');
+          const result = await sharing.setSharing(
+            goalId,
+            visibility,
+            tags,
+            nameChanged ? displayName : undefined,
+          );
           if (userId !== startedFor) return null;
           set((s) => {
             const plans = { ...s.sharing.plans };
@@ -415,16 +421,13 @@ export function createAppStore({ repo, auth, sharing }: Backend) {
               sharing: {
                 status: 'ready',
                 plans,
-                displayName:
-                  displayName === undefined ? s.sharing.displayName : displayName.trim() || null,
+                displayName: nameChanged ? displayName.trim() || null : s.sharing.displayName,
               },
             };
           });
           return null;
         } catch (e) {
-          return e instanceof RepositoryError && e.code === 'validation'
-            ? e.message
-            : describeError(e);
+          return sharingError(e);
         }
       },
 
@@ -438,9 +441,7 @@ export function createAppStore({ repo, auth, sharing }: Backend) {
           }
           return null;
         } catch (e) {
-          return e instanceof RepositoryError && e.code === 'validation'
-            ? e.message
-            : describeError(e);
+          return sharingError(e);
         }
       },
 
@@ -722,9 +723,12 @@ export function createAppStore({ repo, auth, sharing }: Backend) {
       dismissToast: () => setUi({ toast: null }),
 
       restoreBackup: (data) =>
-        replaceData((clean) => repo.replaceAll(clean), uniqueIds(data), {
-          overlay: { kind: 'data' },
-        }).then(refreshSharing),
+        replaceData(
+          (clean) => repo.replaceAll(clean),
+          uniqueIds(data),
+          { overlay: { kind: 'data' } },
+          true,
+        ),
 
       // Appends only the new plans, so plans another device saved meanwhile stay untouched.
       addPlans: (data) => {
@@ -741,7 +745,8 @@ export function createAppStore({ repo, auth, sharing }: Backend) {
           () => repo.deleteAll(),
           createEmptyAppData(),
           toast('All Road to Goals data deleted'),
-        ).then(refreshSharing),
+          true,
+        ),
     };
   });
 }

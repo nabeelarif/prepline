@@ -32,28 +32,30 @@ export function paceText(p: Pace, g: Goal): { label: string; detail: string } {
   }
 }
 
+/** Days from today to the deadline (negative once it has passed) and that count as words. */
+function untilDeadline(today: ISODate, target: ISODate) {
+  const dl = diffDays(today, target);
+  return { dl, days: pl(Math.abs(dl), 'day') };
+}
+
 /** Number and label for the "days left" tile: "24 days" / "Left", "Today" / "Due", "3 days" / "Past due". */
 export function daysLeftTile(today: ISODate, target: ISODate): [string, string] {
-  const dl = diffDays(today, target);
-  return dl > 0
-    ? [pl(dl, 'day'), 'Left']
-    : dl === 0
-      ? ['Today', 'Due']
-      : [pl(-dl, 'day'), 'Past due'];
+  const { dl, days } = untilDeadline(today, target);
+  return dl > 0 ? [days, 'Left'] : dl === 0 ? ['Today', 'Due'] : [days, 'Past due'];
 }
 
 /** "(6 weeks left)" from two weeks out, otherwise days; "passed" and "due today" after. */
 export function untilText(today: ISODate, target: ISODate): string {
-  const dl = diffDays(today, target);
+  const { dl, days } = untilDeadline(today, target);
   if (dl < 0) return 'passed';
   if (dl === 0) return 'due today';
-  return `${dl >= 14 ? pl(Math.round(dl / 7), 'week') : pl(dl, 'day')} left`;
+  return `${dl >= 14 ? pl(Math.round(dl / 7), 'week') : days} left`;
 }
 
 /** "24 days", "Due today", "3 days past". */
 export function daysLeftText(today: ISODate, target: ISODate): string {
-  const dl = diffDays(today, target);
-  return dl < 0 ? `${pl(-dl, 'day')} past` : dl === 0 ? 'Due today' : pl(dl, 'day');
+  const { dl, days } = untilDeadline(today, target);
+  return dl < 0 ? `${days} past` : dl === 0 ? 'Due today' : days;
 }
 
 /** Headline, tag and one sentence for the velocity strip. */

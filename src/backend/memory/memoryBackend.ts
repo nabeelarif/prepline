@@ -243,6 +243,17 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
       }),
   };
 
+  /** A trimmed display name, or undefined for none. Too long is rejected. */
+  const validName = (raw: string): string | undefined => {
+    const n = raw.trim();
+    if (n.length > MAX_DISPLAY_NAME) throw new RepositoryError('validation', 'name too long');
+    return n || undefined;
+  };
+  const saveName = (me: string, name: string | undefined) => {
+    if (name) names[me] = name;
+    else delete names[me];
+  };
+
   /** Like `run`, for sharing calls: honours holds and injected failures. */
   const shared = async <T>(
     name: string,
@@ -347,7 +358,7 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
         ),
         displayName: names[me] ?? null,
       })),
-    setSharing: (goalId, visibility, tags) =>
+    setSharing: (goalId, visibility, tags, displayName) =>
       shared('setSharing', true, (me) => {
         const g = (data[me] ?? createEmptyAppData()).goals.find((x) => x.id === goalId);
         if (!g) throw new RepositoryError('notFound', 'plan not found');
@@ -356,8 +367,10 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
           delete mine[goalId];
           return { visibility: 'private', slug: null, tags: [], hidden: false, copyCount: 0 };
         }
+        // Like the SQL function, a rejected call changes nothing, name included.
+        const name = displayName === undefined ? names[me] : validName(displayName);
         if (visibility === 'public') {
-          if (!names[me]) {
+          if (!name) {
             throw new RepositoryError(
               'validation',
               'set a display name before making a plan public',
@@ -379,14 +392,12 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
           copiedBy: existing?.copiedBy ?? [],
         };
         mine[goalId] = next;
+        if (displayName !== undefined) saveName(me, name);
         return toSettings(next);
       }),
     setDisplayName: (name) =>
       shared('setDisplayName', true, (me) => {
-        const n = name.trim();
-        if (n.length > MAX_DISPLAY_NAME) throw new RepositoryError('validation', 'name too long');
-        if (n) names[me] = n;
-        else delete names[me];
+        saveName(me, validName(name));
       }),
     recordCopy: (slug) =>
       shared('recordCopy', true, (me) => {

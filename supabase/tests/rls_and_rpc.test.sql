@@ -1,7 +1,7 @@
 -- pgTAP tests. Run with: supabase test db   (needs the local stack: supabase start)
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(61);
+select plan(67);
 
 -- Two users and some data for each, created as the table owner.
 insert into auth.users (id, instance_id, aud, role, email)
@@ -106,6 +106,9 @@ $$, '23505', null, 'a resource id used by another plan is rejected');
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
 select throws_ok($$ select public.set_plan_sharing('g1', 'public', '{}') $$, '23514', null, 'public needs a display name');
 select lives_ok($$ select public.set_display_name('Ada') $$, 'set a display name');
+select lives_ok($$ select public.set_plan_sharing('g1', 'unlisted', '{}', ' Ada L ') $$, 'a name can travel with the sharing change');
+select is((select display_name from public.profiles), 'Ada L', 'and is trimmed and saved');
+select lives_ok($$ select public.set_display_name('Ada') $$, 'restore the name');
 select lives_ok($$ select public.set_plan_sharing('g1', 'unlisted', array['Swift', ' swift ', 'ios']) $$, 'share a plan by link');
 select is((select tags from public.plan_shares where goal_id = 'g1'), array['ios', 'swift'], 'tags are normalised');
 select lives_ok($$ select public.set_plan_sharing('g2', 'unlisted', '{}') $$, 'a plan can be shared before it has resources');
@@ -141,6 +144,11 @@ reset role;
 update public.plan_shares set hidden = true where goal_id = 'g1';
 set local role anon;
 select is(public.get_shared_plan((select slug from shared_slug)), null, 'a taken-down plan is gone');
+reset role;
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
+select lives_ok($$ select public.set_plan_sharing('g1', 'private', '{}') $$, 'the owner of a taken-down plan can set it private');
+select lives_ok($$ select public.set_plan_sharing('g1', 'public', '{}') $$, 'and share it again');
+select is((select hidden from public.plan_shares where goal_id = 'g1'), true, 'but it stays taken down');
 reset role;
 update public.plan_shares set hidden = false where goal_id = 'g1';
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');

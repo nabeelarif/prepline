@@ -5,6 +5,7 @@ import {
   type SharingValue,
   type Visibility,
 } from '../../domain/share';
+import { RadioChoice } from './RadioChoice';
 
 const OPTIONS: { value: Visibility; label: string; hint: string }[] = [
   { value: 'private', label: 'Private', hint: 'Only you can see this plan.' },
@@ -33,18 +34,14 @@ export function SharingFields({
       <fieldset className="field">
         <legend>Who can open this plan</legend>
         {OPTIONS.map((o) => (
-          <label key={o.value} className="choice">
-            <input
-              type="radio"
-              name="visibility"
-              checked={value.visibility === o.value}
-              onChange={() => onChange({ ...value, visibility: o.value })}
-            />
-            <span>
-              <strong>{o.label}</strong>
-              <small>{o.hint}</small>
-            </span>
-          </label>
+          <RadioChoice
+            key={o.value}
+            name="visibility"
+            label={o.label}
+            hint={o.hint}
+            checked={value.visibility === o.value}
+            onChange={() => onChange({ ...value, visibility: o.value })}
+          />
         ))}
       </fieldset>
       {value.visibility === 'public' && (

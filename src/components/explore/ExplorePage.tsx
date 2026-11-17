@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { Compass, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { fmtHours, pl } from '../../domain/format';
@@ -6,13 +6,14 @@ import type { PlanSummary } from '../../domain/share';
 import { paths } from '../../routes';
 import { useStore } from '../../state/store';
 import { EmptyState } from '../EmptyState';
+import { useAsync } from './useAsync';
 
 const PAGE = 24;
 
-type Result =
-  | { status: 'loading' }
-  | { status: 'error'; message: string }
-  | { status: 'ready'; plans: PlanSummary[]; more: boolean };
+interface Listing {
+  plans: PlanSummary[];
+  more: boolean;
+}
 
 /** Public plans anyone can look through. Content only: nothing about the author's progress. */
 export function ExplorePage() {
@@ -20,30 +21,34 @@ export function ExplorePage() {
   const [draft, setDraft] = useState('');
   const [query, setQuery] = useState('');
   const [tag, setTag] = useState('');
-  const [result, setResult] = useState<Result>({ status: 'loading' });
+  const [result, setResult] = useAsync<Listing>(
+    () =>
+      fetchPublic({ query, tag, limit: PAGE }).then((plans) => ({
+        plans,
+        more: plans.length === PAGE,
+      })),
+    [fetchPublic, query, tag],
+  );
   const [loadingMore, setLoadingMore] = useState(false);
 
-  useEffect(() => {
-    let current = true;
-    setResult({ status: 'loading' });
-    fetchPublic({ query, tag, limit: PAGE })
-      .then(
-        (plans) => current && setResult({ status: 'ready', plans, more: plans.length === PAGE }),
-      )
-      .catch((e) => current && setResult({ status: 'error', message: (e as Error).message }));
-    return () => {
-      current = false;
-    };
-  }, [fetchPublic, query, tag]);
+  // What is being searched now, so a slow "Load more" for an older search is dropped.
+  const searchKey = useRef('');
+  searchKey.current = `${query}\u0000${tag}`;
 
   const loadMore = async () => {
     if (result.status !== 'ready') return;
+    const { plans } = result.data;
+    const key = searchKey.current;
     setLoadingMore(true);
     try {
-      const next = await fetchPublic({ query, tag, limit: PAGE, offset: result.plans.length });
-      setResult({ status: 'ready', plans: [...result.plans, ...next], more: next.length === PAGE });
+      const next = await fetchPublic({ query, tag, limit: PAGE, offset: plans.length });
+      if (key !== searchKey.current) return;
+      setResult({
+        status: 'ready',
+        data: { plans: [...plans, ...next], more: next.length === PAGE },
+      });
     } catch (e) {
-      setResult({ status: 'error', message: (e as Error).message });
+      if (key === searchKey.current) setResult({ status: 'error', message: (e as Error).message });
     } finally {
       setLoadingMore(false);
     }
@@ -92,17 +97,17 @@ export function ExplorePage() {
           {result.message}
         </p>
       )}
-      {result.status === 'ready' && result.plans.length === 0 && (
+      {result.status === 'ready' && result.data.plans.length === 0 && (
         <section className="card">
           <EmptyState icon={<Compass />} title="No plans found">
             {query || tag ? 'Try a different search.' : 'Nobody has shared a plan yet.'}
           </EmptyState>
         </section>
       )}
-      {result.status === 'ready' && result.plans.length > 0 && (
+      {result.status === 'ready' && result.data.plans.length > 0 && (
         <>
           <ul className="plan-grid">
-            {result.plans.map((p) => (
+            {result.data.plans.map((p) => (
               <li key={p.slug} className="card plan-card">
                 <div className="plan-title">
                   <h2>{p.name}</h2>
@@ -131,7 +136,7 @@ export function ExplorePage() {
               </li>
             ))}
           </ul>
-          {result.more && (
+          {result.data.more && (
             <p className="explore-more">
               <button className="btn" onClick={loadMore} disabled={loadingMore}>
                 {loadingMore ? 'Loading…' : 'Load more'}

@@ -1,21 +1,16 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { ExternalLink, Flag, Plus } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { TYPES } from '../../domain/constants';
 import { fmtHours, pl } from '../../domain/format';
 import type { SharedPlan, SharedResource } from '../../domain/share';
 import { hostOf, safeUrl } from '../../domain/urls';
-import { paths, rememberReturnPath } from '../../routes';
+import { paths } from '../../routes';
 import { useStore } from '../../state/store';
 import { EmptyState } from '../EmptyState';
 import { TypeIcon } from '../icons';
-import { useRequestSignIn } from './SignInContext';
-
-type Result =
-  | { status: 'loading' }
-  | { status: 'missing' }
-  | { status: 'error'; message: string }
-  | { status: 'ready'; plan: SharedPlan };
+import { useAsync } from './useAsync';
+import { useRequestSignIn } from './useRequestSignIn';
 
 function Item({ r }: { r: SharedResource }) {
   const href = safeUrl(r.url);
@@ -48,26 +43,12 @@ export function SharedPlanPage() {
   const navigate = useNavigate();
   const signedIn = useStore((s) => s.auth.status === 'signedIn');
   const busy = useStore((s) => s.busy);
-  const [result, setResult] = useState<Result>({ status: 'loading' });
+  // A missing plan is a normal answer (null), not a failure.
+  const [result] = useAsync<SharedPlan | null>(() => useStore.getState().fetchShared(slug), [slug]);
   const [message, setMessage] = useState('');
   const [reporting, setReporting] = useState(false);
   const [reason, setReason] = useState('');
   const requestSignIn = useRequestSignIn();
-
-  useEffect(() => {
-    let current = true;
-    setResult({ status: 'loading' });
-    useStore
-      .getState()
-      .fetchShared(slug)
-      .then(
-        (plan) => current && setResult(plan ? { status: 'ready', plan } : { status: 'missing' }),
-      )
-      .catch((e) => current && setResult({ status: 'error', message: (e as Error).message }));
-    return () => {
-      current = false;
-    };
-  }, [slug]);
 
   if (result.status === 'loading') return <p role="status">Loading plan…</p>;
   if (result.status === 'error') {
@@ -77,7 +58,7 @@ export function SharedPlanPage() {
       </p>
     );
   }
-  if (result.status === 'missing') {
+  if (!result.data) {
     return (
       <section className="card welcome">
         <EmptyState
@@ -96,7 +77,7 @@ export function SharedPlanPage() {
     );
   }
 
-  const { plan } = result;
+  const plan = result.data;
   const total = plan.resources.reduce((n, r) => n + r.minutes, 0);
   const inPhase = (id: string | null) => plan.resources.filter((r) => r.phaseId === id);
   const unassigned = plan.resources.filter(
@@ -105,7 +86,6 @@ export function SharedPlanPage() {
 
   const add = async () => {
     if (!signedIn) {
-      rememberReturnPath(paths.shared(plan.slug));
       requestSignIn();
       return;
     }

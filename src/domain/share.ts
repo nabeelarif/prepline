@@ -109,3 +109,12 @@ export function copyOfSharedPlan(shared: SharedPlan, today: ISODate = todayISO()
   };
   return { version: 1, activeGoalId: goal.id, goals: [goal] };
 }
+
+/** The arguments `setPlanSharing` takes after the plan id, from the form's value. */
+export function sharingArgs(v: SharingValue): [Visibility, string[], string | undefined] {
+  return [
+    v.visibility,
+    cleanTags(v.tags.split(/[,\n]/)),
+    v.visibility === 'public' ? v.displayName : undefined,
+  ];
+}

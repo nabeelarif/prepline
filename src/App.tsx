@@ -4,9 +4,8 @@ import { GoalForm } from './components/forms/GoalForm';
 import { PhaseForm } from './components/forms/PhaseForm';
 import { StartPlanDialog } from './components/forms/StartPlanDialog';
 import { ShareDialog } from './components/forms/ShareDialog';
-import { ExplorePage } from './components/explore/ExplorePage';
-import { SharedPlanPage } from './components/explore/SharedPlanPage';
-import { SignInContext } from './components/explore/SignInContext';
+import { LazyPage } from './components/explore/LazyPage';
+import { useRequestSignIn } from './components/explore/useRequestSignIn';
 import { Logo } from './components/icons';
 import { ResourceDetails } from './components/forms/ResourceDetails';
 import { ResourceViewer } from './components/forms/ResourceViewer';
@@ -22,10 +21,40 @@ import { AccountPanel } from './components/forms/AccountPanel';
 import { ConfigErrorScreen, LoadErrorScreen, LoadingScreen } from './components/StatusScreens';
 import { SyncBanner } from './components/SyncBanner';
 import { Toast } from './components/Toast';
-import { useEffect, useState } from 'react';
+import { lazy, useEffect } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import { clearReturnPath, paths, peekReturnPath } from './routes';
 import { backendConfigError, useActiveGoal, useStore } from './state/store';
+
+// Explore is a side trip for most people, so it loads when first opened.
+const ExplorePage = lazy(() =>
+  import('./components/explore/ExplorePage').then((m) => ({ default: m.ExplorePage })),
+);
+const SharedPlanPage = lazy(() =>
+  import('./components/explore/SharedPlanPage').then((m) => ({ default: m.SharedPlanPage })),
+);
+
+/** The two Explore addresses, shared by the signed-in and the public shell. */
+const exploreRoutes = (
+  <>
+    <Route
+      path={paths.explore}
+      element={
+        <LazyPage>
+          <ExplorePage />
+        </LazyPage>
+      }
+    />
+    <Route
+      path={`${paths.explore}/:slug`}
+      element={
+        <LazyPage>
+          <SharedPlanPage />
+        </LazyPage>
+      }
+    />
+  </>
+);
 
 const SHEET_SIZE: Record<string, 'wide' | 'viewer' | undefined> = {
   data: 'wide',
@@ -107,7 +136,7 @@ function NoPlans() {
   );
 }
 
-/** `/`: on to the page asked for before sign-in, else the dashboard. */
+/** `/` and `/signin`: on to the page asked for before sign-in, else the dashboard. */
 function Home() {
   // Render must not change anything (StrictMode renders twice), so the path is only read here;
   // Shell forgets it once the app is up.
@@ -174,11 +203,11 @@ function Shell() {
           <SyncBanner />
           <Routes>
             <Route path={paths.home} element={<Home />} />
+            <Route path={paths.signIn} element={<Home />} />
             <Route path={paths.dashboard} element={<Dashboard />} />
             <Route path={paths.plans} element={<MyPlans />} />
             <Route path={`${paths.plans}/:planId`} element={<PlanPage />} />
-            <Route path={paths.explore} element={<ExplorePage />} />
-            <Route path={`${paths.explore}/:slug`} element={<SharedPlanPage />} />
+            {exploreRoutes}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>
@@ -190,30 +219,28 @@ function Shell() {
 }
 
 /** Explore and shared plans work without an account, so they get their own small shell. */
-function PublicShell({ onSignIn }: { onSignIn: () => void }) {
+function PublicShell() {
+  const requestSignIn = useRequestSignIn();
   return (
-    <SignInContext.Provider value={onSignIn}>
-      <div className="app">
-        <header className="topbar">
-          <Link to={paths.explore} className="brand" aria-label="Road to Goals Explore">
-            <Logo />
-            <span>Road to Goals</span>
-          </Link>
-          <div className="top-tools">
-            <button className="btn primary" onClick={onSignIn}>
-              Sign in
-            </button>
-          </div>
-        </header>
-        <main className="main">
-          <Routes>
-            <Route path={paths.explore} element={<ExplorePage />} />
-            <Route path={`${paths.explore}/:slug`} element={<SharedPlanPage />} />
-            <Route path="*" element={<Navigate to={paths.explore} replace />} />
-          </Routes>
-        </main>
-      </div>
-    </SignInContext.Provider>
+    <div className="app">
+      <header className="topbar">
+        <Link to={paths.explore} className="brand" aria-label="Road to Goals Explore">
+          <Logo />
+          <span>Road to Goals</span>
+        </Link>
+        <div className="top-tools">
+          <button className="btn primary" onClick={requestSignIn}>
+            Sign in
+          </button>
+        </div>
+      </header>
+      <main className="main">
+        <Routes>
+          {exploreRoutes}
+          <Route path="*" element={<Navigate to={paths.explore} replace />} />
+        </Routes>
+      </main>
+    </div>
   );
 }
 
@@ -226,22 +253,13 @@ export function App() {
   const load = useStore((s) => s.load.status);
   const recovery = useStore((s) => s.recovery);
   const { pathname } = useLocation();
-  const [signInAsked, setSignInAsked] = useState(false);
 
   useEffect(() => (backendConfigError ? undefined : useStore.getState().init()), []);
-  // A later sign-out starts at the public page again, not at the sign-in screen.
-  useEffect(() => {
-    if (auth !== 'signedOut') setSignInAsked(false);
-  }, [auth]);
 
   if (backendConfigError) return <ConfigErrorScreen />;
   if (auth === 'loading') return <LoadingScreen label="Loading…" />;
   if (auth === 'signedOut') {
-    return isExplore(pathname) && !signInAsked ? (
-      <PublicShell onSignIn={() => setSignInAsked(true)} />
-    ) : (
-      <AuthGate />
-    );
+    return isExplore(pathname) ? <PublicShell /> : <AuthGate />;
   }
   if (recovery) return <NewPasswordScreen />;
   if (load === 'error') return <LoadErrorScreen />;

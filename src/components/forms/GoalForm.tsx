@@ -6,7 +6,7 @@ import { useMatch, useNavigate } from 'react-router-dom';
 import { paths } from '../../routes';
 import { useStore } from '../../state/store';
 import { ConfirmButton } from '../ConfirmButton';
-import { cleanTags, sharingProblem, type SharingValue } from '../../domain/share';
+import { sharingArgs, sharingProblem, type SharingValue } from '../../domain/share';
 import { DIALOG_TITLE } from '../Overlay';
 import { SharingFields } from './SharingFields';
 
@@ -70,12 +70,7 @@ export function GoalForm({ goal }: { goal: Goal | null }) {
       if (!onDashboard && after && after !== before) navigate(paths.plan(after));
       if (after && after !== before && share.visibility !== 'private') {
         // The plan is saved in the background; sharing waits for that.
-        void setPlanSharing(
-          after,
-          share.visibility,
-          cleanTags(share.tags.split(/[,\n]/)),
-          share.visibility === 'public' ? share.displayName : undefined,
-        ).then((problem) => {
+        void setPlanSharing(after, ...sharingArgs(share)).then((problem) => {
           if (problem) showToast(`Plan created, but it could not be shared: ${problem}`);
         });
       }

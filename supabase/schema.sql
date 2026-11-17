@@ -442,16 +442,21 @@ language sql stable security definer set search_path = '' as $$
     select s.published_at, s.slug, jsonb_build_object(
       'slug', s.slug, 'name', g.name, 'description', g.description, 'author', p.display_name,
       'tags', to_jsonb(s.tags), 'published_at', s.published_at, 'copy_count', s.copy_count,
-      'phase_count', (select count(*) from public.phases ph where ph.user_id = g.user_id and ph.goal_id = g.id),
-      'resource_count', (select count(*) from public.resources r where r.user_id = g.user_id and r.goal_id = g.id),
-      'total_minutes', coalesce((select sum(r.minutes) from public.resources r where r.user_id = g.user_id and r.goal_id = g.id), 0)
+      'phase_count', ph.n, 'resource_count', rs.n, 'total_minutes', rs.minutes
     ) as item
     from public.plan_shares s
     join public.goals g on g.user_id = s.user_id and g.id = s.goal_id
     left join public.profiles p on p.user_id = s.user_id
+    cross join lateral (
+      select count(*) as n, coalesce(sum(r.minutes), 0) as minutes
+      from public.resources r where r.user_id = g.user_id and r.goal_id = g.id
+    ) rs
+    cross join lateral (
+      select count(*) as n from public.phases x where x.user_id = g.user_id and x.goal_id = g.id
+    ) ph
     where s.visibility = 'public' and not s.hidden
       -- A plan that is still empty is shared but not listed until it has a resource.
-      and exists (select 1 from public.resources r where r.user_id = g.user_id and r.goal_id = g.id)
+      and rs.n > 0
       and (p_tag is null or p_tag = '' or lower(p_tag) = any (s.tags))
       and (
         p_query is null or btrim(p_query) = ''
@@ -464,8 +469,10 @@ language sql stable security definer set search_path = '' as $$
 $$;
 
 -- Sets how a plan the caller owns is shared. 'private' stops sharing. Returns the new settings.
--- A plan can be shared while empty (it is chosen when the plan is created).
-create function public.set_plan_sharing(p_goal_id text, p_visibility text, p_tags text[])
+-- A plan can be shared while empty (it is chosen when the plan is created). A non-null
+-- p_display_name sets the author name in the same call, so going public is one step.
+create function public.set_plan_sharing(
+  p_goal_id text, p_visibility text, p_tags text[], p_display_name text default null)
 returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare
@@ -480,11 +487,16 @@ begin
     raise exception 'plan not found' using errcode = 'P0002';
   end if;
   if p_visibility = 'private' then
-    delete from public.plan_shares where user_id = uid and goal_id = p_goal_id;
+    -- A taken-down plan keeps its row, so setting it private and sharing it again cannot
+    -- clear `hidden`. It stays invisible whatever the owner picks.
+    delete from public.plan_shares where user_id = uid and goal_id = p_goal_id and not hidden;
     return jsonb_build_object('visibility', 'private', 'slug', null, 'tags', '[]'::jsonb);
   end if;
   if p_visibility is null or p_visibility not in ('unlisted', 'public') then
     raise exception 'unknown visibility' using errcode = '23514';
+  end if;
+  if p_display_name is not null then
+    perform public.set_display_name(p_display_name);
   end if;
   if p_visibility = 'public' then
     if (select display_name from public.profiles where user_id = uid) is null then
@@ -567,13 +579,13 @@ end $$;
 
 revoke all on function
   public.get_shared_plan(text), public.list_public_plans(text, text, integer, integer),
-  public.set_plan_sharing(text, text, text[]), public.set_display_name(text),
+  public.set_plan_sharing(text, text, text[], text), public.set_display_name(text),
   public.record_plan_copy(text), public.report_plan(text, text)
   from public, anon;
 grant execute on function
   public.get_shared_plan(text), public.list_public_plans(text, text, integer, integer)
   to anon, authenticated;
 grant execute on function
-  public.set_plan_sharing(text, text, text[]), public.set_display_name(text),
+  public.set_plan_sharing(text, text, text[], text), public.set_display_name(text),
   public.record_plan_copy(text), public.report_plan(text, text)
   to authenticated;

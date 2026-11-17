@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Check, Copy, Share2 } from 'lucide-react';
-import { cleanTags, sharingProblem, type SharingValue } from '../../domain/share';
+import { sharingArgs, sharingProblem, type SharingValue } from '../../domain/share';
 import type { Goal } from '../../domain/types';
 import { paths } from '../../routes';
 import { useStore } from '../../state/store';
@@ -32,19 +32,13 @@ export function ShareDialog({ goal }: { goal: Goal }) {
     e.preventDefault();
     setError('');
     setSaved('');
-    const tagList = cleanTags(value.tags.split(/[,\n]/));
     const invalid = sharingProblem(value);
     if (invalid) {
       setError(invalid);
       return e.currentTarget.querySelector<HTMLElement>('#shName')?.focus();
     }
     setSaving(true);
-    const problem = await setPlanSharing(
-      goal.id,
-      value.visibility,
-      tagList,
-      value.visibility === 'public' ? value.displayName : undefined,
-    );
+    const problem = await setPlanSharing(goal.id, ...sharingArgs(value));
     setSaving(false);
     if (problem) setError(problem);
     else setSaved(value.visibility === 'private' ? 'Sharing is off.' : 'Sharing settings saved.');

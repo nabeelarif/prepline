@@ -267,7 +267,12 @@ describe('sharing', () => {
       'rpc:report_plan',
     ]);
     expect(calls[0]!.args).toMatchObject({ p_query: 'swift', p_limit: 10, p_offset: 0 });
-    expect(calls[1]!.args).toEqual({ p_goal_id: 'g1', p_visibility: 'public', p_tags: ['ios'] });
+    expect(calls[1]!.args).toEqual({
+      p_goal_id: 'g1',
+      p_visibility: 'public',
+      p_tags: ['ios'],
+      p_display_name: null,
+    });
   });
 
   it('maps a missing plan and a rejected value to app-level errors', async () => {

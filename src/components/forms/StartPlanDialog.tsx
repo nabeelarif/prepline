@@ -4,6 +4,7 @@ import { addDays, todayISO, validISO } from '../../domain/dates';
 import type { Goal } from '../../domain/types';
 import { useStore } from '../../state/store';
 import { DIALOG_TITLE } from '../Overlay';
+import { RadioChoice } from './RadioChoice';
 
 const LENGTHS = [30, 60, 100];
 
@@ -31,18 +32,16 @@ export function StartPlanDialog({ goal }: { goal: Goal }) {
   };
 
   const radio = (value: Choice, label: string) => (
-    <label className="choice">
-      <input
-        type="radio"
-        name="deadline"
-        checked={choice === value}
-        onChange={() => {
-          setChoice(value);
-          setError('');
-        }}
-      />
-      <span>{label}</span>
-    </label>
+    <RadioChoice
+      key={value}
+      name="deadline"
+      label={label}
+      checked={choice === value}
+      onChange={() => {
+        setChoice(value);
+        setError('');
+      }}
+    />
   );
 
   return (

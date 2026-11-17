@@ -1,4 +1,14 @@
-import { CalendarDays, Copy, Ellipsis, Pencil, Plus, Share2, Target, Trash2 } from 'lucide-react';
+import {
+  CalendarDays,
+  Copy,
+  Ellipsis,
+  FileUp,
+  Pencil,
+  Plus,
+  Share2,
+  Target,
+  Trash2,
+} from 'lucide-react';
 import { fmtDate, todayISO } from '../domain/dates';
 import { fmtHours } from '../domain/format';
 import { metrics } from '../domain/metrics';
@@ -18,6 +28,7 @@ export function MyPlans() {
   const { openOverlay, duplicateGoal, deleteGoal } = useStore.getState();
   const today = todayISO();
   const newPlan = () => openOverlay({ kind: 'goal', goalId: null });
+  const importPlan = () => openOverlay({ kind: 'import' });
 
   return (
     <>
@@ -26,6 +37,9 @@ export function MyPlans() {
         <div className="btn-row">
           <button className="btn primary" onClick={newPlan}>
             <Plus size={18} aria-hidden="true" /> New plan
+          </button>
+          <button className="btn" onClick={importPlan}>
+            <FileUp size={18} aria-hidden="true" /> Import plan
           </button>
         </div>
       </header>

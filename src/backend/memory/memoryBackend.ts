@@ -224,12 +224,6 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
         const g = goal(d, goalId);
         g.phases = order(g.phases, ids);
       }),
-    replaceAll: (next) =>
-      run('replaceAll', (d) => {
-        const clean = parseAppData(clone(next));
-        if (!clean) throw new RepositoryError('validation', 'invalid data');
-        Object.assign(d, clean);
-      }),
     addGoals: (goals, activeGoalId) =>
       run('addGoals', (d) => {
         const added = parseAppData(clone({ version: 1, activeGoalId: null, goals }));
@@ -499,6 +493,18 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
     },
     async signOut() {
       current = null;
+      emit();
+    },
+    async deleteAccount() {
+      const me = requireUser();
+      // Plans the user shared go with them; copies others made are separate plans.
+      accounts = accounts.filter((a) => a.id !== me.id);
+      delete data[me.id];
+      delete shares[me.id];
+      delete names[me.id];
+      reports = reports.filter((r) => r.by !== me.id);
+      current = null;
+      persist();
       emit();
     },
   };

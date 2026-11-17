@@ -1,6 +1,6 @@
 import { produce, type Draft } from 'immer';
 import { create } from 'zustand';
-import { createEmptyAppData, mergePlans, uniqueIds } from '../domain/backup';
+import { createEmptyAppData, mergePlans } from '../domain/backup';
 import { todayISO } from '../domain/dates';
 import { uid } from '../domain/format';
 import type { RoadmapView } from '../domain/roadmap';
@@ -39,7 +39,7 @@ export type Overlay =
   | { kind: 'phase'; phaseId: string | null }
   | { kind: 'details'; resourceId: string }
   | { kind: 'viewer'; resourceId: string }
-  | { kind: 'data' }
+  | { kind: 'import' }
   | { kind: 'account' };
 
 /** Fields set on the plan form. The deadline is only edited once a plan has started. */
@@ -94,7 +94,7 @@ export interface Store {
   load: LoadState;
   /** Whether the backend has confirmed the latest changes. */
   sync: SyncState;
-  /** A restore, add or delete-all is running; further ones are refused. */
+  /** An import or delete-all is running; further ones are refused. */
   busy: boolean;
   /** The user arrived from a password-reset link and must choose a new password. */
   recovery: boolean;
@@ -136,6 +136,8 @@ export interface Store {
   unlinkProvider(p: AuthProviderId): Promise<AuthOutcome>;
   listMethods(): Promise<LinkedMethod[]>;
   signOut(): Promise<AuthOutcome>;
+  /** Permanently deletes the account and all its data, then signs out. */
+  deleteAccount(): Promise<AuthOutcome>;
 
   selectGoal(id: string): void;
   createGoal(input: GoalInput): void;
@@ -176,12 +178,10 @@ export interface Store {
   dismissToast(): void;
 
   /**
-   * Replaces all saved data with a checked backup, in one atomic backend call. Memory
-   * changes only after the backend confirms, so a failure changes nothing. Returns whether
-   * it worked. Keeps the backup overlay open so it can show the result.
+   * Adds the plans from a checked file next to the saved ones (see `mergePlans`), in one
+   * atomic backend call. Memory changes only after the backend confirms, so a failure
+   * changes nothing. Returns whether it worked. Keeps the import overlay open for the result.
    */
-  restoreBackup(data: AppData): Promise<boolean>;
-  /** Adds the plans from a checked file next to the saved ones (see `mergePlans`), the same way. */
   addPlans(data: AppData): Promise<boolean>;
   /** Deletes all saved data, the same way. Closes overlays on success. */
   deleteAllData(): Promise<boolean>;
@@ -260,7 +260,7 @@ export function createAppStore({ repo, auth, sharing }: Backend) {
       recipe: (d: Draft<AppData>) => void | AppData,
       ui?: Partial<UiState> | (() => Partial<UiState>),
     ) => {
-      // A restore or delete-all is replacing the data; an edit now would be wiped from
+      // An import or delete-all is replacing the data; an edit now would be wiped from
       // memory when it finishes yet still be sent to the backend.
       if (get().busy) {
         setUi({ toast: toast('Please wait until your data has finished saving.').toast });
@@ -281,7 +281,7 @@ export function createAppStore({ repo, auth, sharing }: Backend) {
     };
     /**
      * Swaps in whole new data, unlike `commit()`: the backend call runs on its own, after
-     * anything in flight, and memory only changes if it succeeds, so a failed restore or
+     * anything in flight, and memory only changes if it succeeds, so a failed import or
      * delete never looks like it worked. Refuses a second one while one is running.
      */
     const replaceData = async (
@@ -507,6 +507,9 @@ export function createAppStore({ repo, auth, sharing }: Backend) {
       unlinkProvider: (p) => attempt(() => auth.unlinkProvider(p)),
       listMethods: () => auth.listMethods().catch(() => []),
       signOut: () => attempt(() => auth.signOut()),
+      // Waits for in-flight saves and drops queued ones once the account is gone; if the
+      // deletion fails they stay queued, so nothing is lost.
+      deleteAccount: () => attempt(() => queue.exclusive(() => auth.deleteAccount())),
 
       selectGoal: (id) =>
         commit((d) => {
@@ -722,21 +725,13 @@ export function createAppStore({ repo, auth, sharing }: Backend) {
       showToast: (text) => setUi(toast(text)),
       dismissToast: () => setUi({ toast: null }),
 
-      restoreBackup: (data) =>
-        replaceData(
-          (clean) => repo.replaceAll(clean),
-          uniqueIds(data),
-          { overlay: { kind: 'data' } },
-          true,
-        ),
-
       // Appends only the new plans, so plans another device saved meanwhile stay untouched.
       addPlans: (data) => {
         const existing = get().data.goals.length;
         return replaceData(
           (clean) => repo.addGoals(clean.goals.slice(existing), clean.activeGoalId),
           mergePlans(get().data, data),
-          { overlay: { kind: 'data' } },
+          { overlay: { kind: 'import' } },
         );
       },
 

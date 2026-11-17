@@ -1,7 +1,7 @@
 -- pgTAP tests. Run with: supabase test db   (needs the local stack: supabase start)
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(69);
+select plan(75);
 
 -- Two users and some data for each, created as the table owner.
 insert into auth.users (id, instance_id, aud, role, email)
@@ -61,13 +61,13 @@ select lives_ok($$ select public.save_resource('g1', '{"id": "r3", "title": "R3b
 select is((select count(*)::int from public.resource_progress where resource_id = 'r3'), 0, 'no progress is stored as no row');
 select lives_ok($$ select public.save_resource('g1', '{"id": "r3", "title": "R3b", "type": "course", "minutes": 90, "created_at": "2026-01-01", "started_at": "2026-02-01"}'::jsonb) $$, 're-adding progress for the isolation checks');
 
--- Atomic: a bad row anywhere rolls back the whole replace.
+-- Atomic: a bad row anywhere rolls back the whole append.
 select throws_ok($$
-  select public.replace_all_data('{"active_goal_id": null, "goals": [
+  select public.append_goals('[
     {"id": "n1", "name": "New", "description": "", "target_date": "2027-01-01", "created_at": "2026-01-01",
-     "phases": [], "resources": [{"id": "bad", "title": "x", "type": "article", "minutes": 0, "created_at": "2026-01-01"}]}]}'::jsonb)
+     "phases": [], "resources": [{"id": "bad", "title": "x", "type": "article", "minutes": 0, "created_at": "2026-01-01"}]}]'::jsonb, null)
 $$, '23514', null, 'invalid data is rejected');
-select is((select count(*)::int from public.goals where id = 'g1'), 1, 'and the old data is still there');
+select is((select count(*)::int from public.goals where id in ('g1', 'n1')), 1, 'and nothing of it is saved, the old data is still there');
 
 -- Isolation: user B sees nothing of A, and cannot change it.
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000b');
@@ -161,6 +161,19 @@ select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
 select lives_ok($$ select public.set_plan_sharing('g2', 'public', '{}') $$, 'an empty plan can be made public');
 set local role anon;
 select is(jsonb_array_length(public.list_public_plans(null, null, 24, 0)), 0, 'but it is not listed until it has a resource');
+
+-- Deleting the account: anon cannot, and it removes only the caller's data.
+set local role anon;
+select throws_ok($$ select public.delete_account() $$, '42501', null, 'anon cannot delete an account');
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000b');
+select lives_ok($$ select public.delete_account() $$, 'a user can delete their own account');
+reset role;
+select is((select count(*)::int from auth.users where id = '00000000-0000-0000-0000-00000000000b'), 0, 'the user is gone');
+select is((select count(*)::int from auth.users where id = '00000000-0000-0000-0000-00000000000a'), 1, 'other users are untouched');
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
+select lives_ok($$ select public.delete_account() $$, 'a user with plans and shares can delete their account');
+reset role;
+select is((select count(*)::int from public.goals) + (select count(*)::int from public.plan_shares), 0, 'and all their plans and shares are gone');
 
 select * from finish();
 rollback;

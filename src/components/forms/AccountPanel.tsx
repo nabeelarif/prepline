@@ -5,6 +5,8 @@ import { MAX_DISPLAY_NAME } from '../../domain/share';
 import { useStore } from '../../state/store';
 import { useSignOut } from '../useSignOut';
 import { DIALOG_TITLE } from '../Overlay';
+import { DeleteAccount } from './DeleteAccount';
+import { DeleteAllData } from './DeleteAllData';
 
 /**
  * The signed-in account: which sign-in methods are linked to it. Linking adds a method to
@@ -182,6 +184,10 @@ export function AccountPanel() {
           Sign out
         </button>
       </div>
+
+      <h3>Privacy</h3>
+      <DeleteAllData />
+      <DeleteAccount />
     </div>
   );
 }

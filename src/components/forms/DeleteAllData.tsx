@@ -1,86 +1,35 @@
-import { useRef, useState } from 'react';
-import { Trash2, TriangleAlert } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { paths } from '../../routes';
 import { useStore } from '../../state/store';
-import { ConfirmPanel } from './ConfirmPanel';
+import { DangerAction } from './DangerAction';
 
-type DeleteState = 'idle' | 'confirming' | 'deleting' | 'error';
-
-/** The only destructive action in the backup modal, guarded by a confirmation. */
+/** Deletes all plans and progress but keeps the account. Lives in Account settings → Privacy. */
 export function DeleteAllData() {
-  const [state, setState] = useState<DeleteState>('idle');
   const navigate = useNavigate();
-  const deleteBtn = useRef<HTMLButtonElement>(null);
-
-  const cancel = () => {
-    setState('idle');
-    requestAnimationFrame(() => deleteBtn.current?.focus());
-  };
   // On success the store closes the modal and the empty onboarding screen shows.
-  const remove = async () => {
-    setState('deleting');
-    if (await useStore.getState().deleteAllData()) navigate(paths.dashboard);
-    else setState('error');
+  const run = async () => {
+    if (!(await useStore.getState().deleteAllData())) {
+      return 'Nothing was deleted. The server did not confirm the change, so your data is unchanged. Check your connection and try again.';
+    }
+    navigate(paths.dashboard);
+    return null;
   };
 
   return (
-    <section className="delete-all">
-      {state === 'confirming' || state === 'deleting' ? (
-        <ConfirmPanel
-          danger
-          title="Delete all Road to Goals data?"
-          confirmLabel={state === 'deleting' ? 'Deleting…' : 'Delete All Data'}
-          busy={state === 'deleting'}
-          onConfirm={remove}
-          onCancel={cancel}
-        >
-          <p>
-            This will permanently delete all plans, phases, resources, and preparation progress
-            saved in your account.
-          </p>
-          <p className="backup-warn">This action cannot be undone unless you have a backup.</p>
-        </ConfirmPanel>
-      ) : state === 'error' ? (
-        <div className="danger-zone" role="alert">
-          <span className="tile bad" aria-hidden="true">
-            <TriangleAlert size={22} />
-          </span>
-          <div>
-            <h3>We couldn't delete your data.</h3>
-            <p>
-              Nothing was deleted. The server did not confirm the change, so your data is unchanged.
-              Check your connection and try again.
-            </p>
-            <div className="btn-row">
-              <button type="button" className="btn" onClick={cancel}>
-                Cancel
-              </button>
-              <button type="button" className="btn danger-solid" onClick={remove}>
-                Retry
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="danger-zone">
-          <span className="tile bad" aria-hidden="true">
-            <Trash2 size={22} />
-          </span>
-          <div>
-            <h3>Delete All Data</h3>
-            <p>Permanently delete your preparation data saved in your account.</p>
-            <button
-              ref={deleteBtn}
-              type="button"
-              className="btn danger-solid"
-              onClick={() => setState('confirming')}
-            >
-              Delete All Data
-            </button>
-          </div>
-        </div>
-      )}
-    </section>
+    <DangerAction
+      icon={<Trash2 size={22} />}
+      label="Delete All Data"
+      description="Permanently delete your preparation data saved in your account."
+      confirmTitle="Delete all Road to Goals data?"
+      confirmBody={
+        <p>
+          This will permanently delete all plans, phases, resources, and preparation progress saved
+          in your account.
+        </p>
+      }
+      errorTitle="We couldn't delete your data."
+      run={run}
+    />
   );
 }

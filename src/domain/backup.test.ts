@@ -1,12 +1,4 @@
-import {
-  backupFileName,
-  createEmptyAppData,
-  exportedAtOf,
-  localDateTime,
-  mergePlans,
-  serializeBackup,
-  uniqueIds,
-} from './backup';
+import { createEmptyAppData, exportedAtOf, mergePlans } from './backup';
 import { parseAppData, previewImport } from './schema';
 import type { AppData } from './types';
 
@@ -44,45 +36,28 @@ const data: AppData = {
 };
 
 describe('backup', () => {
-  it('names the file with the local date', () => {
-    // 23:30 local on Oct 28 is already Oct 29 in UTC for zones west of UTC; the name must not shift.
-    expect(backupFileName(new Date(2026, 9, 28, 23, 30))).toBe(
-      'roadtogoals-backup-2026-10-28.json',
-    );
-    expect(backupFileName(new Date(2026, 0, 2, 0, 5))).toBe('roadtogoals-backup-2026-01-02.json');
-  });
-
-  it('exports valid JSON holding everything that is saved, plus the export time', () => {
-    const now = new Date(2026, 9, 28, 14, 32, 5);
-    const raw = JSON.parse(serializeBackup(data, now));
-    expect(raw).toEqual({ ...data, exportedAt: localDateTime(now) });
+  it('reads a plan file with everything that is saved, plus the export time', () => {
+    const exportedAt = '2026-10-28T14:32:05+05:00';
+    const raw = JSON.parse(JSON.stringify({ ...data, exportedAt }));
     const r = previewImport(raw);
     expect(r.ok && r.preview).toMatchObject({
       data,
       plans: 1,
       phases: 1,
       resources: 1,
-      exportedAt: localDateTime(now),
+      exportedAt,
       notes: [],
     });
   });
 
-  it('exports and reads back an empty app', () => {
-    const raw = JSON.parse(serializeBackup(createEmptyAppData()));
-    const r = previewImport(raw);
+  it('reads an empty app', () => {
+    const r = previewImport(JSON.parse(JSON.stringify(createEmptyAppData())));
     expect(r.ok && r.preview).toMatchObject({ data: createEmptyAppData(), plans: 0 });
   });
 
   it('has one empty state that round-trips through parsing', () => {
     const empty = createEmptyAppData();
     expect(parseAppData(JSON.parse(JSON.stringify(empty)))).toEqual(empty);
-  });
-
-  it('writes the export time as local time with its offset, naming one exact moment', () => {
-    const now = new Date(2026, 9, 28, 14, 32, 5);
-    const s = localDateTime(now);
-    expect(s).toMatch(/^2026-10-28T14:32:05[+-]\d{2}:\d{2}$/);
-    expect(new Date(s).getTime()).toBe(now.getTime());
   });
 
   it('reads the export time only when it is a real date', () => {
@@ -132,60 +107,5 @@ describe('mergePlans', () => {
 
   it('changes nothing when the file has no plans', () => {
     expect(mergePlans(data, createEmptyAppData())).toEqual(data);
-  });
-});
-
-describe('uniqueIds', () => {
-  const phase = (id: string) => ({ id, name: id, description: '', color: 'blue' as const });
-  const goal = (id: string): AppData['goals'][number] => ({
-    id,
-    name: id,
-    description: '',
-    startDate: '2026-01-01',
-    targetDate: '2026-12-01',
-    hoursPerDay: null,
-    createdAt: '2026-01-01',
-    phases: [phase('p1')],
-    resources: [
-      {
-        id: 'r1',
-        title: 'T',
-        url: '',
-        type: 'article',
-        minutes: 30,
-        doneMinutes: 0,
-        notes: '',
-        done: false,
-        doneAt: null,
-        startedAt: null,
-        phaseId: 'p1',
-        createdAt: '2026-01-01',
-      },
-    ],
-  });
-
-  it('renames repeated ids in later plans and keeps resources on their phase', () => {
-    const out = uniqueIds({ version: 1, activeGoalId: 'g', goals: [goal('g'), goal('g')] });
-    const [a, b] = out.goals;
-    expect(a!.id).toBe('g');
-    expect(a!.phases[0]!.id).toBe('p1');
-    expect(b!.id).not.toBe('g');
-    expect(b!.phases[0]!.id).not.toBe('p1');
-    expect(b!.resources[0]!.id).not.toBe('r1');
-    expect(b!.resources[0]!.phaseId).toBe(b!.phases[0]!.id);
-    expect(out.activeGoalId).toBe('g');
-  });
-
-  it('keeps resources on the first phase when a plan repeats a phase id', () => {
-    const g = goal('g');
-    g.phases = [phase('p1'), phase('p1')];
-    const [out] = uniqueIds({ version: 1, activeGoalId: 'g', goals: [g] }).goals;
-    expect(out!.phases[0]!.id).toBe('p1');
-    expect(out!.resources[0]!.phaseId).toBe('p1');
-  });
-
-  it('leaves data with unique ids unchanged', () => {
-    const d: AppData = { version: 1, activeGoalId: 'a', goals: [goal('a')] };
-    expect(uniqueIds(d)).toEqual(d);
   });
 });

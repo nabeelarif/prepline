@@ -33,9 +33,9 @@ async function addResource(page: Page, title: string, hours: string, url = '') {
   await expect(sheet).toBeHidden();
 }
 
-async function openBackup(page: Page) {
+async function openImport(page: Page) {
   await page.getByRole('button', { name: 'Account menu' }).click();
-  await page.getByRole('menuitem', { name: 'Backup and restore' }).click();
+  await page.getByRole('menuitem', { name: 'Import plans' }).click();
 }
 
 const summary = (page: Page) => page.getByRole('region', { name: 'Plan overview' });
@@ -43,17 +43,16 @@ const journey = (page: Page) => page.getByRole('region', { name: 'Your Preparati
 const resources = (page: Page) => page.getByRole('region', { name: /^Resources/ });
 const statusOf = (page: Page, title: string) =>
   resources(page).getByRole('button', { name: new RegExp(`Change status of ${title}`) });
-/** Picks a backup file in the open Backup and Restore modal. */
-const chooseBackup = (page: Page, contents: string | Buffer, name = 'backup.json') =>
-  page.getByLabel('Backup file').setInputFiles({
+/** Picks a file in the open Import plans modal. */
+const chooseFile = (page: Page, contents: string | Buffer, name = 'backup.json') =>
+  page.getByLabel('Plan file', { exact: true }).setInputFiles({
     name,
     mimeType: 'application/json',
     buffer: Buffer.from(contents),
   });
-const restoreFromReview = async (page: Page) => {
-  await page.getByRole('button', { name: 'Replace All Data' }).click();
-  await page.getByRole('button', { name: 'Replace and Restore' }).click();
-  await expect(page.getByText('Backup restored successfully')).toBeVisible();
+const addFromReview = async (page: Page) => {
+  await page.getByRole('button', { name: 'Add to My Plans' }).click();
+  await expect(page.getByText('Plans added successfully')).toBeVisible();
   await page.getByRole('button', { name: 'Continue to Dashboard' }).click();
 };
 const titles = (page: Page) => resources(page).locator('.res-title > :first-child').allInnerTexts();
@@ -158,7 +157,9 @@ test('phases are optional, group resources, and deleting one keeps its resources
   await expect(resources(page).locator('.res-card')).toHaveCount(2);
 });
 
-test('my plans: switch, duplicate, and import a backup from an older version', async ({ page }) => {
+test('my plans: switch, duplicate, and import a plan file from an older version', async ({
+  page,
+}) => {
   await createPlan(page, 'First plan');
   await page.getByRole('link', { name: 'My Plans' }).click();
   await page.getByRole('button', { name: 'Actions for First plan' }).click();
@@ -189,8 +190,8 @@ test('my plans: switch, duplicate, and import a backup from an older version', a
       },
     ],
   };
-  await openBackup(page);
-  await chooseBackup(page, JSON.stringify(backup), 'old-backup.json');
+  await openImport(page);
+  await chooseFile(page, JSON.stringify(backup), 'old-backup.json');
   const contents = page.getByRole('region', { name: 'File contents' });
   await expect(contents).toContainText('old-backup.json');
   await expect(contents.locator('.backup-stats')).toHaveText(
@@ -198,17 +199,17 @@ test('my plans: switch, duplicate, and import a backup from an older version', a
   );
   await expect(contents).not.toContainText('Created');
   await expect(contents).toContainText('1 course with sections will be converted');
-  await restoreFromReview(page);
+  await addFromReview(page);
 
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Imported goal');
   await expect(resources(page).getByText('Old article')).toBeVisible();
   // The old course's sections became 1h of 2h done.
   await expect(resources(page).getByText('In Progress · 50%')).toBeVisible();
   await page.getByRole('link', { name: 'My Plans' }).click();
-  await expect(page.locator('.plan-card')).toHaveCount(1);
+  await expect(page.locator('.plan-card')).toHaveCount(3);
 });
 
-test('definition of done: two resources in progress at once, then export and restore', async ({
+test('definition of done: two resources in progress at once, then delete all data and import a plan', async ({
   page,
 }) => {
   await createPlan(page, 'Senior iOS');
@@ -272,15 +273,9 @@ test('definition of done: two resources in progress at once, then export and res
   await page.reload();
   await expect(status('Async video')).toHaveText('Completed');
 
-  // Download, delete everything, and restore.
-  await page.getByRole('link', { name: 'My Plans' }).click();
-  await openBackup(page);
-  const [download] = await Promise.all([
-    page.waitForEvent('download'),
-    page.getByRole('button', { name: 'Download Backup' }).click(),
-  ]);
-  expect(download.suggestedFilename()).toMatch(/^roadtogoals-backup-\d{4}-\d{2}-\d{2}\.json$/);
-  const backup = Buffer.concat(await (await download.createReadStream()).toArray());
+  // Delete everything from Account settings → Privacy, then import a plan.
+  await page.getByRole('button', { name: 'Account menu' }).click();
+  await page.getByRole('menuitem', { name: 'Account settings' }).click();
   await page.getByRole('button', { name: 'Delete All Data' }).click();
   await page
     .getByRole('alertdialog', { name: 'Delete all Road to Goals data?' })
@@ -294,21 +289,23 @@ test('definition of done: two resources in progress at once, then export and res
     'Start your preparation journey',
   );
 
-  await page.getByRole('button', { name: 'Restore from a backup' }).click();
-  await chooseBackup(page, backup);
-  await expect(page.getByRole('region', { name: 'File contents' })).toContainText('Created');
-  await restoreFromReview(page);
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Senior iOS');
-  await expect(status('Async video')).toHaveText('Completed');
+  await page.getByRole('button', { name: 'Import a plan' }).click();
+  await chooseFile(page, readFileSync('docs/examples/ios-interview-prep.json'), 'plan.json');
+  await addFromReview(page);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+    'iOS Developer Interview Preparation',
+  );
   await page.reload();
-  await expect(status('Async video')).toHaveText('Completed');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+    'iOS Developer Interview Preparation',
+  );
 });
 
 test('adds the documented agent plan next to an existing plan', async ({ page }) => {
   await createPlan(page, 'Keep me');
   await page.getByRole('link', { name: 'My Plans' }).click();
-  await openBackup(page);
-  await chooseBackup(page, readFileSync('docs/examples/ios-interview-prep.json'), 'plan.json');
+  await openImport(page);
+  await chooseFile(page, readFileSync('docs/examples/ios-interview-prep.json'), 'plan.json');
   await expect(page.getByRole('region', { name: 'File contents' })).toBeVisible();
   await page.getByRole('button', { name: 'Add to My Plans' }).click();
   await expect(page.getByText('Plans added successfully')).toBeVisible();
@@ -322,28 +319,36 @@ test('adds the documented agent plan next to an existing plan', async ({ page })
   await expect(page.locator('.plan-card')).toHaveCount(2);
 });
 
-test('rejects a file that is not a Road to Goals backup', async ({ page }) => {
+test('rejects a file that is not a Road to Goals plan, and non-JSON files', async ({ page }) => {
   await createPlan(page, 'Keep me');
   await page.getByRole('link', { name: 'My Plans' }).click();
-  await openBackup(page);
-  await chooseBackup(page, '{"version": 2, "goals": []}');
+  await page.getByRole('button', { name: 'Import plan' }).click();
+  await page.getByLabel('Plan file', { exact: true }).setInputFiles({
+    name: 'photo.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from('not an image'),
+  });
+  await expect(page.getByRole('dialog').getByRole('alert')).toContainText('Not a .json file');
+});
+
+test('rejects an unsupported plan file version', async ({ page }) => {
+  await createPlan(page, 'Keep me');
+  await page.getByRole('link', { name: 'My Plans' }).click();
+  await openImport(page);
+  await chooseFile(page, '{"version": 2, "goals": []}');
   const alert = page.getByRole('dialog').getByRole('alert');
-  await expect(alert).toContainText("This backup couldn't be opened.");
-  await expect(alert).toContainText('Unsupported backup version');
+  await expect(alert).toContainText("This file couldn't be opened.");
+  await expect(alert).toContainText('Unsupported file version');
   await expect(page.getByRole('region', { name: 'File contents' })).toHaveCount(0);
   await page.reload();
   await page.getByRole('link', { name: 'My Plans' }).click();
   await expect(page.locator('.plan-card')).toHaveCount(1);
 });
 
-test('on a phone the backup cards stack without sideways scrolling', async ({ page }) => {
+test('on a phone the import dialog has no sideways scrolling', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await signIn(page);
-  await page.getByRole('button', { name: 'Restore from a backup' }).click();
-  const [dl, restore] = await page.locator('.backup-card').all();
-  const a = (await dl!.boundingBox())!;
-  const b = (await restore!.boundingBox())!;
-  expect(b.y).toBeGreaterThanOrEqual(a.y + a.height);
+  await page.getByRole('button', { name: 'Import a plan' }).click();
   const overflow = await page.getByRole('dialog').evaluate((el) => el.scrollWidth - el.clientWidth);
   expect(overflow).toBeLessThanOrEqual(0);
 });

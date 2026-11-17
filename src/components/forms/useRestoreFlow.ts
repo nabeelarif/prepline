@@ -2,26 +2,26 @@ import { useRef, useState } from 'react';
 import { previewImport, type ImportErrorKind, type ImportPreview } from '../../domain/schema';
 import { useStore } from '../../state/store';
 
-/** Why a file was turned away: unreadable, not JSON, or rejected by `previewImport()`. */
-export type RestoreFailure = ImportErrorKind | 'json' | 'read';
+/** Why a file was turned away: not a .json file, unreadable, not JSON, or rejected by `previewImport()`. */
+export type RestoreFailure = ImportErrorKind | 'json' | 'read' | 'type';
 
 /**
- * Restore steps. Only `restoring` touches saved data: after the user chose to add the
- * file's plans, or confirmed replacing everything. This state lives in the component
- * and is never persisted.
+ * Import steps. Only `restoring` touches saved data: after the user chose to add the
+ * file's plans. This state lives in the component and is never persisted.
  */
 export type RestoreState =
   | { step: 'idle' }
   | { step: 'validating'; fileName: string }
   | { step: 'invalid'; fileName: string; reason: RestoreFailure; detail: string }
-  | { step: 'review' | 'confirming'; fileName: string; preview: ImportPreview }
-  | { step: 'restoring' | 'error'; fileName: string; preview: ImportPreview; mode: RestoreMode }
-  | { step: 'success'; mode: RestoreMode };
-
-/** Add the file's plans next to the saved ones, or replace all saved data with the file. */
-export type RestoreMode = 'add' | 'replace';
+  | { step: 'review'; fileName: string; preview: ImportPreview }
+  | { step: 'restoring' | 'error'; fileName: string; preview: ImportPreview }
+  | { step: 'success' };
 
 export type RestoreFlow = ReturnType<typeof useRestoreFlow>;
+
+/** Only JSON files can be imported; pickers and drops are filtered by this one check. */
+const isJsonFile = (f: File) =>
+  f.name.toLowerCase().endsWith('.json') || f.type === 'application/json';
 
 export function useRestoreFlow() {
   const [state, setState] = useState<RestoreState>({ step: 'idle' });
@@ -34,6 +34,8 @@ export function useRestoreFlow() {
   const check = (file: File) => {
     const seq = ++readSeq.current;
     const fileName = file.name;
+    if (!isJsonFile(file))
+      return fail(fileName, 'type', 'Only .json files can be imported. Choose a plan file.');
     setState({ step: 'validating', fileName });
     const rd = new FileReader();
     rd.onload = () => {
@@ -42,7 +44,7 @@ export function useRestoreFlow() {
       try {
         raw = JSON.parse(String(rd.result ?? ''));
       } catch {
-        return fail(fileName, 'json', 'The file is damaged or is not a Road to Goals backup.');
+        return fail(fileName, 'json', 'The file is damaged or is not a Road to Goals plan file.');
       }
       const r = previewImport(raw);
       if (!r.ok) return fail(fileName, r.kind, r.error);
@@ -55,28 +57,13 @@ export function useRestoreFlow() {
     rd.readAsText(file);
   };
 
-  const withPreview = (step: 'review' | 'confirming') =>
-    setState((s) => ('preview' in s ? { step, fileName: s.fileName, preview: s.preview } : s));
-
-  /**
-   * Applies the checked file. Adding is allowed straight from review because it
-   * keeps saved data; replacing needs the confirmation step first. Retry after an
-   * error repeats the same action. Waits for the backend to confirm before reporting success.
-   */
-  const apply = async (mode: RestoreMode) => {
-    if (!('preview' in state)) return;
-    const allowed =
-      state.step === 'error'
-        ? state.mode === mode
-        : mode === 'add'
-          ? state.step === 'review'
-          : state.step === 'confirming';
-    if (!allowed) return;
+  /** Adds the checked file's plans next to the saved ones, and reports success only once the backend confirms. */
+  const add = async () => {
+    if (state.step !== 'review' && state.step !== 'error') return;
     const { fileName, preview } = state;
-    setState({ step: 'restoring', fileName, preview, mode });
-    const { addPlans, restoreBackup } = useStore.getState();
-    const ok = await (mode === 'add' ? addPlans : restoreBackup)(preview.data);
-    setState(ok ? { step: 'success', mode } : { step: 'error', fileName, preview, mode });
+    setState({ step: 'restoring', fileName, preview });
+    const ok = await useStore.getState().addPlans(preview.data);
+    setState(ok ? { step: 'success' } : { step: 'error', fileName, preview });
   };
 
   const reset = () => {
@@ -84,16 +71,5 @@ export function useRestoreFlow() {
     setState({ step: 'idle' });
   };
 
-  return {
-    state,
-    check,
-    reset,
-    add: () => apply('add'),
-    restore: () => apply('replace'),
-    retry: () => {
-      if (state.step === 'error') apply(state.mode);
-    },
-    confirm: () => withPreview('confirming'),
-    backToReview: () => withPreview('review'),
-  };
+  return { state, check, reset, add };
 }

@@ -5,7 +5,7 @@ import { goal, res } from '../../test/fixtures';
 import { toAuthError, toRepositoryError } from './errors';
 import { createSupabaseRepository } from './repository';
 import { createSupabaseSharing } from './sharing';
-import { appDataPayload, goalTreePayload, rowsToAppData } from './rows';
+import { goalTreePayload, rowsToAppData } from './rows';
 
 /** A fake client that records table and RPC calls and answers from a script. */
 function fakeClient(answer: (call: string, args?: unknown) => { data?: unknown; error?: unknown }) {
@@ -131,9 +131,7 @@ describe('row mapping', () => {
       done_at: '2026-03-11',
       phase_id: 'p1',
     });
-    expect(
-      JSON.stringify(appDataPayload({ version: 1, activeGoalId: 'g1', goals: [g] })),
-    ).not.toMatch(/user_id/);
+    expect(JSON.stringify(payload)).not.toMatch(/user_id/);
   });
 });
 
@@ -183,13 +181,13 @@ describe('repository', () => {
     const repo = createSupabaseRepository(client);
     const g = goal([res({ id: 'r1' })], { id: 'g1' });
     await repo.saveGoalTree(g);
-    await repo.replaceAll({ version: 1, activeGoalId: 'g1', goals: [g] });
+    await repo.addGoals([g], 'g1');
     await repo.reorderResources('g1', ['r1']);
     await repo.deleteAll();
     await repo.deleteResource('g1', 'r1');
     expect(calls.map((c) => c.call)).toEqual([
       'rpc:save_goal_tree',
-      'rpc:replace_all_data',
+      'rpc:append_goals',
       'rpc:reorder_resources',
       'rpc:delete_all_data',
       'resources.delete',

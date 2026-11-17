@@ -30,8 +30,6 @@ export interface AppRepository {
   deletePhase(goalId: string, id: string): Promise<void>;
   reorderPhases(goalId: string, ids: string[]): Promise<void>;
 
-  /** Replaces everything with `data` (restore a backup), atomically. */
-  replaceAll(data: AppData): Promise<void>;
   /**
    * Adds plans after the existing ones and makes `activeGoalId` active, atomically. Nothing
    * already saved is touched, so plans another device saved meanwhile are kept.

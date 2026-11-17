@@ -330,11 +330,6 @@ textarea:focus {
 .sheet.wide h4:focus {
   outline: none;
 }
-.backup-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
 .backup-card {
   display: flex;
   flex-direction: column;
@@ -348,22 +343,6 @@ textarea:focus {
 .backup-card-head p {
   margin: 0;
   font-size: 14px;
-}
-.backup-includes {
-  display: flex;
-  gap: 12px;
-  padding: 12px 14px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--surface);
-  font-size: 13px;
-}
-.backup-includes p {
-  margin: 0;
-}
-.backup-includes svg {
-  flex: none;
-  color: var(--muted);
 }
 .wide-btn {
   width: 100%;
@@ -524,7 +503,7 @@ textarea:focus {
   color: var(--warn-fg);
   font-size: 13px;
 }
-.sheet .backup-warn {
+.sheet .danger-note {
   padding: 10px 12px;
   border-radius: 10px;
   background: var(--warn-soft);

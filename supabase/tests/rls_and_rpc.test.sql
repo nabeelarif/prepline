@@ -1,7 +1,7 @@
 -- pgTAP tests. Run with: supabase test db   (needs the local stack: supabase start)
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(67);
+select plan(69);
 
 -- Two users and some data for each, created as the table owner.
 insert into auth.users (id, instance_id, aud, role, email)
@@ -109,6 +109,8 @@ select lives_ok($$ select public.set_display_name('Ada') $$, 'set a display name
 select lives_ok($$ select public.set_plan_sharing('g1', 'unlisted', '{}', ' Ada L ') $$, 'a name can travel with the sharing change');
 select is((select display_name from public.profiles), 'Ada L', 'and is trimmed and saved');
 select lives_ok($$ select public.set_display_name('Ada') $$, 'restore the name');
+select throws_ok($$ select public.set_plan_sharing('g1', 'public', '{}', '   ') $$, '23514', null, 'going public with a blank name is rejected');
+select is((select display_name from public.profiles), 'Ada', 'and the rejected call did not clear the saved name');
 select lives_ok($$ select public.set_plan_sharing('g1', 'unlisted', array['Swift', ' swift ', 'ios']) $$, 'share a plan by link');
 select is((select tags from public.plan_shares where goal_id = 'g1'), array['ios', 'swift'], 'tags are normalised');
 select lives_ok($$ select public.set_plan_sharing('g2', 'unlisted', '{}') $$, 'a plan can be shared before it has resources');

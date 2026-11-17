@@ -537,7 +537,7 @@ create trigger on_auth_user_created after insert on auth.users
 
 create function public.set_display_name(p_name text) returns void
 language sql security invoker set search_path = public as $$
-  insert into public.profiles (display_name) values (nullif(btrim(p_name), ''))
+  insert into public.profiles (user_id, display_name) values (auth.uid(), nullif(btrim(p_name), ''))
   on conflict (user_id) do update set display_name = excluded.display_name;
 $$;
 

@@ -46,6 +46,10 @@ export function GoalForm({ goal }: { goal: Goal | null }) {
       setError('Pick a valid deadline, or clear it.');
       return focus('gDate');
     }
+    if (date && goal?.startDate && date < goal.startDate) {
+      setError('The deadline cannot be before the day the plan started.');
+      return focus('gDate');
+    }
     if (hrs !== null && !(hrs > 0)) {
       setError('Daily study hours must be more than 0, for example 1.5. Or leave it empty.');
       return focus('gHours');
@@ -104,6 +108,7 @@ export function GoalForm({ goal }: { goal: Goal | null }) {
               <input
                 id="gDate"
                 type="date"
+                min={goal?.startDate ?? undefined}
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
               />

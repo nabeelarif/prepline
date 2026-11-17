@@ -91,7 +91,10 @@ export const GoalSchema: z.ZodType<Goal, unknown> = z
       r.phaseId && !seen.has(r.phaseId) ? { ...r, phaseId: null } : r,
     );
     // Plans saved before manual start had a deadline and were already running.
-    const startDate = g.startDate ?? (g.targetDate ? g.createdAt : null);
+    // The start is never after the deadline (the database refuses that), so a deadline
+    // earlier than the creation date becomes the start.
+    const startDate =
+      g.startDate ?? (g.targetDate && (g.createdAt < g.targetDate ? g.createdAt : g.targetDate));
     return { ...g, startDate, phases, resources };
   });
 

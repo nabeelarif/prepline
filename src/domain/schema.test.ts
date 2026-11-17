@@ -34,6 +34,13 @@ describe('parseAppData', () => {
     expect(data.goals[2]).toMatchObject({ startDate: '2026-04-02', targetDate: null });
   });
 
+  it('never starts a legacy plan after its deadline', () => {
+    const data = parseAppData({
+      goals: [{ id: 'a', name: 'Moved back', targetDate: '2026-03-01', createdAt: '2026-04-01' }],
+    })!;
+    expect(data.goals[0]).toMatchObject({ startDate: '2026-03-01', targetDate: '2026-03-01' });
+  });
+
   it('fills defaults and clamps bad values', () => {
     const data = parseAppData({
       activeGoalId: 'missing',

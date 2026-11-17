@@ -95,8 +95,8 @@
   align-items: center;
   gap: 2px;
 }
-.show-all {
-  margin-bottom: 10px;
+.res-group {
+  scroll-margin-top: 72px;
 }
 .group-empty {
   margin: 0 0 0 14px;

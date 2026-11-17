@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { RESOURCE_TYPES, STATUS_TEXT } from '../domain/constants';
 import { metrics } from '../domain/metrics';
 import { focusResource, isDone, resStatus } from '../domain/resources';
@@ -7,6 +7,7 @@ import { useStore } from '../state/store';
 import { TypeIcon } from './icons';
 import { PhaseBand } from './PhaseBand';
 import { ResourceCard } from './ResourceCard';
+import { scrollToEl } from './scrollToEl';
 import { useReorderDrag } from './useReorderDrag';
 
 const PLURAL: Record<ResourceType, string> = {
@@ -33,6 +34,7 @@ function ResourceGroup({
   onToggle,
   locked,
   selected,
+  jumped,
   focusId,
 }: {
   goal: Goal;
@@ -42,6 +44,8 @@ function ResourceGroup({
   /** A filter keeps every band open. */
   locked: boolean;
   selected: string | null;
+  /** Counts the journey's picks of this phase; 0 when it is not the picked one. */
+  jumped: number;
   focusId: string | null;
 }) {
   const placeResource = useStore((s) => s.placeResource);
@@ -50,8 +54,19 @@ function ResourceGroup({
     placeResource,
   );
   const listId = `group-${group.key || 'none'}`;
+  const section = useRef<HTMLElement>(null);
+  // A jump already made before this mounted (the list came back after another screen) is old news.
+  const seen = useRef(jumped);
+  useEffect(() => {
+    if (jumped && jumped !== seen.current) scrollToEl(section.current, 'start');
+    seen.current = jumped;
+  }, [jumped]);
   return (
-    <section className="res-group" aria-label={group.phase ? group.phase.name : 'Unassigned'}>
+    <section
+      className="res-group"
+      ref={section}
+      aria-label={group.phase ? group.phase.name : 'Unassigned'}
+    >
       <PhaseBand
         phase={group.phase}
         met={metrics(group.all)}
@@ -89,20 +104,18 @@ function ResourceGroup({
 
 export function ResourceList({ goal }: { goal: Goal }) {
   const typeFilter = useStore((s) => s.ui.typeFilter);
-  const phaseFilter = useStore((s) => s.ui.phaseFilter);
+  const phaseJump = useStore((s) => s.ui.phaseJump);
   const selected = useStore((s) => s.ui.selectedResourceId);
   const setTypeFilter = useStore((s) => s.setTypeFilter);
   const statusFilter = useStore((s) => s.ui.statusFilter);
   const setStatusFilter = useStore((s) => s.setStatusFilter);
-  const setPhaseFilter = useStore((s) => s.setPhaseFilter);
-  // The user's choice per band, which lasts only while the same resource is selected:
-  // selecting another one (a journey click) opens its band again.
+  // The user's choice per band, which lasts only while the same selection or jump is current:
+  // picking another resource, or a phase again (a journey click), opens its band again.
   const [toggled, setToggled] = useState<Record<string, { open: boolean; sel: string | null }>>({});
 
   const all = goal.resources;
-  const inPhase = phaseFilter === null ? all : all.filter((r) => (r.phaseId ?? '') === phaseFilter);
   const counts = Object.fromEntries(
-    RESOURCE_TYPES.map((t) => [t, inPhase.filter((r) => r.type === t).length]),
+    RESOURCE_TYPES.map((t) => [t, all.filter((r) => r.type === t).length]),
   ) as Record<ResourceType, number>;
   const filtered = typeFilter !== 'all' || statusFilter !== 'all';
   const visible = (r: Resource) =>
@@ -115,7 +128,6 @@ export function ResourceList({ goal }: { goal: Goal }) {
     ...goal.phases.map((phase) => ({ key: phase.id, phase })),
     { key: '', phase: null },
   ]
-    .filter((g) => phaseFilter === null || g.key === phaseFilter)
     .map(({ key, phase }) => {
       const mine = indexed.filter(({ r }) => (r.phaseId ?? '') === key);
       return { key, phase, all: mine.map(({ r }) => r), rows: mine.filter(({ r }) => visible(r)) };
@@ -125,15 +137,18 @@ export function ResourceList({ goal }: { goal: Goal }) {
     .filter((g) => (g.phase && !filtered ? true : g.rows.length > 0));
   const focusId = focusResource(all)?.id ?? null;
 
-  const locked = filtered || phaseFilter !== null;
   const stateKey = (g: Group) => `${goal.id}:${g.key}`;
-  /** Finished phases fold away. A choice by the user wins, except that a selection or a filter opens the band. */
+  /** What last pointed at a band: a selected resource inside it, or a jump to its phase. */
+  const anchor = (g: Group) => {
+    if (selected && g.all.some((r) => r.id === selected)) return selected;
+    return phaseJump && phaseJump.id === g.key ? `phase:${phaseJump.n}` : null;
+  };
+  /** Finished phases fold away. A choice by the user wins, except that a new selection, jump or filter opens the band. */
   const isOpen = (g: Group) => {
-    if (locked) return true;
+    if (filtered) return true;
     const choice = toggled[stateKey(g)];
-    if (selected && g.all.some((r) => r.id === selected)) {
-      return choice && choice.sel === selected ? choice.open : true;
-    }
+    const a = anchor(g);
+    if (a) return choice && choice.sel === a ? choice.open : true;
     if (choice && choice.sel === null) return choice.open;
     return !(g.all.length > 0 && g.all.every(isDone));
   };
@@ -144,7 +159,7 @@ export function ResourceList({ goal }: { goal: Goal }) {
         <h2 id="resH">Resources ({all.length})</h2>
         <div className="chips" role="group" aria-label="Filter by type">
           <button aria-pressed={typeFilter === 'all'} onClick={() => setTypeFilter('all')}>
-            All ({inPhase.length})
+            All ({all.length})
           </button>
           {RESOURCE_TYPES.map((t) => (
             <button key={t} aria-pressed={typeFilter === t} onClick={() => setTypeFilter(t)}>
@@ -167,11 +182,6 @@ export function ResourceList({ goal }: { goal: Goal }) {
           </select>
         </div>
       </div>
-      {phaseFilter !== null && (
-        <button type="button" className="link-btn show-all" onClick={() => setPhaseFilter(null)}>
-          Show all phases
-        </button>
-      )}
       {!groups.some((g) => g.rows.length) && !groups.some((g) => g.phase) ? (
         <p className="empty-note">
           {filtered ? 'Nothing matches these filters.' : 'No resources here yet.'}
@@ -189,12 +199,13 @@ export function ResourceList({ goal }: { goal: Goal }) {
                   ...toggled,
                   [stateKey(g)]: {
                     open: !isOpen(g),
-                    sel: selected && g.all.some((r) => r.id === selected) ? selected : null,
+                    sel: anchor(g),
                   },
                 })
               }
-              locked={locked}
+              locked={filtered}
               selected={selected}
+              jumped={phaseJump?.id === g.key ? phaseJump.n : 0}
               focusId={focusId}
             />
           ))}

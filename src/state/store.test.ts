@@ -198,14 +198,12 @@ describe('store', () => {
       const pid = g().phases[0]!.id;
       add({ title: 'A', phaseId: pid });
       add({ title: 'B' });
-      s().setPhaseFilter(pid);
       s().deletePhase(pid);
       expect(g().phases).toEqual([]);
       expect(g().resources.map((r) => [r.title, r.phaseId])).toEqual([
         ['A', null],
         ['B', null],
       ]);
-      expect(s().ui.phaseFilter).toBeNull();
     });
   });
 

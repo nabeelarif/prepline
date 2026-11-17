@@ -37,8 +37,8 @@ export interface UiState {
   view: RoadmapView;
   typeFilter: ResourceType | 'all';
   statusFilter: ResourceStatus | 'all';
-  /** Resource list limited to one phase; '' means resources in no phase. */
-  phaseFilter: string | null;
+  /** Phase picked on the journey: its band opens and scrolls into view. `n` makes a repeat pick count. */
+  phaseJump: { id: string; n: number } | null;
   /** Resource picked on the journey, highlighted in the list. */
   selectedResourceId: string | null;
   showFullJourney: boolean;
@@ -117,7 +117,7 @@ export interface Store {
   setView(v: RoadmapView): void;
   setTypeFilter(f: UiState['typeFilter']): void;
   setStatusFilter(f: UiState['statusFilter']): void;
-  setPhaseFilter(id: string | null): void;
+  jumpToPhase(id: string): void;
   selectResource(id: string | null): void;
   toggleFullJourney(): void;
   openOverlay(o: Overlay): void;
@@ -141,7 +141,7 @@ const freshUi = (): UiState => ({
   view: 'simple',
   typeFilter: 'all',
   statusFilter: 'all',
-  phaseFilter: null,
+  phaseJump: null,
   selectedResourceId: null,
   showFullJourney: false,
   overlay: null,
@@ -152,7 +152,7 @@ const freshUi = (): UiState => ({
 const planUi = (): Partial<UiState> => ({
   typeFilter: 'all',
   statusFilter: 'all',
-  phaseFilter: null,
+  phaseJump: null,
   selectedResourceId: null,
   showFullJourney: false,
   overlay: null,
@@ -392,7 +392,7 @@ export function createAppStore({ repo, auth }: Backend) {
             d.goals = d.goals.filter((g) => g.id !== id);
             if (d.activeGoalId === id) d.activeGoalId = d.goals[0]?.id ?? null;
           },
-          { overlay: null, selectedResourceId: null, phaseFilter: null },
+          { overlay: null, selectedResourceId: null, phaseJump: null },
         ),
 
       // A full copy, progress included, with fresh ids so the two plans never share data.
@@ -521,10 +521,7 @@ export function createAppStore({ repo, auth }: Backend) {
             g.phases = g.phases.filter((p) => p.id !== id);
             for (const r of g.resources) if (r.phaseId === id) r.phaseId = null;
           },
-          () => ({
-            overlay: null,
-            ...(get().ui.phaseFilter === id ? { phaseFilter: null } : {}),
-          }),
+          { overlay: null },
         ),
 
       movePhase: (id, dir) =>
@@ -536,12 +533,19 @@ export function createAppStore({ repo, auth }: Backend) {
       setView: (view) => setUi({ view }),
       setTypeFilter: (typeFilter) => setUi({ typeFilter }),
       setStatusFilter: (statusFilter) => setUi({ statusFilter }),
-      setPhaseFilter: (phaseFilter) => setUi({ phaseFilter, selectedResourceId: null }),
+      // Clears list filters so the picked phase's band is shown, whatever it holds.
+      jumpToPhase: (id) =>
+        setUi({
+          phaseJump: { id, n: (get().ui.phaseJump?.n ?? 0) + 1 },
+          selectedResourceId: null,
+          typeFilter: 'all',
+          statusFilter: 'all',
+        }),
       // Clears list filters so the picked resource's row is visible.
       selectResource: (selectedResourceId) =>
         setUi(
           selectedResourceId
-            ? { selectedResourceId, typeFilter: 'all', statusFilter: 'all', phaseFilter: null }
+            ? { selectedResourceId, typeFilter: 'all', statusFilter: 'all', phaseJump: null }
             : { selectedResourceId },
         ),
       toggleFullJourney: () => setUi({ showFullJourney: !get().ui.showFullJourney }),

@@ -32,6 +32,7 @@ import { resDone, resStatus } from '../domain/resources';
 import type { Phase, Resource } from '../domain/types';
 import { embedUrl, hostOf, safeUrl } from '../domain/urls';
 import { useStore } from '../state/store';
+import { scrollToEl } from './scrollToEl';
 import { TypeIcon } from './icons';
 import { Menu, type MenuEntry } from './Menu';
 import { StatusMenu } from './StatusMenu';
@@ -94,8 +95,7 @@ export function ResourceCard({ r, prevId, nextId, phases, selected, focus, handl
 
   useEffect(() => {
     if (!selected) return;
-    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    row.current?.scrollIntoView?.({ block: 'center', behavior: reduce ? 'auto' : 'smooth' });
+    scrollToEl(row.current, 'center');
   }, [selected]);
 
   const items: MenuEntry[] = [];

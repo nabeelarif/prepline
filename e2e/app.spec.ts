@@ -134,11 +134,13 @@ test('phases are optional, group resources, and deleting one keeps its resources
   );
   await expect(journey(page).getByRole('button', { name: /^Unorganized/ })).toBeVisible();
 
-  // Selecting a phase filters the list to it.
+  // Picking a phase takes you to its band; every phase and resource stays listed.
   await journey(page)
     .getByRole('button', { name: /^Basics/ })
     .click();
-  await expect(resources(page).locator('.res-card')).toHaveCount(1);
+  await expect(resources(page).locator('.band-name')).toHaveCount(2);
+  await expect(resources(page).locator('.res-card')).toHaveCount(2);
+  await expect(resources(page).getByRole('region', { name: 'Basics' })).toBeInViewport();
 
   await page.reload();
   await expect(resources(page).locator('.band-name').first()).toContainText('Basics');

@@ -1,17 +1,17 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Check, ExternalLink, Pencil, Play, RotateCcw } from 'lucide-react';
+import { ExternalLink, Pencil } from 'lucide-react';
 import { STATUS_TEXT, TYPES } from '../../domain/constants';
 import { fmtDate } from '../../domain/dates';
 import { fmtHours } from '../../domain/format';
 import { resDone, resStatus, statusLosesProgress } from '../../domain/resources';
 import type { Phase, Resource } from '../../domain/types';
-import { safeUrl } from '../../domain/urls';
 import { useStore } from '../../state/store';
 import { ConfirmButton } from '../ConfirmButton';
 import { TypeIcon } from '../icons';
 import { DIALOG_TITLE } from '../Overlay';
 import { ProgressRing } from '../ProgressRing';
-import { changeStatus } from '../statusActions';
+import { ResourceLink } from '../ResourceLink';
+import { StatusButtons } from '../StatusButtons';
 
 const hrs = (m: number) => Math.round((m / 60) * 100) / 100;
 
@@ -21,7 +21,6 @@ export function ResourceDetails({ r, phases }: { r: Resource; phases: Phase[] })
   const done = resDone(r);
   const status = resStatus(r);
   const pct = Math.round((done / r.minutes) * 100);
-  const href = safeUrl(r.url);
   const phase = phases.find((p) => p.id === r.phaseId);
   const [value, setValue] = useState(String(hrs(done)));
   const [error, setError] = useState('');
@@ -52,11 +51,9 @@ export function ResourceDetails({ r, phases }: { r: Resource; phases: Phase[] })
         {phase && <span className="muted">Phase: {phase.name}</span>}
         {r.doneAt && <span className="muted">Finished {fmtDate(r.doneAt)}</span>}
       </p>
-      {href && (
-        <a className="btn sm" href={href} target="_blank" rel="noopener noreferrer">
-          <ExternalLink size={15} aria-hidden="true" /> Open resource
-        </a>
-      )}
+      <ResourceLink r={r} className="btn sm">
+        <ExternalLink size={15} aria-hidden="true" /> Open resource
+      </ResourceLink>
       {r.notes && <p className="details-notes">{r.notes}</p>}
 
       <form className="progress-box" noValidate onSubmit={save}>
@@ -109,26 +106,7 @@ export function ResourceDetails({ r, phases }: { r: Resource; phases: Phase[] })
         <button type="button" className="btn" onClick={closeOverlay}>
           Close
         </button>
-        {status === 'not_started' && (
-          <button type="button" className="btn" onClick={() => changeStatus(r, 'in_progress')}>
-            <Play size={15} aria-hidden="true" /> Start
-          </button>
-        )}
-        <button
-          type="button"
-          className="btn primary"
-          onClick={() => changeStatus(r, r.done ? 'in_progress' : 'completed')}
-        >
-          {r.done ? (
-            <>
-              <RotateCcw size={15} aria-hidden="true" /> Reopen
-            </>
-          ) : (
-            <>
-              <Check size={15} aria-hidden="true" /> Mark completed
-            </>
-          )}
-        </button>
+        <StatusButtons r={r} />
       </div>
     </div>
   );

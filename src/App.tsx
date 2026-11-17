@@ -3,6 +3,7 @@ import { DataPanel } from './components/forms/DataPanel';
 import { GoalForm } from './components/forms/GoalForm';
 import { PhaseForm } from './components/forms/PhaseForm';
 import { ResourceDetails } from './components/forms/ResourceDetails';
+import { ResourceViewer } from './components/forms/ResourceViewer';
 import { ResourceForm } from './components/forms/ResourceForm';
 import { EmptyState } from './components/EmptyState';
 import { GoalView } from './components/GoalView';
@@ -19,6 +20,11 @@ import { useEffect } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import { clearReturnPath, paths, peekReturnPath } from './routes';
 import { backendConfigError, useActiveGoal, useStore } from './state/store';
+
+const SHEET_SIZE: Record<string, 'wide' | 'viewer' | undefined> = {
+  data: 'wide',
+  viewer: 'viewer',
+};
 
 function OverlayContent() {
   const overlay = useStore((s) => s.ui.overlay);
@@ -41,6 +47,10 @@ function OverlayContent() {
     } else if (overlay.kind === 'phase') {
       const p = goal.phases.find((x) => x.id === overlay.phaseId) ?? null;
       content = <PhaseForm goal={goal} phase={p} />;
+    } else if (overlay.kind === 'viewer') {
+      const r = goal.resources.find((x) => x.id === overlay.resourceId);
+      if (!r) return null;
+      content = <ResourceViewer r={r} />;
     } else {
       const r = goal.resources.find((x) => x.id === overlay.resourceId);
       if (!r) return null;
@@ -48,7 +58,7 @@ function OverlayContent() {
     }
   }
   return (
-    <Overlay key={overlay.kind} wide={overlay.kind === 'data'}>
+    <Overlay key={overlay.kind} size={SHEET_SIZE[overlay.kind]}>
       {content}
     </Overlay>
   );

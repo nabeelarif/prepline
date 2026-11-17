@@ -30,8 +30,9 @@ import { fmtDate } from '../domain/dates';
 import { metrics } from '../domain/metrics';
 import { resDone, resStatus } from '../domain/resources';
 import type { Phase, Resource } from '../domain/types';
-import { hostOf, safeUrl } from '../domain/urls';
+import { embedUrl, hostOf, safeUrl } from '../domain/urls';
 import { useStore } from '../state/store';
+import { scrollToEl } from './scrollToEl';
 import { TypeIcon } from './icons';
 import { Menu, type MenuEntry } from './Menu';
 import { StatusMenu } from './StatusMenu';
@@ -84,6 +85,7 @@ export function ResourceCard({ r, prevId, nextId, phases, selected, focus, handl
   const row = useRef<HTMLLIElement>(null);
   const status = resStatus(r);
   const href = safeUrl(r.url);
+  const embeds = !!href && !!embedUrl(href);
   const phase = phases.find((p) => p.id === r.phaseId);
   const notes = r.notes.trim();
   const [open, setOpen] = useState(false);
@@ -93,8 +95,7 @@ export function ResourceCard({ r, prevId, nextId, phases, selected, focus, handl
 
   useEffect(() => {
     if (!selected) return;
-    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    row.current?.scrollIntoView?.({ block: 'center', behavior: reduce ? 'auto' : 'smooth' });
+    scrollToEl(row.current, 'center');
   }, [selected]);
 
   const items: MenuEntry[] = [];
@@ -202,7 +203,27 @@ export function ResourceCard({ r, prevId, nextId, phases, selected, focus, handl
           )}
         </p>
         <p className="res-title">
-          {href ? (
+          {href && embeds ? (
+            <>
+              <button
+                type="button"
+                className="res-open"
+                onClick={() => a.openOverlay({ kind: 'viewer', resourceId: r.id })}
+              >
+                {r.title}
+              </button>
+              <a
+                className="res-newtab"
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`Open ${r.title} in a new tab`}
+                title="Open in new tab"
+              >
+                <ExternalLink className="ext" size={14} aria-hidden="true" />
+              </a>
+            </>
+          ) : href ? (
             <a href={href} target="_blank" rel="noopener noreferrer">
               {r.title}
               <ExternalLink className="ext" size={14} aria-hidden="true" />

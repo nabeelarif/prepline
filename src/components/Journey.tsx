@@ -16,12 +16,12 @@ export function Journey({ goal, nodes }: Props) {
   const view = useStore((s) => s.ui.view);
   const showAll = useStore((s) => s.ui.showFullJourney);
   const selectedRes = useStore((s) => s.ui.selectedResourceId);
-  const phaseFilter = useStore((s) => s.ui.phaseFilter);
-  const { setView, toggleFullJourney, openOverlay, selectResource, setPhaseFilter } =
+  const phaseJump = useStore((s) => s.ui.phaseJump);
+  const { setView, toggleFullJourney, openOverlay, selectResource, jumpToPhase } =
     useStore.getState();
 
   const views: [RoadmapView, string][] = [
-    ['simple', 'Simple view'],
+    ['simple', 'Resources'],
     ['phases', goal.phases.length ? `Phases (${goal.phases.length})` : 'Phases'],
   ];
   const clipped = !showAll && nodes.length > JOURNEY_LIMIT;
@@ -32,8 +32,8 @@ export function Journey({ goal, nodes }: Props) {
       // The row scrolls itself into view once it is selected.
       selectResource(n.id);
     } else {
-      setPhaseFilter(phaseFilter === n.id ? null : n.id);
-      document.getElementById('resH')?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      // The phase's band opens and scrolls itself into view.
+      jumpToPhase(n.id);
     }
   };
 
@@ -79,7 +79,7 @@ export function Journey({ goal, nodes }: Props) {
         <SnakeRoadmap
           nodes={shown}
           finish={!clipped}
-          selectedId={view === 'simple' ? selectedRes : phaseFilter}
+          selectedId={view === 'simple' ? selectedRes : (phaseJump?.id ?? null)}
           onPick={pick}
         />
         {nodes.length > JOURNEY_LIMIT && (

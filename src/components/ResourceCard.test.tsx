@@ -110,21 +110,47 @@ describe('Resource notes', () => {
 });
 
 describe('Resource links', () => {
-  it('opens the title in a new tab, with Start as a separate plain button', async () => {
-    await resetApp(
+  const link = (title: string, url: string) =>
+    resetApp(
       parseAppData({
-        goals: [{ id: 'g', name: 'Prep', resources: [{ title: 'Doc', url: 'https://a.dev/x' }] }],
+        goals: [{ id: 'g', name: 'Prep', resources: [{ title, url }] }],
       })!,
     );
+
+  it('opens a YouTube title in the viewer, with a separate new-tab link', async () => {
+    await link('Talk', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
     renderApp();
     await screen.findByRole('region', { name: /^Resources/ });
-    const link = within(resources()).getByRole('link', { name: 'Doc' });
-    expect(link).toHaveAttribute('target', '_blank');
-    expect(link.querySelector('svg.ext')).not.toBeNull();
+    const tab = within(resources()).getByRole('link', { name: 'Open Talk in a new tab' });
+    expect(tab).toHaveAttribute('target', '_blank');
+    expect(tab.querySelector('svg.ext')).not.toBeNull();
     const start = within(resources()).getByRole('button', { name: 'Start' });
-    expect(start.tagName).toBe('BUTTON');
     expect(start.querySelector('svg.lucide-external-link')).toBeNull();
+
+    fireEvent.click(within(resources()).getByRole('button', { name: 'Talk' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Talk' });
+    expect(within(dialog).getByTitle('Talk')).toHaveAttribute(
+      'src',
+      'https://www.youtube.com/embed/dQw4w9WgXcQ',
+    );
+    expect(within(dialog).getByRole('link', { name: /Open in new tab/ })).toHaveAttribute(
+      'href',
+      'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    );
   });
+
+  it.each(['https://a.dev/x', 'https://leetcode.com/problems/two-sum/'])(
+    'opens %s straight in a new tab, with no viewer',
+    async (url) => {
+      await link('Doc', url);
+      renderApp();
+      await screen.findByRole('region', { name: /^Resources/ });
+      const a = within(resources()).getByRole('link', { name: 'Doc' });
+      expect(a).toHaveAttribute('target', '_blank');
+      expect(a).toHaveAttribute('href', url);
+      expect(within(resources()).queryByRole('button', { name: 'Doc' })).toBeNull();
+    },
+  );
 });
 
 describe('Resource groups', () => {

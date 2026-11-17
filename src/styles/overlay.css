@@ -561,3 +561,35 @@ textarea:focus {
   border-radius: 12px;
   background: var(--surface);
 }
+
+/* In-app resource viewer */
+.sheet.viewer {
+  width: min(1100px, 100%);
+  height: min(860px, 100%);
+  display: flex;
+  flex-direction: column;
+}
+.viewer {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.viewer h2 {
+  margin-bottom: 10px;
+}
+.viewer-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.viewer-frame {
+  flex: 1;
+  min-height: 320px;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-2);
+}

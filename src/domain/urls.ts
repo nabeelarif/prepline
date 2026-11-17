@@ -88,3 +88,66 @@ export function titleFromUrl(url: string): string {
   }
   return h;
 }
+
+/** Start time as YouTube writes it: 90, 90s, 1m30s or 1h2m3s. 0 when unreadable. */
+function seconds(v: string | null): number {
+  const m = /^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s?)?$/.exec(v ?? '');
+  return m ? Number(m[1] ?? 0) * 3600 + Number(m[2] ?? 0) * 60 + Number(m[3] ?? 0) : 0;
+}
+
+const YT_ID = /^[\w-]{6,20}$/;
+
+/**
+ * The official embed address for links we know allow embedding (YouTube, Vimeo,
+ * Loom), or null. Everything else opens in a new tab: most sites refuse to be
+ * framed, and a blocked frame cannot be detected. Input must already pass safeUrl().
+ */
+export function embedUrl(url: string): string | null {
+  let x: URL;
+  try {
+    x = new URL(url);
+  } catch {
+    return null;
+  }
+  if (!/^https?:$/.test(x.protocol)) return null;
+  const h = x.hostname.replace(/^www\./, '').toLowerCase();
+  const parts = x.pathname.split('/').filter(Boolean);
+
+  if (h === 'youtu.be' || h === 'youtube.com' || h === 'm.youtube.com') {
+    const id =
+      h === 'youtu.be'
+        ? parts[0]
+        : parts[0] === 'watch'
+          ? x.searchParams.get('v')
+          : parts[0] === 'shorts' || parts[0] === 'embed' || parts[0] === 'live'
+            ? parts[1]
+            : null;
+    const list = x.searchParams.get('list');
+    const start = seconds(x.searchParams.get('t')) || seconds(x.searchParams.get('start'));
+    const q = new URLSearchParams();
+    if (start > 0) q.set('start', String(start));
+    if (id && YT_ID.test(id)) {
+      if (list && /^[\w-]+$/.test(list)) q.set('list', list);
+      const qs = q.toString();
+      return `https://www.youtube.com/embed/${id}${qs ? `?${qs}` : ''}`;
+    }
+    if (parts[0] === 'playlist' && list && /^[\w-]+$/.test(list))
+      return `https://www.youtube.com/embed/videoseries?list=${list}`;
+    return null;
+  }
+  if (h === 'vimeo.com' || h === 'player.vimeo.com') {
+    // Only plain video links: /ID, /ID/HASH (unlisted) or player.vimeo.com/video/ID.
+    // Showcases, albums, channels and groups hold other numbers, so they open in a tab.
+    const player = h === 'player.vimeo.com';
+    if (player !== (parts[0] === 'video')) return null;
+    const [id, hash] = player ? [parts[1], x.searchParams.get('h')] : [parts[0], parts[1]];
+    if (!id || !/^\d+$/.test(id) || parts.length > 2) return null;
+    if (hash && !/^\w+$/.test(hash)) return null;
+    return `https://player.vimeo.com/video/${id}${hash ? `?h=${hash}` : ''}`;
+  }
+  if (h === 'loom.com') {
+    const id = parts[0] === 'share' || parts[0] === 'embed' ? parts[1] : null;
+    return id && /^[\w-]+$/.test(id) ? `https://www.loom.com/embed/${id}` : null;
+  }
+  return null;
+}

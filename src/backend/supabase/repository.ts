@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { AppRepository } from '../../repositories/types';
-import { toRepositoryError } from './errors';
+import { call } from './call';
 import {
   appDataPayload,
   goalPayload,
@@ -12,18 +12,6 @@ import {
   type PhaseRow,
   type ResourceRow,
 } from './rows';
-
-/** Awaits a Supabase call; throws a `RepositoryError` for a thrown or returned error. */
-async function call<T>(op: PromiseLike<{ data: T; error: unknown; status?: number }>): Promise<T> {
-  let res;
-  try {
-    res = await op;
-  } catch (e) {
-    throw toRepositoryError(e);
-  }
-  if (res.error) throw toRepositoryError({ ...(res.error as object), status: res.status });
-  return res.data;
-}
 
 /** Table names, queries and RPCs live here and nowhere else. */
 export function createSupabaseRepository(client: SupabaseClient): AppRepository {

@@ -2,13 +2,25 @@ import { addDays, diffDays, todayISO } from './dates';
 import type { Metrics } from './metrics';
 import type { Goal, ISODate } from './types';
 
-export type PaceKind = 'idle' | 'done' | 'past' | 'on_track' | 'at_risk' | 'behind' | 'no_capacity';
+export type PaceKind =
+  | 'idle'
+  | 'done'
+  | 'not_started'
+  | 'open'
+  | 'past'
+  | 'on_track'
+  | 'at_risk'
+  | 'behind'
+  | 'no_capacity';
 
 export interface Pace {
   kind: PaceKind;
-  /** Calendar days from today to the target date, counting today. 0 or less when past. */
-  daysLeft: number;
-  /** Minutes a day needed to finish the remaining work by the target date. */
+  /**
+   * Calendar days from today to the target date, counting today. 0 or less when past.
+   * Null when the plan has no deadline or has not started.
+   */
+  daysLeft: number | null;
+  /** Minutes a day needed to finish the remaining work by the target date; 0 with no deadline. */
   requiredPerDay: number;
 }
 
@@ -17,15 +29,20 @@ const RISK_MARGIN = 0.9;
 
 /**
  * Whether the remaining work fits before the target date at the plan's daily capacity.
- * Without a capacity, only the required pace is reported.
+ * Without a capacity, only the required pace is reported. A plan that has not started, or
+ * has no deadline, has no pace to judge and is never late.
  */
 export function pace(g: Goal, met: Metrics, today: ISODate = todayISO()): Pace {
+  const noClock = (kind: PaceKind): Pace => ({ kind, daysLeft: null, requiredPerDay: 0 });
+  if (met.total === 0) return noClock('idle');
+  if (met.remaining === 0) return noClock('done');
+  if (!g.startDate) return noClock('not_started');
+  if (!g.targetDate) return noClock('open');
+
   const daysLeft = diffDays(today, g.targetDate) + 1;
   const requiredPerDay = daysLeft > 0 ? met.remaining / daysLeft : met.remaining;
   const out = (kind: PaceKind): Pace => ({ kind, daysLeft, requiredPerDay });
 
-  if (met.total === 0) return out('idle');
-  if (met.remaining === 0) return out('done');
   if (daysLeft <= 0) return out('past');
   if (g.hoursPerDay == null) return out('no_capacity');
   const cap = g.hoursPerDay * 60;

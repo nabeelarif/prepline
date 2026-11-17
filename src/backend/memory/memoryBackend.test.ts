@@ -1,7 +1,11 @@
-import { describeRepositoryContract } from '../../repositories/contract';
+import {
+  describeRepositoryContract,
+  describeSharingContract,
+  type ContractSubject,
+} from '../../repositories/contract';
 import { createMemoryBackend } from './memoryBackend';
 
-describeRepositoryContract('memory backend', async () => {
+const make = async (): Promise<ContractSubject> => {
   const backend = createMemoryBackend();
   await backend.auth.signUpWithPassword('a@example.test', 'password1');
   await backend.auth.signOut();
@@ -9,6 +13,8 @@ describeRepositoryContract('memory backend', async () => {
   await backend.auth.signOut();
   return {
     repo: backend.repo,
+    sharing: backend.sharing,
+    signOut: () => backend.auth.signOut(),
     switchUser: async (who) => {
       await backend.auth.signOut();
       await backend.auth.signInWithPassword(
@@ -17,4 +23,7 @@ describeRepositoryContract('memory backend', async () => {
       );
     },
   };
-});
+};
+
+describeRepositoryContract('memory backend', make);
+describeSharingContract('memory backend', make);

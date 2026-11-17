@@ -4,6 +4,7 @@ import { StrictMode } from 'react';
 import { render } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { App } from '../App';
+import { useStore } from '../state/store';
 import { renderApp } from '../test/renderApp';
 
 const Where = () => <output data-testid="where">{useLocation().pathname}</output>;
@@ -27,6 +28,23 @@ describe('AccountMenu', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Account menu' }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Account settings' }));
     expect(await screen.findByRole('dialog', { name: 'Account' })).toBeVisible();
+  });
+
+  it('changes the display name from account settings', async () => {
+    renderApp();
+    fireEvent.click(await screen.findByRole('button', { name: 'Account menu' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Account settings' }));
+    const input = await screen.findByLabelText(/Display name/);
+    await waitFor(() => expect(input).toBeEnabled());
+    const save = screen.getByRole('button', { name: 'Save name' });
+    expect(save).toBeDisabled();
+    fireEvent.change(input, { target: { value: '  Ada  ' } });
+    fireEvent.click(save);
+    expect(await screen.findByText('Name saved.')).toBeVisible();
+    expect(useStore.getState().sharing.displayName).toBe('Ada');
+    fireEvent.change(input, { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save name' }));
+    expect(await screen.findByText('Enter a name.')).toBeVisible();
   });
 
   it('leaves the signed-in address on sign out', async () => {

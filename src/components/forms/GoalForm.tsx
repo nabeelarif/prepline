@@ -1,23 +1,35 @@
 import { useState, type FormEvent } from 'react';
 import { Target } from 'lucide-react';
-import { addDays, todayISO, validISO } from '../../domain/dates';
+import { validISO } from '../../domain/dates';
 import type { Goal } from '../../domain/types';
 import { useMatch, useNavigate } from 'react-router-dom';
 import { paths } from '../../routes';
 import { useStore } from '../../state/store';
 import { ConfirmButton } from '../ConfirmButton';
+import { cleanTags, sharingProblem, type SharingValue } from '../../domain/share';
 import { DIALOG_TITLE } from '../Overlay';
+import { SharingFields } from './SharingFields';
 
 /** Create a plan (goal is null) or edit one. */
 export function GoalForm({ goal }: { goal: Goal | null }) {
-  const { createGoal, updateGoal, deleteGoal, closeOverlay } = useStore.getState();
+  const { createGoal, updateGoal, deleteGoal, closeOverlay, setPlanSharing, showToast } =
+    useStore.getState();
+  const sharingStatus = useStore((s) => s.sharing.status);
+  const savedName = useStore((s) => s.sharing.displayName);
   const navigate = useNavigate();
   const onDashboard = useMatch(paths.dashboard) !== null;
   const viewedPlan = useMatch(`${paths.plans}/:planId`)?.params.planId;
   const [name, setName] = useState(goal?.name ?? '');
-  const [date, setDate] = useState(goal?.targetDate ?? addDays(todayISO(), 42));
+  // Only a started plan has a deadline to edit; new plans choose one when they start.
+  const [date, setDate] = useState(goal?.targetDate ?? '');
   const [hours, setHours] = useState(goal?.hoursPerDay == null ? '' : String(goal.hoursPerDay));
   const [description, setDescription] = useState(goal?.description ?? '');
+  // Who can open a new plan. An existing plan is shared from its Share button.
+  const [share, setShare] = useState<SharingValue>({
+    visibility: 'private',
+    tags: '',
+    displayName: savedName ?? '',
+  });
   const [error, setError] = useState('');
 
   const submit = (e: FormEvent<HTMLFormElement>) => {
@@ -30,18 +42,23 @@ export function GoalForm({ goal }: { goal: Goal | null }) {
       setError('Give the plan a title.');
       return focus('gName');
     }
-    if (!validISO(date)) {
-      setError('Pick a target date.');
+    if (date && !validISO(date)) {
+      setError('Pick a valid deadline, or clear it.');
       return focus('gDate');
     }
     if (hrs !== null && !(hrs > 0)) {
       setError('Daily study hours must be more than 0, for example 1.5. Or leave it empty.');
       return focus('gHours');
     }
+    const sharingInvalid = goal ? null : sharingProblem(share);
+    if (sharingInvalid) {
+      setError(sharingInvalid);
+      return focus('shName');
+    }
     const input = {
       name: trimmed,
       description: description.trim(),
-      targetDate: date,
+      ...(goal?.startDate ? { targetDate: date || null } : {}),
       hoursPerDay: hrs === null ? null : Math.min(16, Math.max(0.25, hrs)),
     };
     if (goal) updateGoal(goal.id, input);
@@ -51,6 +68,17 @@ export function GoalForm({ goal }: { goal: Goal | null }) {
       // The new plan is current. Anywhere but the dashboard, open it at its own address.
       const after = useStore.getState().data.activeGoalId;
       if (!onDashboard && after && after !== before) navigate(paths.plan(after));
+      if (after && after !== before && share.visibility !== 'private') {
+        // The plan is saved in the background; sharing waits for that.
+        void setPlanSharing(
+          after,
+          share.visibility,
+          cleanTags(share.tags.split(/[,\n]/)),
+          share.visibility === 'public' ? share.displayName : undefined,
+        ).then((problem) => {
+          if (problem) showToast(`Plan created, but it could not be shared: ${problem}`);
+        });
+      }
     }
   };
 
@@ -72,10 +100,26 @@ export function GoalForm({ goal }: { goal: Goal | null }) {
         />
       </label>
       <div className="row2">
-        <label className="field">
-          <span>Target Date</span>
-          <input id="gDate" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-        </label>
+        {goal?.startDate && (
+          <label className="field">
+            <span>
+              Deadline <small>(optional)</small>
+            </span>
+            <span className="suffixed">
+              <input
+                id="gDate"
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+              />
+              {date && (
+                <button type="button" className="btn sm" onClick={() => setDate('')}>
+                  Clear
+                </button>
+              )}
+            </span>
+          </label>
+        )}
         <label className="field">
           <span>
             Daily Study Hours <small>(optional)</small>
@@ -108,6 +152,15 @@ export function GoalForm({ goal }: { goal: Goal | null }) {
           onChange={(e) => setDescription(e.target.value)}
         />
       </label>
+      {!goal && sharingStatus !== 'error' && (
+        <SharingFields
+          value={share}
+          onChange={(next) => {
+            setShare(next);
+            setError('');
+          }}
+        />
+      )}
       <p className="msg err" role="alert">
         {error}
       </p>

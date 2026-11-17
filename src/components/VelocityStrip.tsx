@@ -8,7 +8,8 @@ import { paceText, velocityText } from './paceText';
 
 /** Daily time needed against daily time planned, with a bar comparing the two. */
 export function VelocityStrip({ goal, met, pace }: { goal: Goal; met: Metrics; pace: Pace }) {
-  if (pace.kind === 'idle' || pace.kind === 'done') return null;
+  // No clock (nothing planned, done, not started, or no deadline): nothing to compare.
+  if (pace.daysLeft === null || !goal.targetDate) return null;
 
   const v = velocity(pace, goal.hoursPerDay);
   if (!v) {

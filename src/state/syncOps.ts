@@ -16,6 +16,7 @@ const sameOrder = (a: string[], b: string[]) =>
 const planFieldsChanged = (a: Goal, b: Goal) =>
   a.name !== b.name ||
   a.description !== b.description ||
+  a.startDate !== b.startDate ||
   a.targetDate !== b.targetDate ||
   a.hoursPerDay !== b.hoursPerDay ||
   a.createdAt !== b.createdAt;
@@ -24,6 +25,7 @@ const planFields = (g: Goal): Omit<Goal, 'resources' | 'phases'> => ({
   id: g.id,
   name: g.name,
   description: g.description,
+  startDate: g.startDate,
   targetDate: g.targetDate,
   hoursPerDay: g.hoursPerDay,
   createdAt: g.createdAt,

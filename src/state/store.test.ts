@@ -47,6 +47,62 @@ async function setup() {
 }
 
 describe('store', () => {
+  it('shares a plan, and copies a shared plan with no progress', async () => {
+    const { s, g, add, flush } = await setup();
+    const r = add({ title: 'Read' });
+    s().setProgress(r.id, 60);
+    s().startPlan(g().id, '2026-05-01');
+    await flush();
+    await vi.waitFor(() => expect(s().sharing.status).toBe('ready'));
+
+    // Public needs a display name; the error is shown as text, nothing is shared.
+    expect(await s().setPlanSharing(g().id, 'public', [])).toMatch(/display name/);
+    expect(s().sharing.plans).toEqual({});
+    expect(await s().setPlanSharing(g().id, 'public', ['Swift'], 'Ada')).toBeNull();
+    const slug = s().sharing.plans[g().id]!.slug!;
+    expect(s().sharing.displayName).toBe('Ada');
+
+    const shared = (await s().fetchShared(slug))!;
+    expect(shared.resources).toHaveLength(1);
+    expect(JSON.stringify(shared)).not.toContain('2026-05-01');
+
+    // Another user copies it: their own plan, fresh ids, not started, nothing done.
+    const original = { id: g().id, name: g().name, resourceId: r.id };
+    await s().signOut();
+    await s().signUpWithPassword('b@example.test', 'password1');
+    await vi.waitFor(() => expect(s().load.status).toBe('ready'));
+    expect(await s().copySharedPlan(shared)).toBeNull();
+    const copy = s().data.goals[0]!;
+    expect(copy).toMatchObject({ name: original.name, startDate: null, targetDate: null });
+    expect(copy.id).not.toBe(original.id);
+    expect(copy.resources[0]).toMatchObject({ title: 'Read', done: false, doneMinutes: 0 });
+    expect(copy.resources[0]!.id).not.toBe(original.resourceId);
+    // The copy is the new user's own: it is not shared, and sharing settings are not carried over.
+    await vi.waitFor(() => expect(s().sharing.status).toBe('ready'));
+    expect(s().sharing.plans).toEqual({});
+    expect((await s().fetchShared(slug))?.copyCount).toBe(1);
+  });
+
+  it('creates a plan not started, and starts it with or without a deadline', async () => {
+    const { s, g, saved, flush } = await setup();
+    expect(g()).toMatchObject({ startDate: null, targetDate: null });
+
+    s().startPlan(g().id, '2026-05-01');
+    expect(g().startDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(g().targetDate).toBe('2026-05-01');
+    await flush();
+    expect(saved().goals[0]).toMatchObject({ startDate: g().startDate, targetDate: '2026-05-01' });
+
+    // Starting again changes nothing; a deadline can be cleared by editing the plan.
+    const started = g().startDate;
+    s().startPlan(g().id, null);
+    expect(g()).toMatchObject({ startDate: started, targetDate: '2026-05-01' });
+    s().updateGoal(g().id, { name: 'Prep', description: '', hoursPerDay: 1, targetDate: null });
+    expect(g()).toMatchObject({ startDate: started, targetDate: null });
+    await flush();
+    expect(saved().goals[0]!.targetDate).toBeNull();
+  });
+
   it('keeps plans separate and switches between them', async () => {
     const { s, add } = await setup();
     add({ title: 'A' });
@@ -395,6 +451,7 @@ describe('store', () => {
           id: 'b1',
           name: 'One',
           description: '',
+          startDate: '2026-01-01',
           targetDate: '2027-01-01',
           hoursPerDay: null,
           createdAt: '2026-01-01',
@@ -405,6 +462,7 @@ describe('store', () => {
           id: 'b2',
           name: 'Two',
           description: '',
+          startDate: '2026-01-01',
           targetDate: '2027-01-01',
           hoursPerDay: 1,
           createdAt: '2026-01-01',
@@ -521,6 +579,7 @@ describe('store', () => {
       let fire = () => {};
       const store = createAppStore({
         repo: backend.repo,
+        sharing: backend.sharing,
         auth: {
           ...backend.auth,
           onPasswordRecovery: (cb) => ((fire = cb), () => {}),

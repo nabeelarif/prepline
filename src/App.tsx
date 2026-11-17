@@ -2,6 +2,12 @@ import { Target } from 'lucide-react';
 import { DataPanel } from './components/forms/DataPanel';
 import { GoalForm } from './components/forms/GoalForm';
 import { PhaseForm } from './components/forms/PhaseForm';
+import { StartPlanDialog } from './components/forms/StartPlanDialog';
+import { ShareDialog } from './components/forms/ShareDialog';
+import { ExplorePage } from './components/explore/ExplorePage';
+import { SharedPlanPage } from './components/explore/SharedPlanPage';
+import { SignInContext } from './components/explore/SignInContext';
+import { Logo } from './components/icons';
 import { ResourceDetails } from './components/forms/ResourceDetails';
 import { ResourceViewer } from './components/forms/ResourceViewer';
 import { ResourceForm } from './components/forms/ResourceForm';
@@ -16,7 +22,7 @@ import { AccountPanel } from './components/forms/AccountPanel';
 import { ConfigErrorScreen, LoadErrorScreen, LoadingScreen } from './components/StatusScreens';
 import { SyncBanner } from './components/SyncBanner';
 import { Toast } from './components/Toast';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import { clearReturnPath, paths, peekReturnPath } from './routes';
 import { backendConfigError, useActiveGoal, useStore } from './state/store';
@@ -35,6 +41,14 @@ function OverlayContent() {
   if (overlay.kind === 'goal') {
     const g = useStore.getState().data.goals.find((x) => x.id === overlay.goalId) ?? null;
     content = <GoalForm goal={g} />;
+  } else if (overlay.kind === 'start') {
+    const g = useStore.getState().data.goals.find((x) => x.id === overlay.goalId);
+    if (!g) return null;
+    content = <StartPlanDialog goal={g} />;
+  } else if (overlay.kind === 'share') {
+    const g = useStore.getState().data.goals.find((x) => x.id === overlay.goalId);
+    if (!g) return null;
+    content = <ShareDialog goal={g} />;
   } else if (overlay.kind === 'data') {
     content = <DataPanel />;
   } else if (overlay.kind === 'account') {
@@ -86,7 +100,8 @@ function NoPlans() {
           </div>
         }
       >
-        Create your first plan, set a target date, and add the resources you want to complete.
+        Create your first plan, add the resources you want to complete, and start it when you are
+        ready.
       </EmptyState>
     </section>
   );
@@ -162,6 +177,8 @@ function Shell() {
             <Route path={paths.dashboard} element={<Dashboard />} />
             <Route path={paths.plans} element={<MyPlans />} />
             <Route path={`${paths.plans}/:planId`} element={<PlanPage />} />
+            <Route path={paths.explore} element={<ExplorePage />} />
+            <Route path={`${paths.explore}/:slug`} element={<SharedPlanPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>
@@ -172,17 +189,60 @@ function Shell() {
   );
 }
 
+/** Explore and shared plans work without an account, so they get their own small shell. */
+function PublicShell({ onSignIn }: { onSignIn: () => void }) {
+  return (
+    <SignInContext.Provider value={onSignIn}>
+      <div className="app">
+        <header className="topbar">
+          <Link to={paths.explore} className="brand" aria-label="Road to Goals Explore">
+            <Logo />
+            <span>Road to Goals</span>
+          </Link>
+          <div className="top-tools">
+            <button className="btn primary" onClick={onSignIn}>
+              Sign in
+            </button>
+          </div>
+        </header>
+        <main className="main">
+          <Routes>
+            <Route path={paths.explore} element={<ExplorePage />} />
+            <Route path={`${paths.explore}/:slug`} element={<SharedPlanPage />} />
+            <Route path="*" element={<Navigate to={paths.explore} replace />} />
+          </Routes>
+        </main>
+      </div>
+    </SignInContext.Provider>
+  );
+}
+
+const isExplore = (pathname: string) =>
+  pathname === paths.explore || pathname.startsWith(`${paths.explore}/`);
+
 /** What to show before the app itself: configuration, sign-in and loading states. */
 export function App() {
   const auth = useStore((s) => s.auth.status);
   const load = useStore((s) => s.load.status);
   const recovery = useStore((s) => s.recovery);
+  const { pathname } = useLocation();
+  const [signInAsked, setSignInAsked] = useState(false);
 
   useEffect(() => (backendConfigError ? undefined : useStore.getState().init()), []);
+  // A later sign-out starts at the public page again, not at the sign-in screen.
+  useEffect(() => {
+    if (auth !== 'signedOut') setSignInAsked(false);
+  }, [auth]);
 
   if (backendConfigError) return <ConfigErrorScreen />;
   if (auth === 'loading') return <LoadingScreen label="Loading…" />;
-  if (auth === 'signedOut') return <AuthGate />;
+  if (auth === 'signedOut') {
+    return isExplore(pathname) && !signInAsked ? (
+      <PublicShell onSignIn={() => setSignInAsked(true)} />
+    ) : (
+      <AuthGate />
+    );
+  }
   if (recovery) return <NewPasswordScreen />;
   if (load === 'error') return <LoadErrorScreen />;
   if (load !== 'ready') return <LoadingScreen />;

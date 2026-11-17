@@ -4,6 +4,7 @@ import { AUTH_PROVIDERS } from '../auth/types';
 import { useLocation } from 'react-router-dom';
 import { rememberReturnPath } from '../routes';
 import { useStore, type AuthOutcome } from '../state/store';
+import { MAX_DISPLAY_NAME } from '../domain/share';
 import { Logo } from './icons';
 
 type Mode = 'signIn' | 'signUp' | 'reset';
@@ -13,6 +14,7 @@ export function AuthGate() {
   const [mode, setMode] = useState<Mode>('signIn');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
@@ -46,12 +48,13 @@ export function AuthGate() {
         },
       );
     }
+    if (mode === 'signUp' && !name.trim()) return setError('Enter your name.');
     if (!password) return setError('Enter your password.');
     setNotice('');
     return run(() =>
       mode === 'signIn'
         ? store.signInWithPassword(addr, password)
-        : store.signUpWithPassword(addr, password),
+        : store.signUpWithPassword(addr, password, name.trim()),
     );
   };
 
@@ -101,6 +104,19 @@ export function AuthGate() {
         )}
 
         <form noValidate onSubmit={submit}>
+          {mode === 'signUp' && (
+            <label className="field">
+              <span>Name</span>
+              <input
+                type="text"
+                autoComplete="name"
+                maxLength={MAX_DISPLAY_NAME}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+              <small className="muted">Shown as the author if you share a plan publicly.</small>
+            </label>
+          )}
           <label className="field">
             <span>Email</span>
             <input

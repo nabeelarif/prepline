@@ -5,6 +5,7 @@ import { expect, test, type Page } from '@playwright/test';
 async function signIn(page: Page, email = 'e2e@example.test') {
   await page.goto('./');
   await page.getByRole('button', { name: 'Create an account' }).click();
+  await page.getByLabel('Name').fill('E2E User');
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password').fill('correct horse battery');
   await page.getByRole('button', { name: 'Create account' }).click();
@@ -532,10 +533,74 @@ test('signed out, a plan address shows sign-in and returns to the plan after sig
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
   await expect(page).toHaveURL(/\/plans\/wanted-plan$/);
   await page.getByRole('button', { name: 'Create an account' }).click();
+  await page.getByLabel('Name').fill('E2E User');
   await page.getByLabel('Email').fill('route@example.test');
   await page.getByLabel('Password').fill('correct horse battery');
   await page.getByRole('button', { name: 'Create account' }).click();
   // Signed in, still at the requested address (no such plan in a fresh account).
   await expect(page).toHaveURL(/\/plans\/wanted-plan$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Plan not found' })).toBeVisible();
+});
+
+test('a plan can be started later, with a deadline or none, and shows no red before then', async ({
+  page,
+}) => {
+  await createPlan(page, 'Later plan');
+  await addResource(page, 'Read a book', '10');
+  const overview = summary(page);
+  await expect(overview).toContainText('Not started yet');
+  await expect(page.locator('.velocity')).toHaveCount(0);
+
+  await overview.getByRole('button', { name: 'Start plan' }).click();
+  await page.getByRole('radio', { name: 'No deadline' }).check();
+  await page.getByRole('dialog').getByRole('button', { name: 'Start plan' }).click();
+  await expect(overview).not.toContainText('Not started yet');
+  await expect(overview).toContainText('No deadline');
+  await expect(page.locator('.velocity')).toHaveCount(0);
+  await expect(page.locator('.pace-open, .pace-not_started, .pace-idle')).not.toHaveCount(0);
+  await expect(page.locator('.pace-behind, .pace-past')).toHaveCount(0);
+});
+
+test('a shared plan shows content only, signed out, and can be copied into another account', async ({
+  page,
+}) => {
+  await createPlan(page, 'Shared plan');
+  await addResource(page, 'Swift basics', '2', 'https://example.com/swift');
+  await summary(page).getByRole('button', { name: 'Start plan' }).click();
+  await page.getByRole('radio', { name: '30 days from today' }).check();
+  await page.getByRole('dialog').getByRole('button', { name: 'Start plan' }).click();
+
+  await summary(page).getByRole('button', { name: 'Share plan' }).click();
+  const dialog = page.getByRole('dialog', { name: /Share/ });
+  await dialog.getByRole('radio', { name: /Anyone with the link/ }).check();
+  await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(dialog.getByText('Sharing settings saved.')).toBeVisible();
+  const link = await dialog.getByLabel('Link to this plan').inputValue();
+  await dialog.getByRole('button', { name: 'Done' }).click();
+
+  await page.getByRole('button', { name: 'Account menu' }).click();
+  await page.getByRole('menuitem', { name: 'Sign out' }).click();
+  await page.getByRole('menuitem', { name: 'Click again to sign out' }).click();
+  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+
+  // Signed out, the link opens the plan: its content, and nothing of its owner's schedule.
+  await page.goto(link);
+  await expect(page.getByRole('heading', { level: 1, name: 'Shared plan' })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Swift basics/ })).toBeVisible();
+  // Nothing about the owner's schedule or progress: no deadline, days left or percentage.
+  await expect(page.getByText(/days left|deadline|% complete/i)).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Swift basics' })).toHaveAttribute('rel', /nofollow/);
+
+  // Adding it asks for an account, then returns to the plan and adds a fresh copy.
+  await page.getByRole('button', { name: 'Add to My Plans' }).click();
+  await page.getByRole('button', { name: 'Create an account' }).click();
+  await page.getByLabel('Name').fill('E2E User');
+  await page.getByLabel('Email').fill('viewer@example.test');
+  await page.getByLabel('Password').fill('correct horse battery');
+  await page.getByRole('button', { name: 'Create account' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Shared plan' })).toBeVisible();
+  await page.getByRole('button', { name: 'Add to My Plans' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Shared plan' })).toBeVisible();
+  await expect(summary(page)).toContainText('Not started yet');
+  await expect(summary(page)).toContainText('0%');
 });

@@ -4,6 +4,9 @@ export const paths = {
   dashboard: '/dashboard',
   plans: '/plans',
   plan: (id: string) => `/plans/${encodeURIComponent(id)}`,
+  /** Public gallery, and one shared plan by its link. Both work without an account. */
+  explore: '/explore',
+  shared: (slug: string) => `/explore/${encodeURIComponent(slug)}`,
 };
 
 const RETURN_KEY = 'roadtogoals:returnTo';

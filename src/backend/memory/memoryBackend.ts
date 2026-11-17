@@ -11,6 +11,15 @@ import { createEmptyAppData } from '../../domain/backup';
 import { parseAppData } from '../../domain/schema';
 import type { AppData, Goal } from '../../domain/types';
 import { RepositoryError, type RepositoryErrorCode } from '../../repositories/errors';
+import {
+  cleanTags,
+  MAX_DISPLAY_NAME,
+  type PlanSharing,
+  type Visibility,
+  type PlanSummary,
+  type SharedPlan,
+} from '../../domain/share';
+import type { PlanSharingRepository } from '../../repositories/sharing';
 import type { AppRepository } from '../../repositories/types';
 import type { Backend } from '../types';
 
@@ -26,10 +35,24 @@ interface Account {
   methods: AuthProviderId[];
 }
 
+/** A shared plan's settings, stored per owner and plan like the `plan_shares` table. */
+interface Share {
+  visibility: Exclude<Visibility, 'private'>;
+  slug: string;
+  tags: string[];
+  hidden: boolean;
+  publishedAt: string;
+  /** Ids of the people who copied it, so each counts once. */
+  copiedBy: string[];
+}
+
 interface Snapshot {
   accounts: Account[];
   data: Record<string, AppData>;
   current: string | null;
+  shares?: Record<string, Record<string, Share>>;
+  names?: Record<string, string>;
+  reports?: { slug: string; by: string; reason: string }[];
 }
 
 export interface MemoryOptions {
@@ -66,6 +89,9 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
   let failCode: RepositoryErrorCode = 'network';
   let gate: Promise<void> | null = null;
   let seq = 0;
+  let shares: Record<string, Record<string, Share>> = {};
+  let names: Record<string, string> = {};
+  let reports: { slug: string; by: string; reason: string }[] = [];
 
   try {
     const raw = opts.persist?.getItem(key);
@@ -74,13 +100,19 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
       accounts = snap.accounts;
       data = snap.data;
       current = snap.current;
+      shares = snap.shares ?? {};
+      names = snap.names ?? {};
+      reports = snap.reports ?? [];
     }
   } catch {
     /* start empty */
   }
   const persist = () => {
     try {
-      opts.persist?.setItem(key, JSON.stringify({ accounts, data, current } satisfies Snapshot));
+      opts.persist?.setItem(
+        key,
+        JSON.stringify({ accounts, data, current, shares, names, reports } satisfies Snapshot),
+      );
     } catch {
       /* ignore */
     }
@@ -125,6 +157,10 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
     const d = clone(data[current] ?? createEmptyAppData());
     const out = fn(d);
     data[current] = d;
+    // A plan that no longer exists is no longer shared.
+    const mine = shares[current];
+    if (mine)
+      for (const id of Object.keys(mine)) if (!d.goals.some((g) => g.id === id)) delete mine[id];
     persist();
     return out;
   };
@@ -207,6 +243,167 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
       }),
   };
 
+  /** Like `run`, for sharing calls: honours holds and injected failures. */
+  const shared = async <T>(
+    name: string,
+    needsUser: boolean,
+    fn: (userId: string) => T,
+  ): Promise<T> => {
+    calls.push(name);
+    if (gate) await gate;
+    if (failures > 0) {
+      failures--;
+      throw new RepositoryError(failCode, `injected ${failCode} failure`);
+    }
+    if (needsUser && !current) throw new RepositoryError('unauthorized', 'not signed in');
+    const out = fn(current ?? '');
+    persist();
+    return out;
+  };
+  /** Every share with its owner, for lookups across users. */
+  const allShares = () =>
+    Object.entries(shares).flatMap(([owner, byGoal]) =>
+      Object.entries(byGoal).map(([goalId, share]) => ({ owner, goalId, share })),
+    );
+  const findShare = (slug: string) =>
+    allShares().find((f) => f.share.slug === slug && !f.share.hidden) ?? null;
+  const toSettings = (s: Share): PlanSharing => ({
+    visibility: s.visibility,
+    slug: s.slug,
+    tags: s.tags,
+    hidden: s.hidden,
+    copyCount: s.copiedBy.length,
+  });
+  const toShared = (f: NonNullable<ReturnType<typeof findShare>>): SharedPlan => {
+    const g = data[f.owner]!.goals.find((x) => x.id === f.goalId)!;
+    // Content only: this is what other people may see.
+    return clone({
+      slug: f.share.slug,
+      visibility: f.share.visibility,
+      name: g.name,
+      description: g.description,
+      author: names[f.owner] ?? null,
+      tags: f.share.tags,
+      publishedAt: f.share.publishedAt,
+      copyCount: f.share.copiedBy.length,
+      phases: g.phases,
+      resources: g.resources.map((r) => ({
+        id: r.id,
+        title: r.title,
+        url: r.url,
+        type: r.type,
+        minutes: r.minutes,
+        notes: r.notes,
+        phaseId: r.phaseId,
+      })),
+    });
+  };
+  const toSummary = (p: SharedPlan): PlanSummary => ({
+    slug: p.slug,
+    name: p.name,
+    description: p.description,
+    author: p.author,
+    tags: p.tags,
+    publishedAt: p.publishedAt,
+    copyCount: p.copyCount,
+    phaseCount: p.phases.length,
+    resourceCount: p.resources.length,
+    totalMinutes: p.resources.reduce((n, r) => n + r.minutes, 0),
+  });
+
+  const sharing: PlanSharingRepository = {
+    getShared: (slug) =>
+      shared('getShared', false, () => {
+        const f = findShare(slug);
+        return f ? toShared(f) : null;
+      }),
+    listPublic: (q = {}) =>
+      shared('listPublic', false, () => {
+        const needle = (q.query ?? '').trim().toLowerCase();
+        return (
+          allShares()
+            .filter((f) => f.share.visibility === 'public' && !f.share.hidden)
+            .map(toShared)
+            // Not listed until it has a resource.
+            .filter((p) => p.resources.length > 0)
+            .filter(
+              (p) =>
+                (!needle ||
+                  p.name.toLowerCase().includes(needle) ||
+                  p.description.toLowerCase().includes(needle)) &&
+                (!q.tag || p.tags.includes(q.tag.toLowerCase())),
+            )
+            .sort(
+              (a, b) => b.publishedAt.localeCompare(a.publishedAt) || a.slug.localeCompare(b.slug),
+            )
+            .slice(q.offset ?? 0, (q.offset ?? 0) + Math.min(50, Math.max(1, q.limit ?? 24)))
+            .map(toSummary)
+        );
+      }),
+    loadSharing: () =>
+      shared('loadSharing', true, (me) => ({
+        plans: Object.fromEntries(
+          Object.entries(shares[me] ?? {}).map(([id, s]) => [id, toSettings(s)]),
+        ),
+        displayName: names[me] ?? null,
+      })),
+    setSharing: (goalId, visibility, tags) =>
+      shared('setSharing', true, (me) => {
+        const g = (data[me] ?? createEmptyAppData()).goals.find((x) => x.id === goalId);
+        if (!g) throw new RepositoryError('notFound', 'plan not found');
+        const mine = (shares[me] ??= {});
+        if (visibility === 'private') {
+          delete mine[goalId];
+          return { visibility: 'private', slug: null, tags: [], hidden: false, copyCount: 0 };
+        }
+        if (visibility === 'public') {
+          if (!names[me]) {
+            throw new RepositoryError(
+              'validation',
+              'set a display name before making a plan public',
+            );
+          }
+          const others = Object.entries(mine).filter(
+            ([id, s]) => id !== goalId && s.visibility === 'public',
+          );
+          if (others.length >= 20)
+            throw new RepositoryError('validation', 'at most 20 public plans');
+        }
+        const existing = mine[goalId];
+        const next: Share = {
+          visibility,
+          tags: cleanTags(tags),
+          hidden: existing?.hidden ?? false,
+          slug: existing?.slug ?? `s${++seq}${Math.random().toString(36).slice(2, 10)}`,
+          publishedAt: existing?.publishedAt ?? new Date().toISOString(),
+          copiedBy: existing?.copiedBy ?? [],
+        };
+        mine[goalId] = next;
+        return toSettings(next);
+      }),
+    setDisplayName: (name) =>
+      shared('setDisplayName', true, (me) => {
+        const n = name.trim();
+        if (n.length > MAX_DISPLAY_NAME) throw new RepositoryError('validation', 'name too long');
+        if (n) names[me] = n;
+        else delete names[me];
+      }),
+    recordCopy: (slug) =>
+      shared('recordCopy', true, (me) => {
+        const f = findShare(slug);
+        if (f && f.owner !== me && !f.share.copiedBy.includes(me)) f.share.copiedBy.push(me);
+      }),
+    report: (slug, reason) =>
+      shared('report', true, (me) => {
+        if (!Object.values(shares).some((b) => Object.values(b).some((s) => s.slug === slug))) {
+          throw new RepositoryError('notFound', 'plan not found');
+        }
+        if (!reports.some((r) => r.slug === slug && r.by === me)) {
+          reports.push({ slug, by: me, reason: reason.trim().slice(0, 500) });
+        }
+      }),
+  };
+
   const signInAs = (a: Account): AuthResult => {
     current = a.id;
     emit();
@@ -240,12 +437,14 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
       if (!a) throw new AuthError('invalidCredentials', 'Invalid email or password');
       return signInAs(a);
     },
-    async signUpWithPassword(email, password) {
+    async signUpWithPassword(email, password, displayName) {
       assertStrong(password);
       const existing = accounts.find((x) => x.email === email);
       if (existing?.password) throw new AuthError('emailTaken', 'Email already registered');
       const a = account(email, password, 'password');
       a.password = password;
+      const name = displayName?.trim().slice(0, MAX_DISPLAY_NAME);
+      if (name && !existing) names[a.id] = name;
       if (opts.confirmEmail) {
         persist();
         return 'confirmEmail';
@@ -295,6 +494,7 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
 
   return {
     repo,
+    sharing,
     auth,
     calls,
     failNext(count = 1, code = 'network') {

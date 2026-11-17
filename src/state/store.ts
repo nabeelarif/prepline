@@ -6,17 +6,35 @@ import { uid } from '../domain/format';
 import type { RoadmapView } from '../domain/roadmap';
 import { progressPatch, statusPatch } from '../domain/resources';
 import { parseAppData } from '../domain/schema';
-import type { AppData, Goal, Phase, Resource, ResourceStatus, ResourceType } from '../domain/types';
+import type {
+  AppData,
+  Goal,
+  ISODate,
+  Phase,
+  Resource,
+  ResourceStatus,
+  ResourceType,
+} from '../domain/types';
 import { describeAuthError } from '../auth/describe';
 import type { AuthProviderId, AuthResult, AuthUser, LinkedMethod } from '../auth/types';
 import { createBackend } from '../backend';
 import type { Backend } from '../backend/types';
-import { describeError } from '../repositories/errors';
+import { describeError, RepositoryError } from '../repositories/errors';
+import type { PublicListQuery } from '../repositories/sharing';
+import {
+  copyOfSharedPlan,
+  type PlanSharing,
+  type PlanSummary,
+  type SharedPlan,
+  type Visibility,
+} from '../domain/share';
 import { diffData } from './syncOps';
 import { IDLE_SYNC, WriteQueue, type SyncState } from './writeQueue';
 
 export type Overlay =
   | { kind: 'goal'; goalId: string | null }
+  | { kind: 'start'; goalId: string }
+  | { kind: 'share'; goalId: string }
   | { kind: 'resource'; resourceId: string | null; phaseId?: string | null }
   | { kind: 'phase'; phaseId: string | null }
   | { kind: 'details'; resourceId: string }
@@ -24,7 +42,9 @@ export type Overlay =
   | { kind: 'data' }
   | { kind: 'account' };
 
-export type GoalInput = Pick<Goal, 'name' | 'description' | 'targetDate' | 'hoursPerDay'>;
+/** Fields set on the plan form. The deadline is only edited once a plan has started. */
+export type GoalInput = Pick<Goal, 'name' | 'description' | 'hoursPerDay'> &
+  Partial<Pick<Goal, 'targetDate'>>;
 export type ResourceInput = Pick<
   Resource,
   'url' | 'title' | 'type' | 'minutes' | 'notes' | 'phaseId'
@@ -58,8 +78,17 @@ export interface LoadState {
 /** Result of a sign-in step: what happened next, or text to show the user. */
 export type AuthOutcome = { ok: true; result: AuthResult } | { ok: false; error: string };
 
+/** The signed-in user's sharing settings. Separate from `data`: never saved through `commit`. */
+export interface SharingState {
+  status: 'idle' | 'ready' | 'error';
+  /** By plan id; plans that are not shared are absent. */
+  plans: Record<string, PlanSharing>;
+  displayName: string | null;
+}
+
 export interface Store {
   data: AppData;
+  sharing: SharingState;
   ui: UiState;
   auth: AuthState;
   load: LoadState;
@@ -70,6 +99,25 @@ export interface Store {
   /** The user arrived from a password-reset link and must choose a new password. */
   recovery: boolean;
 
+  /** Reads for anyone, signed in or not. They reject with an Error whose message can be shown. */
+  fetchShared(slug: string): Promise<SharedPlan | null>;
+  fetchPublic(q?: PublicListQuery): Promise<PlanSummary[]>;
+  /**
+   * Changes who can open a plan. Returns an error text to show, or null on success.
+   * Public needs a display name; pass it to set it in the same step.
+   */
+  setPlanSharing(
+    goalId: string,
+    visibility: Visibility,
+    tags: string[],
+    displayName?: string,
+  ): Promise<string | null>;
+  /** Changes the name shown as the author of public plans. Returns an error text, or null. */
+  saveDisplayName(name: string): Promise<string | null>;
+  /** Copies a shared plan into the signed-in user's plans, with no progress. */
+  copySharedPlan(shared: SharedPlan): Promise<string | null>;
+  reportSharedPlan(slug: string, reason: string): Promise<string | null>;
+
   /** Starts watching the session and loads the signed-in user's data. Returns a cleanup. */
   init(): () => void;
   reload(): Promise<void>;
@@ -79,7 +127,7 @@ export interface Store {
   discardUnsaved(): Promise<void>;
   signInWithProvider(p: Exclude<AuthProviderId, 'password'>): Promise<AuthOutcome>;
   signInWithPassword(email: string, password: string): Promise<AuthOutcome>;
-  signUpWithPassword(email: string, password: string): Promise<AuthOutcome>;
+  signUpWithPassword(email: string, password: string, displayName?: string): Promise<AuthOutcome>;
   sendPasswordReset(email: string): Promise<AuthOutcome>;
   /** Sets the new password after a reset link and returns to the app. */
   updatePassword(password: string): Promise<AuthOutcome>;
@@ -92,6 +140,8 @@ export interface Store {
   selectGoal(id: string): void;
   createGoal(input: GoalInput): void;
   updateGoal(id: string, input: GoalInput): void;
+  /** Begin a plan today, optionally with a deadline. */
+  startPlan(id: string, targetDate: ISODate | null): void;
   deleteGoal(id: string): void;
   duplicateGoal(id: string): void;
 
@@ -136,6 +186,8 @@ export interface Store {
   /** Deletes all saved data, the same way. Closes overlays on success. */
   deleteAllData(): Promise<boolean>;
 }
+
+const NO_SHARING: SharingState = { status: 'idle', plans: {}, displayName: null };
 
 const freshUi = (): UiState => ({
   view: 'simple',
@@ -185,7 +237,11 @@ function place<T extends { id: string }>(list: T[], id: string, targetId: string
 
 let toastSeq = 0;
 
-export function createAppStore({ repo, auth }: Backend) {
+const rethrowShown = (e: unknown): never => {
+  throw new Error(describeError(e));
+};
+
+export function createAppStore({ repo, auth, sharing }: Backend) {
   return create<Store>()((set, get) => {
     const queue = new WriteQueue((sync) => set({ sync }));
     let userId: string | null = null;
@@ -259,12 +315,29 @@ export function createAppStore({ repo, auth }: Backend) {
           data: parseAppData(loaded) ?? createEmptyAppData(),
           load: { status: 'ready', error: null },
         });
+        void loadSharing();
       } catch (e) {
         if (seq !== loadSeq) return;
         console.error('Loading data failed:', e, (e as Error | undefined)?.cause);
         set({ load: { status: 'error', error: describeError(e) } });
       }
     };
+    /** Replacing everything drops the old plans' share rows; appending plans does not. */
+    const refreshSharing = (ok: boolean) => {
+      if (ok) void loadSharing();
+      return ok;
+    };
+    const loadSharing = async () => {
+      const seq = loadSeq;
+      try {
+        const s = await sharing.loadSharing();
+        if (seq === loadSeq) set({ sharing: { status: 'ready', ...s } });
+      } catch {
+        // Not worth blocking the app: sharing just shows as unavailable.
+        if (seq === loadSeq) set({ sharing: { status: 'error', plans: {}, displayName: null } });
+      }
+    };
+
     /** Starts over for another user, or for nobody: nothing of the old user stays in memory. */
     const handleUser = (user: AuthUser | null) => {
       if (user && user.id === userId) {
@@ -276,6 +349,7 @@ export function createAppStore({ repo, auth }: Backend) {
       queue.clear();
       const reset = {
         data: createEmptyAppData(),
+        sharing: NO_SHARING,
         ui: freshUi(),
         sync: IDLE_SYNC,
         busy: false,
@@ -308,12 +382,89 @@ export function createAppStore({ repo, auth }: Backend) {
 
     return {
       data: createEmptyAppData(),
+      sharing: NO_SHARING,
       ui: freshUi(),
       auth: { status: 'loading', user: null },
       load: { status: 'idle', error: null },
       sync: IDLE_SYNC,
       busy: false,
       recovery: false,
+
+      // Rejects with an Error whose message is safe to show.
+      fetchShared: (slug) => sharing.getShared(slug).catch(rethrowShown),
+      fetchPublic: (q) => sharing.listPublic(q).catch(rethrowShown),
+
+      setPlanSharing: async (goalId, visibility, tags, displayName) => {
+        const startedFor = userId;
+        try {
+          // A plan created a moment ago may not be saved yet, and sharing needs it to exist.
+          await queue.settled();
+          if (
+            displayName !== undefined &&
+            displayName.trim() !== (get().sharing.displayName ?? '')
+          ) {
+            await sharing.setDisplayName(displayName);
+          }
+          const result = await sharing.setSharing(goalId, visibility, tags);
+          if (userId !== startedFor) return null;
+          set((s) => {
+            const plans = { ...s.sharing.plans };
+            if (result.visibility === 'private') delete plans[goalId];
+            else plans[goalId] = result;
+            return {
+              sharing: {
+                status: 'ready',
+                plans,
+                displayName:
+                  displayName === undefined ? s.sharing.displayName : displayName.trim() || null,
+              },
+            };
+          });
+          return null;
+        } catch (e) {
+          return e instanceof RepositoryError && e.code === 'validation'
+            ? e.message
+            : describeError(e);
+        }
+      },
+
+      saveDisplayName: async (name) => {
+        const startedFor = userId;
+        const clean = name.trim();
+        try {
+          await sharing.setDisplayName(clean);
+          if (userId === startedFor) {
+            set((s) => ({ sharing: { ...s.sharing, displayName: clean || null } }));
+          }
+          return null;
+        } catch (e) {
+          return e instanceof RepositoryError && e.code === 'validation'
+            ? e.message
+            : describeError(e);
+        }
+      },
+
+      copySharedPlan: async (shared) => {
+        const existing = get().data.goals.length;
+        const ok = await replaceData(
+          (clean) => repo.addGoals(clean.goals.slice(existing), clean.activeGoalId),
+          mergePlans(get().data, copyOfSharedPlan(shared)),
+          toast('Added to My Plans'),
+        );
+        if (!ok) return 'Could not add the plan. Try again.';
+        // Only a counter: the copy already worked.
+        void sharing.recordCopy(shared.slug).catch(() => undefined);
+        return null;
+      },
+
+      reportSharedPlan: async (slug, reason) => {
+        try {
+          await sharing.report(slug, reason);
+          return null;
+        } catch (e) {
+          return describeError(e);
+        }
+      },
 
       init: () => {
         const stop = auth.onChange((user) => handleUser(user));
@@ -343,7 +494,7 @@ export function createAppStore({ repo, auth }: Backend) {
       },
       signInWithProvider: (p) => attempt(() => auth.signInWithProvider(p)),
       signInWithPassword: (e, p) => attempt(() => auth.signInWithPassword(e, p)),
-      signUpWithPassword: (e, p) => attempt(() => auth.signUpWithPassword(e, p)),
+      signUpWithPassword: (e, p, n) => attempt(() => auth.signUpWithPassword(e, p, n)),
       sendPasswordReset: (e) => attempt(() => auth.sendPasswordReset(e)),
       updatePassword: async (password) => {
         const out = await attempt(() => auth.updatePassword(password));
@@ -367,6 +518,8 @@ export function createAppStore({ repo, auth }: Backend) {
             const g: Goal = {
               id: uid(),
               ...input,
+              startDate: null,
+              targetDate: null,
               createdAt: todayISO(),
               resources: [],
               phases: [],
@@ -381,9 +534,23 @@ export function createAppStore({ repo, auth }: Backend) {
         commit(
           (d) => {
             const g = d.goals.find((x) => x.id === id);
-            if (g) Object.assign(g, input);
+            if (!g) return;
+            Object.assign(g, input);
+            // A deadline belongs to a started plan; Start sets it.
+            if (!g.startDate) g.targetDate = null;
           },
           { overlay: null, ...toast('Plan saved') },
+        ),
+
+      startPlan: (id, targetDate) =>
+        commit(
+          (d) => {
+            const g = d.goals.find((x) => x.id === id);
+            if (!g || g.startDate) return;
+            g.startDate = todayISO();
+            g.targetDate = targetDate;
+          },
+          { overlay: null, ...toast('Plan started') },
         ),
 
       deleteGoal: (id) =>
@@ -557,7 +724,7 @@ export function createAppStore({ repo, auth }: Backend) {
       restoreBackup: (data) =>
         replaceData((clean) => repo.replaceAll(clean), uniqueIds(data), {
           overlay: { kind: 'data' },
-        }),
+        }).then(refreshSharing),
 
       // Appends only the new plans, so plans another device saved meanwhile stay untouched.
       addPlans: (data) => {
@@ -574,7 +741,7 @@ export function createAppStore({ repo, auth }: Backend) {
           () => repo.deleteAll(),
           createEmptyAppData(),
           toast('All Road to Goals data deleted'),
-        ),
+        ).then(refreshSharing),
     };
   });
 }
@@ -591,12 +758,14 @@ export const backendConfigError = 'configError' in created ? created.configError
 const unavailable = (): never => {
   throw new Error(backendConfigError ?? 'Backend not configured');
 };
+const unavailableOf = <T extends object>() => new Proxy({}, { get: () => unavailable }) as T;
 export const useStore = createAppStore(
   'backend' in created
     ? created.backend
     : {
-        repo: new Proxy({}, { get: () => unavailable }) as Backend['repo'],
-        auth: new Proxy({}, { get: () => unavailable }) as Backend['auth'],
+        repo: unavailableOf<Backend['repo']>(),
+        sharing: unavailableOf<Backend['sharing']>(),
+        auth: unavailableOf<Backend['auth']>(),
       },
 );
 

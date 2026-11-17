@@ -36,7 +36,10 @@ export interface Goal {
   id: string;
   name: string;
   description: string;
-  targetDate: ISODate;
+  /** The day the user pressed Start; null while the plan has not started. */
+  startDate: ISODate | null;
+  /** Optional deadline; null means no deadline. */
+  targetDate: ISODate | null;
   /** Daily study capacity; null when the user has not set one. */
   hoursPerDay: number | null;
   createdAt: ISODate;

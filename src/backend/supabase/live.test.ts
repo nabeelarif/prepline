@@ -1,6 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
-import { describeRepositoryContract } from '../../repositories/contract';
+import {
+  describeRepositoryContract,
+  describeSharingContract,
+  type ContractSubject,
+} from '../../repositories/contract';
 import { createSupabaseRepository } from './repository';
+import { createSupabaseSharing } from './sharing';
 
 /**
  * Runs the repository contract against a real Supabase project with the schema applied.
@@ -18,12 +23,16 @@ const configured =
   env.SUPABASE_TEST_PASSWORD_B;
 
 if (configured) {
-  describeRepositoryContract('Supabase', async () => {
+  const make = async (): Promise<ContractSubject> => {
     const client = createClient(env.SUPABASE_TEST_URL!, env.SUPABASE_TEST_ANON_KEY!, {
       auth: { persistSession: false },
     });
     return {
       repo: createSupabaseRepository(client),
+      sharing: createSupabaseSharing(client),
+      signOut: async () => {
+        await client.auth.signOut();
+      },
       switchUser: async (who) => {
         await client.auth.signOut();
         const { error } = await client.auth.signInWithPassword({
@@ -33,7 +42,9 @@ if (configured) {
         if (error) throw error;
       },
     };
-  });
+  };
+  describeRepositoryContract('Supabase', make);
+  describeSharingContract('Supabase', make);
 } else {
   describe('Supabase live contract', () => {
     it.skip('needs SUPABASE_TEST_* environment variables (see docs/supabase-setup.md)', () => {});

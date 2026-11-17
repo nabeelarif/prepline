@@ -2,10 +2,14 @@ import { createEmptyAppData } from '../domain/backup';
 import type { Goal } from '../domain/types';
 import { goal as makeGoal, res } from '../test/fixtures';
 import { RepositoryError } from './errors';
+import type { PlanSharingRepository } from './sharing';
 import type { AppRepository } from './types';
 
 export interface ContractSubject {
   repo: AppRepository;
+  sharing: PlanSharingRepository;
+  /** Signs out, so reads can be checked as someone with no account. */
+  signOut(): Promise<void>;
   /** Makes `repo` act for a different user. Data of the other user must stay invisible. */
   switchUser(name: 'a' | 'b'): Promise<void>;
 }
@@ -76,6 +80,7 @@ export function describeRepositoryContract(name: string, make: () => Promise<Con
         id: g1.id,
         name: 'Renamed',
         description: g1.description,
+        startDate: g1.startDate,
         targetDate: g1.targetDate,
         hoursPerDay: null,
         createdAt: g1.createdAt,
@@ -146,6 +151,136 @@ export function describeRepositoryContract(name: string, make: () => Promise<Con
       const goals = (await repo.loadAll()).goals;
       expect(goals.map((g) => g.id)).toEqual(['mine']);
       expect(goals[0]!.resources.map((r) => r.id)).not.toContain('intruder');
+    });
+  });
+}
+
+/**
+ * Behaviour every `PlanSharingRepository` must have. The rule that matters most: other
+ * people only ever get plan content, never progress, dates or daily hours.
+ */
+export function describeSharingContract(name: string, make: () => Promise<ContractSubject>) {
+  describe(`${name}: sharing contract`, () => {
+    let subject: ContractSubject;
+    let repo: AppRepository;
+    let sharing: PlanSharingRepository;
+    beforeEach(async () => {
+      subject = await make();
+      repo = subject.repo;
+      sharing = subject.sharing;
+      await subject.switchUser('b');
+      await repo.deleteAll();
+      await subject.switchUser('a');
+      await repo.deleteAll();
+    });
+
+    /** A plan with progress, a deadline and daily hours: none of it may be shared. */
+    const planWithProgress = (id: string): Goal =>
+      makeGoal(
+        [
+          res({ id: `${id}-r1`, title: 'Read', done: true, doneMinutes: 30, doneAt: '2026-03-02' }),
+          res({ id: `${id}-r2`, title: 'Watch', phaseId: `${id}-p1`, startedAt: '2026-03-03' }),
+        ],
+        {
+          id,
+          name: `Plan ${id}`,
+          startDate: '2026-03-01',
+          targetDate: '2026-04-01',
+          hoursPerDay: 2,
+          phases: [{ id: `${id}-p1`, name: 'Basics', description: '', color: 'green' }],
+        },
+      );
+    const share = async (id: string, visibility: 'unlisted' | 'public') => {
+      await repo.saveGoalTree(planWithProgress(id));
+      await sharing.setDisplayName('Ada');
+      return sharing.setSharing(id, visibility, ['Swift', 'swift', ' iOS ']);
+    };
+
+    it('shares content only, never progress, dates or daily hours', async () => {
+      const { slug } = await share('g1', 'unlisted');
+      const plan = (await sharing.getShared(slug!))!;
+      expect(plan).toMatchObject({ name: 'Plan g1', author: 'Ada', visibility: 'unlisted' });
+      expect(plan.tags).toEqual(['ios', 'swift']);
+      expect(plan.resources.map((r) => r.id)).toEqual(['g1-r1', 'g1-r2']);
+      expect(Object.keys(plan.resources[0]!).sort()).toEqual(
+        ['id', 'minutes', 'notes', 'phaseId', 'title', 'type', 'url'].sort(),
+      );
+      const text = JSON.stringify(plan);
+      for (const secret of ['2026-03-02', '2026-03-03', '2026-04-01', 'hoursPerDay', 'done']) {
+        expect(text).not.toContain(secret);
+      }
+    });
+
+    it('can be read without an account; only public plans are listed', async () => {
+      const unlisted = await share('g1', 'unlisted');
+      const pub = await share('g2', 'public');
+      await subject.signOut();
+      expect((await sharing.getShared(unlisted.slug!))?.name).toBe('Plan g1');
+      const list = await sharing.listPublic();
+      expect(list.map((p) => p.slug)).toEqual([pub.slug]);
+      expect(list[0]).toMatchObject({ resourceCount: 2, phaseCount: 1, author: 'Ada' });
+      expect(await sharing.listPublic({ query: 'nothing like this' })).toEqual([]);
+      expect(await sharing.listPublic({ tag: 'swift' })).toHaveLength(1);
+    });
+
+    it('stops sharing, and a plan that is deleted is no longer shared', async () => {
+      const a = await share('g1', 'unlisted');
+      const b = await share('g2', 'public');
+      expect(await sharing.setSharing('g1', 'private', [])).toMatchObject({
+        visibility: 'private',
+      });
+      await repo.deleteGoal('g2');
+      expect(await sharing.getShared(a.slug!)).toBeNull();
+      expect(await sharing.getShared(b.slug!)).toBeNull();
+      expect((await sharing.loadSharing()).plans).toEqual({});
+    });
+
+    it('keeps the link when visibility changes, and reports the settings to the owner', async () => {
+      const first = await share('g1', 'unlisted');
+      const second = await sharing.setSharing('g1', 'public', []);
+      expect(second.slug).toBe(first.slug);
+      const mine = await sharing.loadSharing();
+      expect(mine.displayName).toBe('Ada');
+      expect(mine.plans['g1']).toMatchObject({ visibility: 'public', slug: first.slug });
+    });
+
+    it('needs a display name to go public', async () => {
+      await repo.saveGoalTree(planWithProgress('g1'));
+      await expect(sharing.setSharing('g1', 'public', [])).rejects.toMatchObject({
+        code: 'validation',
+      });
+    });
+
+    it('lets an empty plan be shared, but lists it only once it has a resource', async () => {
+      await repo.saveGoalTree({ ...planWithProgress('g1'), resources: [] });
+      await sharing.setDisplayName('Ada');
+      const { slug } = await sharing.setSharing('g1', 'public', []);
+      expect((await sharing.getShared(slug!))?.resources).toEqual([]);
+      expect(await sharing.listPublic()).toEqual([]);
+      await repo.saveResource('g1', res({ id: 'g1-r1' }));
+      expect((await sharing.listPublic()).map((p) => p.slug)).toEqual([slug]);
+    });
+
+    it('only lets the owner share a plan, and counts each copy once', async () => {
+      const { slug } = await share('g1', 'public');
+      await subject.switchUser('b');
+      await expect(sharing.setSharing('g1', 'public', [])).rejects.toBeInstanceOf(RepositoryError);
+      expect((await sharing.loadSharing()).plans).toEqual({});
+      await sharing.recordCopy(slug!);
+      await sharing.recordCopy(slug!);
+      await subject.switchUser('a');
+      expect((await sharing.loadSharing()).plans['g1']!.copyCount).toBe(1);
+      await sharing.recordCopy(slug!);
+      expect((await sharing.loadSharing()).plans['g1']!.copyCount).toBe(1);
+    });
+
+    it('takes reports from signed-in people only', async () => {
+      const { slug } = await share('g1', 'public');
+      await subject.signOut();
+      await expect(sharing.report(slug!, 'spam')).rejects.toMatchObject({ code: 'unauthorized' });
+      await subject.switchUser('b');
+      await sharing.report(slug!, 'spam');
+      await sharing.report(slug!, 'spam again');
     });
   });
 }

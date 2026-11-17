@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { UserRound } from 'lucide-react';
 import { AUTH_PROVIDERS, type AuthProviderId, type LinkedMethod } from '../../auth/types';
+import { MAX_DISPLAY_NAME } from '../../domain/share';
 import { useStore } from '../../state/store';
 import { useSignOut } from '../useSignOut';
 import { DIALOG_TITLE } from '../Overlay';
@@ -20,6 +21,22 @@ export function AccountPanel() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
+  const savedName = useStore((s) => s.sharing.displayName);
+  const sharingReady = useStore((s) => s.sharing.status === 'ready');
+  const [name, setName] = useState(savedName ?? '');
+  const [nameMsg, setNameMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [nameBusy, setNameBusy] = useState(false);
+  useEffect(() => setName(savedName ?? ''), [savedName]);
+
+  const saveName = async (e: FormEvent) => {
+    e.preventDefault();
+    if (nameBusy) return;
+    if (!name.trim()) return setNameMsg({ ok: false, text: 'Enter a name.' });
+    setNameBusy(true);
+    const err = await store.saveDisplayName(name);
+    setNameMsg(err ? { ok: false, text: err } : { ok: true, text: 'Name saved.' });
+    setNameBusy(false);
+  };
 
   const refresh = () => store.listMethods().then(setMethods);
   useEffect(() => {
@@ -53,6 +70,39 @@ export function AccountPanel() {
       <p>
         Signed in as <strong>{user?.email ?? 'your account'}</strong>.
       </p>
+      <h3>Your name</h3>
+      <form noValidate onSubmit={saveName}>
+        <label className="field">
+          <span>Display name</span>
+          <input
+            type="text"
+            autoComplete="name"
+            maxLength={MAX_DISPLAY_NAME}
+            value={name}
+            disabled={!sharingReady}
+            onChange={(e) => {
+              setName(e.target.value);
+              setNameMsg(null);
+            }}
+          />
+          <small className="muted">Shown as the author of your public plans.</small>
+        </label>
+        <button
+          className="btn"
+          type="submit"
+          disabled={nameBusy || !sharingReady || name.trim() === (savedName ?? '')}
+        >
+          Save name
+        </button>
+        {nameMsg && (
+          <p
+            className={nameMsg.ok ? undefined : 'form-error'}
+            role={nameMsg.ok ? 'status' : 'alert'}
+          >
+            {nameMsg.text}
+          </p>
+        )}
+      </form>
       <h3>Sign-in methods</h3>
       <p className="muted">
         Add more methods to open the same plans from any of them. They all belong to this one

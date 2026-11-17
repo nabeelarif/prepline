@@ -8,8 +8,10 @@ import {
   Hourglass,
   ListPlus,
   PartyPopper,
+  Play,
   Pencil,
   Plus,
+  Share2,
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { diffDays, fmtDate } from '../domain/dates';
@@ -20,37 +22,31 @@ import type { Goal, ISODate } from '../domain/types';
 import { paths } from '../routes';
 import { useStore } from '../state/store';
 import { Menu } from './Menu';
-import { paceText } from './paceText';
+import { daysLeftTile, paceText, untilText } from './paceText';
 import { ProgressRing } from './ProgressRing';
 import { VelocityStrip } from './VelocityStrip';
 
 const hrs = (m: number) => Math.round((m / 60) * 10) / 10;
 
-/** "(6 weeks)" from two weeks out, otherwise days. */
-function until(today: ISODate, target: ISODate): string {
-  const dl = diffDays(today, target);
-  if (dl < 0) return 'passed';
-  if (dl === 0) return 'today';
-  return dl >= 14 ? pl(Math.round(dl / 7), 'week') : pl(dl, 'day');
-}
-
 /** Estimated completion at the planned daily hours, and how it compares with the target. */
 function Estimate({ goal, met, today }: { goal: Goal; met: Metrics; today: ISODate }) {
   const finish = estimatedFinish(met, goal.hoursPerDay, today);
   // Without daily hours the velocity strip already says how to get an estimate.
-  if (!finish) return null;
-  const ahead = diffDays(finish, goal.targetDate);
+  if (!finish || !goal.startDate) return null;
+  const ahead = goal.targetDate ? diffDays(finish, goal.targetDate) : null;
   return (
     <p className="estimate">
       <span className="estimate-label">Estimated completion</span>
       <strong>{fmtDate(finish, true)}</strong>
-      <span className={ahead >= 0 ? 'est-good' : 'est-bad'}>
-        {ahead > 0
-          ? `${pl(ahead, 'day')} ahead of deadline`
-          : ahead === 0
-            ? 'Right on the deadline'
-            : `${pl(-ahead, 'day')} after deadline`}
-      </span>
+      {ahead !== null && (
+        <span className={ahead >= 0 ? 'est-good' : 'est-bad'}>
+          {ahead > 0
+            ? `${pl(ahead, 'day')} ahead of deadline`
+            : ahead === 0
+              ? 'Right on the deadline'
+              : `${pl(-ahead, 'day')} after deadline`}
+        </span>
+      )}
     </p>
   );
 }
@@ -74,9 +70,13 @@ export function PlanBox({
   const onPlanPage = useParams().planId !== undefined;
 
   const pt = paceText(pace, goal);
-  const dl = diffDays(today, goal.targetDate);
-  const [daysNum, daysLabel] =
-    dl > 0 ? [pl(dl, 'day'), 'Left'] : dl === 0 ? ['Today', 'Due'] : [pl(-dl, 'day'), 'Past due'];
+  // Schema and `startPlan` keep a deadline from existing without a start.
+  const target = goal.targetDate;
+  const [daysNum, daysLabel] = !goal.startDate
+    ? ['–', 'Not started']
+    : !target
+      ? ['–', 'No deadline']
+      : daysLeftTile(today, target);
 
   return (
     <section className="card plan-box" aria-label="Plan overview">
@@ -93,13 +93,26 @@ export function PlanBox({
             {pt.label}
           </span>
         )}
-        <p className="target">
-          <CalendarDays size={18} aria-hidden="true" />
-          <span>
-            Target: <strong>{fmtDate(goal.targetDate, true)}</strong>{' '}
-            <span className="muted">({until(today, goal.targetDate)} left)</span>
-          </span>
-        </p>
+        {!goal.startDate ? (
+          <p className="target">
+            <CalendarDays size={18} aria-hidden="true" />
+            <span>Not started yet. Start whenever you are ready.</span>
+            <button
+              className="btn sm primary"
+              onClick={() => openOverlay({ kind: 'start', goalId: goal.id })}
+            >
+              <Play size={14} aria-hidden="true" /> Start plan
+            </button>
+          </p>
+        ) : target ? (
+          <p className="target">
+            <CalendarDays size={18} aria-hidden="true" />
+            <span>
+              Target: <strong>{fmtDate(target, true)}</strong>{' '}
+              <span className="muted">({untilText(today, target)})</span>
+            </span>
+          </p>
+        ) : null}
         <Estimate goal={goal} met={met} today={today} />
       </div>
 
@@ -130,6 +143,14 @@ export function PlanBox({
               },
             ]}
           />
+          <button
+            className="icon-btn"
+            aria-label="Share plan"
+            title="Share plan"
+            onClick={() => openOverlay({ kind: 'share', goalId: goal.id })}
+          >
+            <Share2 size={16} />
+          </button>
           <button
             className="icon-btn"
             aria-label="Edit plan"

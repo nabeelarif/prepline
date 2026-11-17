@@ -1,4 +1,4 @@
-import { CalendarDays, Copy, Ellipsis, Pencil, Plus, Target, Trash2 } from 'lucide-react';
+import { CalendarDays, Copy, Ellipsis, Pencil, Plus, Share2, Target, Trash2 } from 'lucide-react';
 import { fmtDate, todayISO } from '../domain/dates';
 import { fmtHours } from '../domain/format';
 import { metrics } from '../domain/metrics';
@@ -14,6 +14,7 @@ import { ProgressRing } from './ProgressRing';
 export function MyPlans() {
   const goals = useStore((s) => s.data.goals);
   const activeId = useStore((s) => s.data.activeGoalId);
+  const shared = useStore((s) => s.sharing.plans);
   const { openOverlay, duplicateGoal, deleteGoal } = useStore.getState();
   const today = todayISO();
   const newPlan = () => openOverlay({ kind: 'goal', goalId: null });
@@ -39,8 +40,8 @@ export function MyPlans() {
               </button>
             }
           >
-            Create your first plan, set a target date, and organize the resources you want to
-            complete.
+            Create your first plan and organize the resources you want to complete. Start it when
+            you are ready.
           </EmptyState>
         </section>
       ) : (
@@ -58,6 +59,11 @@ export function MyPlans() {
                   <div className="plan-title">
                     <h2>{g.name}</h2>
                     {active && <span className="badge">Current</span>}
+                    {shared[g.id] && shared[g.id]!.visibility !== 'private' && (
+                      <span className="badge">
+                        {shared[g.id]!.visibility === 'public' ? 'Public' : 'Shared'}
+                      </span>
+                    )}
                   </div>
                   <Menu
                     label={`Actions for ${g.name}`}
@@ -69,6 +75,11 @@ export function MyPlans() {
                         label: 'Edit plan',
                         icon: <Pencil size={16} />,
                         onSelect: () => openOverlay({ kind: 'goal', goalId: g.id }),
+                      },
+                      {
+                        label: 'Share…',
+                        icon: <Share2 size={16} />,
+                        onSelect: () => openOverlay({ kind: 'share', goalId: g.id }),
                       },
                       {
                         label: 'Duplicate plan',
@@ -90,10 +101,14 @@ export function MyPlans() {
                 <dl className="plan-facts">
                   <div>
                     <dt>
-                      <CalendarDays size={15} aria-hidden="true" /> Target
+                      <CalendarDays size={15} aria-hidden="true" /> Deadline
                     </dt>
                     <dd>
-                      {fmtDate(g.targetDate, true)} · {daysLeftText(today, g.targetDate)}
+                      {!g.startDate
+                        ? 'Not started'
+                        : g.targetDate
+                          ? `${fmtDate(g.targetDate, true)} · ${daysLeftText(today, g.targetDate)}`
+                          : 'No deadline'}
                     </dd>
                   </div>
                   <div>
@@ -111,6 +126,14 @@ export function MyPlans() {
                   <span className={`pace pace-${p.kind}`}>
                     <span className="pill">{paceText(p, g).label}</span>
                   </span>
+                  {!g.startDate && (
+                    <button
+                      className="btn sm"
+                      onClick={() => openOverlay({ kind: 'start', goalId: g.id })}
+                    >
+                      Start
+                    </button>
+                  )}
                   <Link className="btn sm primary" to={paths.plan(g.id)}>
                     Open plan
                   </Link>

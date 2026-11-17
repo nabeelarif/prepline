@@ -1,0 +1,132 @@
+/* Explore, shared plans, and the start and share dialogs */
+.choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 6px 0;
+  cursor: pointer;
+}
+.choice input {
+  margin-top: 4px;
+}
+.choice span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.choice small {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.share-note {
+  margin: 4px 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.share-note strong {
+  color: var(--fg);
+}
+.share-link {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.share-link input {
+  flex: 1;
+  min-width: 0;
+}
+
+.explore-note {
+  margin: 0 0 14px;
+}
+.explore-search {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.explore-search input {
+  flex: 1;
+  min-width: 0;
+}
+.explore-filter {
+  margin: 0 0 12px;
+}
+.explore-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+}
+button.badge {
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+.explore-more {
+  display: flex;
+  justify-content: center;
+  margin: 16px 0 0;
+}
+
+.shared-head {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.shared-head h1 {
+  margin: 0;
+  font-size: 26px;
+  line-height: 1.2;
+}
+.shared-head p {
+  margin: 0;
+}
+.shared-note {
+  font-size: 13px;
+}
+.shared-report {
+  display: grid;
+  gap: 8px;
+}
+.shared-phase {
+  margin-bottom: 14px;
+}
+.shared-phase h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 6px;
+  font-size: 18px;
+}
+.shared-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.shared-item {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.shared-item-main {
+  min-width: 0;
+}
+.shared-item-main p {
+  margin: 0;
+}
+.shared-item-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.shared-item-notes {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}

@@ -15,9 +15,24 @@ Road to Goals stores all plans in Supabase and needs sign-in. Nothing is saved i
 
 Open Dashboard → SQL Editor, paste the contents of `supabase/schema.sql` and run it once on the new project. (Once production exists, further changes go in `supabase/migrations/` as new ordered `.sql` files.)
 
-`schema.sql` creates `profiles`, `goals`, `phases` and `resources` (every row has a `user_id`, plus a `position` for order), Row Level Security policies that limit each table to its owner, and the RPC functions for atomic writes (reorder, save a whole plan, restore, delete all). Deleting a plan deletes its phases and resources. Deleting a phase keeps its resources, with no phase. Deleting a user deletes all their data.
+`schema.sql` creates `profiles`, `goals`, `plan_settings` (the owner's start date, deadline and daily hours), `phases`, `resources`, `resource_progress` (the owner's progress) and the sharing tables `plan_shares`, `plan_copies` and `plan_reports` (every row has a `user_id`, plus a `position` for order where order matters), Row Level Security policies that limit each table to its owner, and the RPC functions for atomic writes (reorder, save a whole plan, restore, delete all). Deleting a plan deletes its phases and resources. Deleting a phase keeps its resources, with no phase. Deleting a user deletes all their data.
 
 Optional, with the local stack running (`supabase start`, needs Docker): `supabase test db` runs the pgTAP tests in `supabase/tests/`, which check isolation between users and atomicity.
+
+### Sharing and moderation
+
+Plans can be shared by link or listed publicly in Explore. Other people read plans only through the functions `get_shared_plan` and `list_public_plans`, which return plan content and never progress, dates or daily hours. The `anon` role still has no table access. Because the schema changed in place (no migrations yet), a project created from an older `schema.sql` must be recreated or have the new tables and functions applied by hand.
+
+To take a plan down (for example after a report), run in the SQL Editor:
+
+```sql
+-- Reports, newest first
+select r.created_at, r.slug, r.reason from public.plan_reports r order by r.created_at desc;
+-- Hide a plan (reversible: set hidden = false)
+update public.plan_shares set hidden = true where slug = 'THE-SLUG';
+```
+
+Hidden plans stop appearing in Explore and their link stops working. The owner still sees them as shared, with a notice.
 
 ## 2. Authentication settings (Dashboard → Authentication)
 

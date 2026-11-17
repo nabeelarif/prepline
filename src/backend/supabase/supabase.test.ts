@@ -4,6 +4,7 @@ import { RepositoryError } from '../../repositories/errors';
 import { goal, res } from '../../test/fixtures';
 import { toAuthError, toRepositoryError } from './errors';
 import { createSupabaseRepository } from './repository';
+import { createSupabaseSharing } from './sharing';
 import { appDataPayload, goalTreePayload, rowsToAppData } from './rows';
 
 /** A fake client that records table and RPC calls and answers from a script. */
@@ -57,6 +58,7 @@ describe('row mapping', () => {
           id: 'g2',
           name: 'Second',
           description: '',
+          start_date: '2026-01-01',
           target_date: '2026-05-01',
           hours_per_day: null,
           created_at: '2026-01-01',
@@ -66,6 +68,7 @@ describe('row mapping', () => {
           id: 'g1',
           name: 'First',
           description: '',
+          start_date: '2026-01-01',
           target_date: '2026-05-01',
           hours_per_day: '1.50',
           created_at: '2026-01-01',
@@ -204,6 +207,80 @@ describe('repository', () => {
     ).rejects.toMatchObject({
       name: 'RepositoryError',
       code: 'validation',
+    });
+  });
+});
+
+describe('sharing', () => {
+  const json = {
+    slug: 'abc123',
+    visibility: 'public',
+    name: 'Plan',
+    description: 'd',
+    author: 'Ada',
+    tags: ['ios'],
+    published_at: '2026-03-01T00:00:00Z',
+    copy_count: 2,
+    phases: [{ id: 'p1', name: 'One', description: '', color: 'blue' }],
+    resources: [
+      {
+        id: 'r1',
+        title: 'T',
+        url: 'https://a.dev',
+        type: 'video',
+        minutes: 30,
+        notes: '',
+        phase_id: 'p1',
+      },
+    ],
+  };
+
+  it('maps a shared plan from the function result, and a missing one to null', async () => {
+    const found = createSupabaseSharing(fakeClient(() => ({ data: json })).client);
+    expect(await found.getShared('abc123')).toMatchObject({
+      slug: 'abc123',
+      author: 'Ada',
+      copyCount: 2,
+      resources: [{ id: 'r1', phaseId: 'p1', minutes: 30 }],
+    });
+    const missing = createSupabaseSharing(fakeClient(() => ({ data: null })).client);
+    expect(await missing.getShared('nope')).toBeNull();
+  });
+
+  it('lists, sets and reports through functions, never tables, and cleans tags first', async () => {
+    const { client, calls } = fakeClient((call) =>
+      call === 'rpc:set_plan_sharing'
+        ? { data: { visibility: 'public', slug: 's', tags: ['ios'] } }
+        : { data: [] },
+    );
+    const sharing = createSupabaseSharing(client);
+    await sharing.listPublic({ query: 'swift', limit: 10 });
+    await sharing.setSharing('g1', 'public', [' iOS ', 'ios', '']);
+    await sharing.setDisplayName('Ada');
+    await sharing.recordCopy('s');
+    await sharing.report('s', 'spam');
+    expect(calls.map((c) => c.call)).toEqual([
+      'rpc:list_public_plans',
+      'rpc:set_plan_sharing',
+      'rpc:set_display_name',
+      'rpc:record_plan_copy',
+      'rpc:report_plan',
+    ]);
+    expect(calls[0]!.args).toMatchObject({ p_query: 'swift', p_limit: 10, p_offset: 0 });
+    expect(calls[1]!.args).toEqual({ p_goal_id: 'g1', p_visibility: 'public', p_tags: ['ios'] });
+  });
+
+  it('maps a missing plan and a rejected value to app-level errors', async () => {
+    const gone = createSupabaseSharing(
+      fakeClient(() => ({ error: { code: 'P0002', message: 'plan not found' } })).client,
+    );
+    await expect(gone.setSharing('g1', 'public', [])).rejects.toMatchObject({ code: 'notFound' });
+    const bad = createSupabaseSharing(
+      fakeClient(() => ({ error: { code: '23514', message: 'set a display name' } })).client,
+    );
+    await expect(bad.setSharing('g1', 'public', [])).rejects.toMatchObject({
+      code: 'validation',
+      message: 'set a display name',
     });
   });
 });

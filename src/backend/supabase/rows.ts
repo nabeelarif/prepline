@@ -7,7 +7,8 @@ export interface GoalRow {
   id: string;
   name: string;
   description: string;
-  target_date: string;
+  start_date: string | null;
+  target_date: string | null;
   hours_per_day: number | string | null;
   created_at: string;
   position: number;
@@ -41,6 +42,7 @@ export const goalPayload = (g: Omit<Goal, 'resources' | 'phases'>) => ({
   id: g.id,
   name: g.name,
   description: g.description,
+  start_date: g.startDate,
   target_date: g.targetDate,
   hours_per_day: g.hoursPerDay,
   created_at: g.createdAt,
@@ -98,6 +100,7 @@ export function rowsToAppData(
       id: g.id,
       name: g.name,
       description: g.description,
+      startDate: g.start_date,
       targetDate: g.target_date,
       hoursPerDay: g.hours_per_day === null ? null : Number(g.hours_per_day),
       createdAt: g.created_at,

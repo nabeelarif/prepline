@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { exportedAtOf } from './backup';
 import { PHASE_COLORS, TYPES } from './constants';
-import { addDays, todayISO, validISO } from './dates';
+import { todayISO, validISO } from './dates';
 import { num, uid } from './format';
 import type { AppData, Goal, Phase, PhaseColor, Resource, ResourceType } from './types';
 
@@ -76,7 +76,8 @@ export const GoalSchema: z.ZodType<Goal, unknown> = z
     id,
     name: text(() => 'Untitled plan', 120),
     description: text(() => '', 1000),
-    targetDate: date(() => addDays(todayISO(), 30)),
+    startDate: optDate,
+    targetDate: optDate,
     hoursPerDay: field((v) => (v == null || v === '' ? null : num(v, 0.25, 16, 2))),
     createdAt: date(todayISO),
     resources: listOf(ResourceSchema),
@@ -89,7 +90,9 @@ export const GoalSchema: z.ZodType<Goal, unknown> = z
     const resources = g.resources.map((r) =>
       r.phaseId && !seen.has(r.phaseId) ? { ...r, phaseId: null } : r,
     );
-    return { ...g, phases, resources };
+    // Plans saved before manual start had a deadline and were already running.
+    const startDate = g.startDate ?? (g.targetDate ? g.createdAt : null);
+    return { ...g, startDate, phases, resources };
   });
 
 const AppDataSchema = z
@@ -134,7 +137,8 @@ const BackupShape = z.looseObject({
     z.looseObject({
       name: named,
       description: z.string().optional(),
-      targetDate: z.string().optional(),
+      startDate: z.string().nullable().optional(),
+      targetDate: z.string().nullable().optional(),
       hoursPerDay: z.number().nullable().optional(),
       resources: z
         .array(

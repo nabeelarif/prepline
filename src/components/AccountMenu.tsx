@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { DatabaseBackup, LogOut, Monitor, Moon, Settings, Sun, UserRound } from 'lucide-react';
 import { loadTheme, saveTheme, type Theme } from '../theme';
 import { useStore } from '../state/store';
-import { confirmSignOut } from './confirmSignOut';
 import { Menu, type MenuEntry } from './Menu';
+import { useSignOut } from './useSignOut';
 
 const THEMES: [Theme, string, typeof Sun][] = [
   ['system', 'Auto', Monitor],
@@ -16,6 +16,7 @@ export function AccountMenu() {
   const email = useStore((s) => s.auth.user?.email);
   const openOverlay = useStore((s) => s.openOverlay);
   const [theme, setTheme] = useState(loadTheme);
+  const signOut = useSignOut();
 
   const items: MenuEntry[] = [
     { heading: email ?? 'Signed in', plain: true },
@@ -46,9 +47,7 @@ export function AccountMenu() {
       icon: <LogOut size={16} aria-hidden="true" />,
       danger: true,
       confirm: 'Click again to sign out',
-      onSelect: () => {
-        if (confirmSignOut()) void useStore.getState().signOut();
-      },
+      onSelect: () => void signOut(),
     },
   ];
 

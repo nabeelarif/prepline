@@ -77,11 +77,6 @@ export const goalTreePayload = (g: Goal) => ({
   resources: g.resources.map(resourcePayload),
 });
 
-export const appDataPayload = (d: AppData) => ({
-  active_goal_id: d.activeGoalId,
-  goals: d.goals.map(goalTreePayload),
-});
-
 const byPosition = <T extends { position: number }>(a: T, b: T) => a.position - b.position;
 
 /**

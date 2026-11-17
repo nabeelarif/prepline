@@ -57,7 +57,7 @@ const exploreRoutes = (
 );
 
 const SHEET_SIZE: Record<string, 'wide' | 'viewer' | undefined> = {
-  data: 'wide',
+  import: 'wide',
   viewer: 'viewer',
 };
 
@@ -78,7 +78,7 @@ function OverlayContent() {
     const g = useStore.getState().data.goals.find((x) => x.id === overlay.goalId);
     if (!g) return null;
     content = <ShareDialog goal={g} />;
-  } else if (overlay.kind === 'data') {
+  } else if (overlay.kind === 'import') {
     content = <DataPanel />;
   } else if (overlay.kind === 'account') {
     content = <AccountPanel />;
@@ -123,8 +123,8 @@ function NoPlans() {
             >
               Create Your First Plan
             </button>
-            <button className="btn ghost" onClick={() => openOverlay({ kind: 'data' })}>
-              Restore from a backup
+            <button className="btn ghost" onClick={() => openOverlay({ kind: 'import' })}>
+              Import a plan
             </button>
           </div>
         }

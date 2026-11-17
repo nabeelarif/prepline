@@ -10,12 +10,12 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { paths } from '../../routes';
 import { useStore } from '../../state/store';
-import { ConfirmPanel } from './ConfirmPanel';
 import type { RestoreFailure, RestoreFlow } from './useRestoreFlow';
 
 const REASON: Record<RestoreFailure, string> = {
+  type: 'Not a .json file',
   json: 'Invalid JSON',
-  version: 'Unsupported backup version',
+  version: 'Unsupported file version',
   'not-backup': 'Missing or invalid data',
   invalid: 'Missing or invalid data',
   read: 'File could not be read',
@@ -28,7 +28,7 @@ function useStepFocus(step: string) {
   return ref;
 }
 
-/** The Restore Backup card: pick or drop a file, then see it checked or turned away. */
+/** The import card: pick or drop a file, then see it checked or turned away. */
 export function RestoreCard({ flow }: { flow: RestoreFlow }) {
   const { state, check, reset } = flow;
   const input = useRef<HTMLInputElement>(null);
@@ -49,7 +49,7 @@ export function RestoreCard({ flow }: { flow: RestoreFlow }) {
       ref={input}
       type="file"
       accept=".json,application/json"
-      aria-label="Backup file"
+      aria-label="Plan file"
       hidden
       onChange={(e) => {
         const f = e.target.files?.[0];
@@ -66,10 +66,8 @@ export function RestoreCard({ flow }: { flow: RestoreFlow }) {
           <CloudUpload size={26} />
         </span>
         <div>
-          <h3 id="restoreTitle">Restore Backup</h3>
-          <p className="muted">
-            Recover a previously downloaded backup, or add plans from a Road to Goals file.
-          </p>
+          <h3 id="restoreTitle">Choose a plan file</h3>
+          <p className="muted">Only .json files can be imported.</p>
         </div>
       </div>
 
@@ -77,14 +75,14 @@ export function RestoreCard({ flow }: { flow: RestoreFlow }) {
         <div className="dropzone busy" role="status">
           <span className="spinner" aria-hidden="true" />
           <p className="file-name">{state.fileName}</p>
-          <p>Checking your backup…</p>
+          <p>Checking your file…</p>
         </div>
       ) : state.step === 'invalid' ? (
         <div className="restore-invalid" role="alert">
           <CircleAlert size={22} aria-hidden="true" />
           <div>
             <h4 ref={heading} tabIndex={-1}>
-              This backup couldn't be opened.
+              This file couldn't be opened.
             </h4>
             <p className="file-name">{state.fileName}</p>
             <p>
@@ -115,11 +113,11 @@ export function RestoreCard({ flow }: { flow: RestoreFlow }) {
             e.preventDefault();
             setOver(false);
             const f = e.dataTransfer.files[0];
-            if (f) check(f);
+            if (f) check(f); // non-.json files are turned away by the flow
           }}
         >
           <FileJson size={30} className="muted" aria-hidden="true" />
-          <p className="dz-title">Choose a backup file</p>
+          <p className="dz-title">Choose a plan file</p>
           <p className="muted">Drag and drop your .json file here, or click to browse.</p>
           {fileInput}
           <button
@@ -146,7 +144,7 @@ const fmtExported = (s: string) =>
 
 /** Review, confirm, and the outcome, shown full width in place of the cards. */
 export function RestoreFlowPanel({ flow }: { flow: RestoreFlow }) {
-  const { state, reset, add, restore, retry, confirm, backToReview } = flow;
+  const { state, reset, add } = flow;
   const heading = useStepFocus(state.step);
   const navigate = useNavigate();
 
@@ -155,20 +153,15 @@ export function RestoreFlowPanel({ flow }: { flow: RestoreFlow }) {
       useStore.getState().closeOverlay();
       navigate(paths.dashboard);
     };
-    const added = state.mode === 'add';
     return (
       <div className="flow-panel center" role="status">
         <span className="tile good round" aria-hidden="true">
           <CircleCheck size={30} />
         </span>
         <h3 ref={heading} tabIndex={-1}>
-          {added ? 'Plans added successfully' : 'Backup restored successfully'}
+          Plans added successfully
         </h3>
-        <p className="muted">
-          {added
-            ? 'The new plans are next to your existing ones.'
-            : 'Your preparation plans and progress are ready.'}
-        </p>
+        <p className="muted">The new plans are next to your existing ones.</p>
         <button type="button" className="btn primary wide-btn" onClick={done}>
           Continue to Dashboard
         </button>
@@ -178,25 +171,6 @@ export function RestoreFlowPanel({ flow }: { flow: RestoreFlow }) {
   if (!('preview' in state)) return null;
   const { preview, fileName } = state;
 
-  if (state.step === 'confirming' || (state.step === 'restoring' && state.mode === 'replace'))
-    return (
-      <div className="flow-panel">
-        <ConfirmPanel
-          title="Replace your current data?"
-          confirmLabel={state.step === 'restoring' ? 'Restoring your data…' : 'Replace and Restore'}
-          busy={state.step === 'restoring'}
-          onConfirm={restore}
-          onCancel={backToReview}
-        >
-          <p>
-            All existing Road to Goals plans, phases, resources, and progress in your account will
-            be replaced with the selected backup.
-          </p>
-          <p className="backup-warn">This cannot be undone unless you have another backup.</p>
-        </ConfirmPanel>
-      </div>
-    );
-
   if (state.step === 'error')
     return (
       <div className="flow-panel" role="alert">
@@ -205,20 +179,18 @@ export function RestoreFlowPanel({ flow }: { flow: RestoreFlow }) {
             <TriangleAlert size={22} />
           </span>
           <h3 ref={heading} tabIndex={-1}>
-            {state.mode === 'add'
-              ? "We couldn't add these plans."
-              : "We couldn't restore your backup."}
+            We couldn't add these plans.
           </h3>
         </div>
         <p>
-          Your current data has not been changed. This browser refused to save, which can happen in
-          private browsing or when storage is full.
+          Your current data has not been changed. The server did not confirm the save, so check your
+          connection and try again.
         </p>
         <div className="btn-row confirm-actions">
           <button type="button" className="btn" onClick={reset}>
             Cancel
           </button>
-          <button type="button" className="btn primary" onClick={retry}>
+          <button type="button" className="btn primary" onClick={add}>
             Retry
           </button>
         </div>
@@ -274,15 +246,9 @@ export function RestoreFlowPanel({ flow }: { flow: RestoreFlow }) {
       <p className="muted">
         Add to My Plans keeps everything saved in your account and adds the plans from this file.
       </p>
-      <p className="backup-warn">
-        Replace All Data deletes everything saved in your account and restores this file instead.
-      </p>
       <div className="btn-row confirm-actions">
         <button type="button" className="btn" onClick={reset}>
           Cancel
-        </button>
-        <button type="button" className="btn" onClick={confirm}>
-          Replace All Data
         </button>
         <button type="button" className="btn primary" onClick={add}>
           Add to My Plans

@@ -150,5 +150,17 @@ export function createSupabaseAuth(client: SupabaseClient): AuthService {
       const { error } = await client.auth.signOut();
       if (error) throw toAuthError(error);
     },
+
+    async deleteAccount() {
+      const { error } = await client.rpc('delete_account');
+      if (error) throw toAuthError(error);
+      // The user is gone on the server, so only the local session is left to clear. A
+      // failure here must not look like a failed deletion (Retry could never succeed).
+      try {
+        await client.auth.signOut({ scope: 'local' });
+      } catch {
+        /* the account is already deleted */
+      }
+    },
   };
 }

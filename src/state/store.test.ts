@@ -477,34 +477,16 @@ describe('store', () => {
       const r = t.add();
       t.s().selectResource(r.id);
       t.s().setStatusFilter('completed');
-      t.s().openOverlay({ kind: 'data' });
+      t.s().openOverlay({ kind: 'import' });
       await t.flush();
       return t;
     };
-
-    it('restores a backup: saves it, keeps its active plan and resets view state', async () => {
-      const { s, saved } = await busy();
-      expect(await s().restoreBackup(backup)).toBe(true);
-      expect(saved()).toEqual(backup);
-      expect(s().data).toEqual(backup);
-      expect(s().ui).toMatchObject({
-        selectedResourceId: null,
-        statusFilter: 'all',
-        overlay: { kind: 'data' },
-      });
-    });
-
-    it('falls back to the first plan when the active one is missing', async () => {
-      const { s } = await setup();
-      await s().restoreBackup({ ...backup, activeGoalId: 'gone' });
-      expect(s().data.activeGoalId).toBe('b1');
-    });
 
     it('changes nothing in memory or on the server when saving fails', async () => {
       const { s, backend, saved } = await busy();
       const before = { data: s().data, ui: s().ui, server: saved() };
       backend.failNext(2);
-      expect(await s().restoreBackup(backup)).toBe(false);
+      expect(await s().addPlans(backup)).toBe(false);
       expect(await s().deleteAllData()).toBe(false);
       expect(s().data).toBe(before.data);
       expect(s().ui).toEqual({
@@ -515,15 +497,15 @@ describe('store', () => {
       expect(s().busy).toBe(false);
     });
 
-    it('refuses a second restore while one is running', async () => {
+    it('refuses a second import while one is running', async () => {
       const { s, backend } = await busy();
       const release = backend.hold();
-      const first = s().restoreBackup(backup);
+      const first = s().addPlans(backup);
       expect(s().busy).toBe(true);
-      expect(await s().restoreBackup(backup)).toBe(false);
+      expect(await s().addPlans(backup)).toBe(false);
       release();
       expect(await first).toBe(true);
-      expect(backend.calls.filter((c) => c === 'replaceAll')).toHaveLength(1);
+      expect(backend.calls.filter((c) => c === 'addGoals')).toHaveLength(1);
     });
 
     it('adds plans from a file next to the saved ones, atomically', async () => {
@@ -531,6 +513,7 @@ describe('store', () => {
       expect(await s().addPlans(backup)).toBe(true);
       expect(s().data.goals.map((g) => g.name)).toEqual(['Prep', 'One', 'Two']);
       expect(saved().goals.map((g) => g.name)).toEqual(['Prep', 'One', 'Two']);
+      expect(s().ui.overlay).toEqual({ kind: 'import' });
     });
 
     it('keeps plans another device saved meanwhile when adding plans', async () => {
@@ -544,7 +527,6 @@ describe('store', () => {
       expect(await s().addPlans(backup)).toBe(true);
       expect(saved().goals.map((g) => g.name)).toEqual(['Prep', 'Elsewhere', 'One', 'Two']);
       expect(backend.calls).toContain('addGoals');
-      expect(backend.calls).not.toContain('replaceAll');
     });
 
     it('deletes everything, and stays empty after a reload', async () => {
@@ -560,16 +542,16 @@ describe('store', () => {
       expect((await open(backend)).store.getState().data.goals).toEqual([]);
     });
 
-    it('drops queued writes that the restore replaced', async () => {
+    it('drops queued writes that deleting everything replaced', async () => {
       const { s, add, saved, flush, backend } = await setup();
       await flush();
       backend.failNext(1);
       add({ title: 'Stale' });
       await vi.waitFor(() => expect(s().sync.status).toBe('error'));
-      expect(await s().restoreBackup(backup)).toBe(true);
+      expect(await s().deleteAllData()).toBe(true);
       expect(s().sync.status).not.toBe('error');
       await flush();
-      expect(saved()).toEqual(backup);
+      expect(saved().goals).toEqual([]);
     });
   });
 
@@ -629,7 +611,7 @@ describe('store', () => {
         targetDate: '2026-05-01',
         hoursPerDay: null,
       });
-      s().openOverlay({ kind: 'data' });
+      s().openOverlay({ kind: 'import' });
       await flush(store);
 
       await s().signOut();

@@ -276,20 +276,6 @@ begin
   delete from public.goals where user_id = auth.uid();
 end $$;
 
--- Replaces everything with { active_goal_id, goals: [ <goal tree>, ... ] }.
-create function public.replace_all_data(p_data jsonb) returns void
-language plpgsql security invoker set search_path = public as $$
-declare
-  g jsonb;
-begin
-  perform public.delete_all_data();
-  for g in select value from jsonb_array_elements(coalesce(p_data -> 'goals', '[]')) loop
-    perform public.save_goal_tree(g);
-  end loop;
-  insert into public.profiles (active_goal_id) values (p_data ->> 'active_goal_id')
-  on conflict (user_id) do update set active_goal_id = excluded.active_goal_id;
-end $$;
-
 -- Everything the signed-in user owns, read in one statement so it is one consistent
 -- snapshot (separate requests could see another device's save half-way). It is a single
 -- jsonb value, so PostgREST's row limit does not apply either.
@@ -340,13 +326,13 @@ $$;
 revoke all on function
   public.save_goal(jsonb), public.save_phase(text, jsonb), public.save_resource(text, jsonb),
   public.reorder_resources(text, text[]), public.reorder_phases(text, text[]),
-  public.save_goal_tree(jsonb), public.delete_all_data(), public.replace_all_data(jsonb),
+  public.save_goal_tree(jsonb), public.delete_all_data(),
   public.set_active_goal(text), public.load_all_data(), public.append_goals(jsonb, text)
   from public, anon;
 grant execute on function
   public.save_goal(jsonb), public.save_phase(text, jsonb), public.save_resource(text, jsonb),
   public.reorder_resources(text, text[]), public.reorder_phases(text, text[]),
-  public.save_goal_tree(jsonb), public.delete_all_data(), public.replace_all_data(jsonb),
+  public.save_goal_tree(jsonb), public.delete_all_data(),
   public.set_active_goal(text), public.load_all_data(), public.append_goals(jsonb, text)
   to authenticated;
 
@@ -589,3 +575,18 @@ grant execute on function
   public.set_plan_sharing(text, text, text[], text), public.set_display_name(text),
   public.record_plan_copy(text), public.report_plan(text, text)
   to authenticated;
+
+-- Permanently deletes the signed-in user's account. Every table references auth.users with
+-- on delete cascade, so this removes all plans, progress, shares and reports too.
+-- SECURITY DEFINER because signed-in users cannot touch the auth schema themselves.
+create function public.delete_account() returns void
+language plpgsql security definer set search_path = '' as $$
+begin
+  if auth.uid() is null then
+    raise exception 'not signed in' using errcode = '28000';
+  end if;
+  delete from auth.users where id = auth.uid();
+end $$;
+
+revoke all on function public.delete_account() from public, anon;
+grant execute on function public.delete_account() to authenticated;

@@ -28,7 +28,8 @@ export async function resetApp(data: AppData = createEmptyAppData()) {
   await vi.waitFor(() => expect(s().auth.status).toBe('signedOut'));
   await s().signInWithPassword(TEST_USER, 'pw');
   await vi.waitFor(() => expect(s().load.status).toBe('ready'));
-  await memory().repo.replaceAll(data);
+  await memory().repo.deleteAll();
+  await memory().repo.addGoals(data.goals, data.activeGoalId);
   await s().reload();
   await vi.waitFor(() => expect(s().load.status).toBe('ready'));
 }

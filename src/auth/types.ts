@@ -74,4 +74,6 @@ export interface AuthService {
   unlinkProvider(provider: AuthProviderId): Promise<void>;
   listMethods(): Promise<LinkedMethod[]>;
   signOut(): Promise<void>;
+  /** Permanently deletes the signed-in account and everything it owns, then signs out. */
+  deleteAccount(): Promise<void>;
 }

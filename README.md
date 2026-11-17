@@ -13,7 +13,7 @@ Collect the articles, videos, courses and practice you plan to get through, and 
 - **Continue Learning:** a card that points to the first resource in progress, or the next one to start.
 - **Resource list:** filter by type and status, change status from each row, drag rows by their handle to reorder (or use the arrow keys on the handle), and move resources between phases.
 - **Accounts and sync:** sign in with Google, X, or email and password. Plans are saved to your account (Supabase), so they follow you across devices, and you can link several sign-in methods to the same account.
-- **Backups:** you can export your data as JSON. Importing checks the file and shows a preview, then either adds its plans to yours or replaces everything.
+- **Import:** import plans from a JSON file (for example one an AI agent wrote). Importing checks the file and shows a preview, then adds its plans to yours. Delete All Data and Delete Account are under Account settings → Privacy.
 - **Agent-made plans:** give an AI agent [docs/agent-plan-format.md](docs/agent-plan-format.md) and ask for a plan, for example "iOS developer interview preparation, ready by 2026-12-31, 2 hours a day". It returns a JSON file you import with **Add to My Plans**.
 - **Responsive design** with light and dark themes. The theme option in the account menu follows your system setting or keeps the one you pick.
 
@@ -48,7 +48,7 @@ Built with Vite, React, TypeScript, Zustand, Zod and Supabase. Set up the backen
 
 ## Data
 
-Your plans, resources, progress, notes and order live in your Supabase account and are loaded on every visit. Only your sign-in session and the theme choice stay in the browser. Use **Backup and restore** in the account menu to export a JSON file now and then, or to import one.
+Your plans, resources, progress, notes and order live in your Supabase account and are loaded on every visit. Only your sign-in session and the theme choice stay in the browser. Use **Import plans** in the account menu, or **Import plan** on My Plans, to add plans from a JSON file.
 
 ## License
 

@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import type { AppData } from '../../domain/types';
 import { useStore } from '../../state/store';
 import { memory, resetApp, serverData } from '../../test/harness';
@@ -42,32 +42,18 @@ const dialog = () => screen.getByRole('dialog');
 async function open() {
   renderApp();
   fireEvent.click(await screen.findByRole('button', { name: 'Account menu' }));
-  fireEvent.click(screen.getByRole('menuitem', { name: 'Backup and restore' }));
+  fireEvent.click(screen.getByRole('menuitem', { name: 'Import plans' }));
 }
 
 function pick(contents: string, name = 'roadtogoals-backup-2026-10-20.json') {
   const file = new File([contents], name, { type: 'application/json' });
-  fireEvent.change(screen.getByLabelText('Backup file'), { target: { files: [file] } });
+  fireEvent.change(screen.getByLabelText('Plan file'), { target: { files: [file] } });
 }
 
 beforeEach(() => resetApp(current));
 afterEach(() => vi.restoreAllMocks());
 
-describe('Backup and Restore', () => {
-  it('downloads the backup in one click, with no JSON on screen', async () => {
-    let blob: Blob | undefined;
-    URL.createObjectURL = vi.fn((b: Blob) => ((blob = b), 'blob:x'));
-    URL.revokeObjectURL = vi.fn();
-    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
-    await open();
-    expect(screen.queryByRole('textbox')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Download Backup' }));
-    const a = click.mock.contexts[0] as HTMLAnchorElement;
-    expect(a.download).toMatch(/^roadtogoals-backup-\d{4}-\d{2}-\d{2}\.json$/);
-    expect(blob?.type).toBe('application/json');
-    expect(screen.getByText('Your backup download has started.')).toBeVisible();
-  });
-
+describe('Import plans', () => {
   it('reviews a valid backup without changing anything', async () => {
     await open();
     const before = saved();
@@ -93,7 +79,7 @@ describe('Backup and Restore', () => {
 
   it.each([
     ['not json', 'Invalid JSON'],
-    ['{"version": 2, "goals": []}', 'Unsupported backup version'],
+    ['{"version": 2, "goals": []}', 'Unsupported file version'],
     ['{"plans": []}', 'Missing or invalid data'],
     ['{"goals": [{"resources": []}]}', 'Missing or invalid data'],
   ])('turns away %s', async (contents, reason) => {
@@ -101,68 +87,45 @@ describe('Backup and Restore', () => {
     const before = saved();
     pick(contents);
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent("This backup couldn't be opened.");
+    expect(alert).toHaveTextContent("This file couldn't be opened.");
     expect(alert).toHaveTextContent(reason);
     expect(saved()).toBe(before);
     fireEvent.click(within(alert).getByRole('button', { name: 'Cancel' }));
     expect(screen.getByRole('button', { name: 'Choose File' })).toHaveFocus();
   });
 
-  it('cancels from review and from the confirmation without changing data', async () => {
+  it('has no backup download and no replace option', async () => {
+    await open();
+    expect(screen.queryByRole('button', { name: /Download Backup/ })).toBeNull();
+    pick(JSON.stringify(backup));
+    await screen.findByRole('region', { name: 'File contents' });
+    expect(screen.queryByRole('button', { name: 'Replace All Data' })).toBeNull();
+    expect(screen.queryByText(/Delete All Data/)).toBeNull();
+  });
+
+  it('cancels from review without changing data', async () => {
     await open();
     const before = saved();
     pick(JSON.stringify(backup));
     await screen.findByRole('region', { name: 'File contents' });
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(screen.getByRole('button', { name: 'Choose File' })).toBeVisible();
-
-    pick(JSON.stringify(backup));
-    fireEvent.click(await screen.findByRole('button', { name: 'Replace All Data' }));
-    const confirm = screen.getByRole('alertdialog', { name: 'Replace your current data?' });
-    expect(within(confirm).getByRole('button', { name: 'Cancel' })).toHaveFocus();
-    // Escape backs out of the confirmation only; the modal stays open.
-    fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
-    expect(screen.getByRole('region', { name: 'File contents' })).toBeVisible();
-    expect(dialog()).toBeVisible();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Replace All Data' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-    expect(screen.getByRole('region', { name: 'File contents' })).toBeVisible();
     expect(saved()).toBe(before);
     expect(useStore.getState().data).toEqual(current);
   });
 
-  it('restores after confirmation and shows the restored dashboard', async () => {
-    await open();
-    pick(JSON.stringify(backup));
-    fireEvent.click(await screen.findByRole('button', { name: 'Replace All Data' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Replace and Restore' }));
-    expect(await screen.findByText('Backup restored successfully')).toBeVisible();
-    expect(JSON.parse(saved()!).goals.map((g: { name: string }) => g.name)).toEqual([
-      'Restored plan',
-      'Second',
-    ]);
-    fireEvent.click(screen.getByRole('button', { name: 'Continue to Dashboard' }));
-    expect(screen.queryByRole('dialog')).toBeNull();
-    expect(screen.getByRole('heading', { level: 1, name: 'Restored plan' })).toBeVisible();
-  });
-
-  it('says so, and keeps the current data, when the server refuses to save', async () => {
+  it.each([
+    ['photo.png', 'image/png'],
+    ['clip.mp4', 'video/mp4'],
+    ['notes.txt', 'text/plain'],
+  ])('turns away %s without reading it', async (name, type) => {
     await open();
     const before = saved();
-    pick(JSON.stringify(backup));
-    fireEvent.click(await screen.findByRole('button', { name: 'Replace All Data' }));
-    memory().failNext(1);
-    fireEvent.click(screen.getByRole('button', { name: 'Replace and Restore' }));
-    expect(await within(dialog()).findByRole('alert')).toHaveTextContent(
-      "We couldn't restore your backup.Your current data has not been changed.",
-    );
-    expect(screen.queryByText('Backup restored successfully')).toBeNull();
+    const file = new File([JSON.stringify(backup)], name, { type });
+    fireEvent.change(screen.getByLabelText('Plan file'), { target: { files: [file] } });
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Not a .json file');
     expect(saved()).toBe(before);
-    expect(useStore.getState().data).toEqual(current);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
-    expect(await screen.findByText('Backup restored successfully')).toBeVisible();
   });
 });
 
@@ -199,53 +162,5 @@ describe('Add to My Plans', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(await screen.findByText('Plans added successfully')).toBeVisible();
     expect(names()).toEqual(['Current plan', 'Restored plan', 'Second']);
-  });
-});
-
-describe('Delete All Data', () => {
-  it('is offered directly, with no Reset to Default', async () => {
-    await open();
-    expect(screen.getByRole('button', { name: 'Delete All Data' })).toBeVisible();
-    expect(screen.queryByText(/Advanced Options/)).toBeNull();
-    expect(screen.queryByText(/Reset to default/i)).toBeNull();
-  });
-
-  it('keeps everything when cancelled, by button or Escape', async () => {
-    await open();
-    fireEvent.click(screen.getByRole('button', { name: 'Delete All Data' }));
-    const confirm = screen.getByRole('alertdialog', { name: 'Delete all Road to Goals data?' });
-    fireEvent.click(within(confirm).getByRole('button', { name: 'Cancel' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Delete All Data' }));
-    fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
-    expect(dialog()).toBeVisible();
-    expect(useStore.getState().data).toEqual(current);
-  });
-
-  it('deletes everything and shows the first-run screen, and removes it from the backend', async () => {
-    await open();
-    fireEvent.click(screen.getByRole('button', { name: 'Delete All Data' }));
-    fireEvent.click(
-      within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Delete All Data' }),
-    );
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    expect(
-      screen.getByRole('heading', { level: 1, name: 'Start your preparation journey' }),
-    ).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Create Your First Plan' })).toBeVisible();
-    expect(await screen.findByText('All Road to Goals data deleted')).toBeVisible();
-    expect(JSON.parse(saved()!)).toEqual({ version: 1, activeGoalId: null, goals: [] });
-  });
-
-  it('keeps the data and says so when deleting fails', async () => {
-    await open();
-    memory().failNext(1);
-    fireEvent.click(screen.getByRole('button', { name: 'Delete All Data' }));
-    fireEvent.click(
-      within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Delete All Data' }),
-    );
-    expect(await within(dialog()).findByRole('alert')).toHaveTextContent(
-      "We couldn't delete your data.",
-    );
-    expect(useStore.getState().data).toEqual(current);
   });
 });

@@ -121,14 +121,11 @@ export function describeRepositoryContract(name: string, make: () => Promise<Con
       expect(data.goals[0]!.resources.map((r) => r.id)).toEqual(['g1-r2']);
     });
 
-    it('replaces everything at once, and deletes everything', async () => {
-      await repo.saveGoalTree(tree('old'));
-      await repo.replaceAll({ version: 1, activeGoalId: 'g2', goals: [tree('g1'), tree('g2')] });
-      let data = await repo.loadAll();
-      expect(data.goals.map((g) => g.id)).toEqual(['g1', 'g2']);
-      expect(data.activeGoalId).toBe('g2');
+    it('deletes everything at once', async () => {
+      await repo.saveGoalTree(tree('g1'));
+      await repo.saveGoalTree(tree('g2'));
       await repo.deleteAll();
-      data = await repo.loadAll();
+      const data = await repo.loadAll();
       expect(data).toEqual(createEmptyAppData());
     });
 

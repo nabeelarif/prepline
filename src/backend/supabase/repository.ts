@@ -2,7 +2,6 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { AppRepository } from '../../repositories/types';
 import { call } from './call';
 import {
-  appDataPayload,
   goalPayload,
   goalTreePayload,
   phasePayload,
@@ -45,7 +44,6 @@ export function createSupabaseRepository(client: SupabaseClient): AppRepository 
       await call(client.from('phases').delete().eq('goal_id', goalId).eq('id', id));
     },
     reorderPhases: (goalId, ids) => rpc('reorder_phases', { p_goal_id: goalId, p_ids: ids }),
-    replaceAll: (data) => rpc('replace_all_data', { p_data: appDataPayload(data) }),
     addGoals: (goals, activeGoalId) =>
       rpc('append_goals', { p_goals: goals.map(goalTreePayload), p_active_goal_id: activeGoalId }),
     deleteAll: () => rpc('delete_all_data', {}),

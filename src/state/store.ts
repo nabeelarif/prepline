@@ -20,6 +20,7 @@ export type Overlay =
   | { kind: 'resource'; resourceId: string | null; phaseId?: string | null }
   | { kind: 'phase'; phaseId: string | null }
   | { kind: 'details'; resourceId: string }
+  | { kind: 'viewer'; resourceId: string }
   | { kind: 'data' }
   | { kind: 'account' };
 

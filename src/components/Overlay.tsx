@@ -13,7 +13,7 @@ const FOCUSABLE =
  * or a backdrop click, locks page scroll, and returns focus to the opener on close.
  * Content that handles Escape itself (an inner confirmation) calls preventDefault().
  */
-export function Overlay({ children, wide }: { children: ReactNode; wide?: boolean }) {
+export function Overlay({ children, size }: { children: ReactNode; size?: 'wide' | 'viewer' }) {
   const close = useStore((s) => s.closeOverlay);
   const sheet = useRef<HTMLDivElement>(null);
 
@@ -55,7 +55,7 @@ export function Overlay({ children, wide }: { children: ReactNode; wide?: boolea
       }}
     >
       <div
-        className={wide ? 'sheet wide' : 'sheet'}
+        className={size ? `sheet ${size}` : 'sheet'}
         role="dialog"
         aria-modal="true"
         aria-labelledby={DIALOG_TITLE}

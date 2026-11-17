@@ -2,9 +2,10 @@ import { ExternalLink, Gauge, Play } from 'lucide-react';
 import { fmtHours } from '../domain/format';
 import { focusResource, resDone, resStatus } from '../domain/resources';
 import type { Goal } from '../domain/types';
-import { safeUrl } from '../domain/urls';
 import { useStore } from '../state/store';
+import { safeUrl } from '../domain/urls';
 import { TypeIcon } from './icons';
+import { ResourceLink } from './ResourceLink';
 
 /**
  * One line pointing at what to do now: the first In Progress resource, or the next
@@ -47,17 +48,13 @@ export function ContinueCard({ goal }: { goal: Goal }) {
             <Play size={15} aria-hidden="true" /> Start
           </button>
         )}
-        {href && (
-          <a
-            className="btn sm primary"
-            href={href}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => !active && setStatus(r.id, 'in_progress')}
-          >
-            <ExternalLink size={15} aria-hidden="true" /> {active ? 'Continue' : 'Start and open'}
-          </a>
-        )}
+        <ResourceLink
+          r={r}
+          className="btn sm primary"
+          onOpen={() => !active && setStatus(r.id, 'in_progress')}
+        >
+          <ExternalLink size={15} aria-hidden="true" /> {active ? 'Continue' : 'Start and open'}
+        </ResourceLink>
       </div>
     </section>
   );

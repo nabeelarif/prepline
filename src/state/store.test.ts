@@ -517,6 +517,32 @@ describe('store', () => {
       expect(s().ui.overlay).toEqual({ kind: 'import' });
     });
 
+    it('shares imported plans as the file asks, and leaves the rest private', async () => {
+      const { s } = await busy();
+      await vi.waitFor(() => expect(s().sharing.status).toBe('ready'));
+      const shares = [{ visibility: 'unlisted' as const, tags: ['swift', 'ios'] }, null];
+      expect(await s().addPlans(backup, shares)).toBe(true);
+      const [one, two] = s().data.goals.slice(1);
+      expect(s().sharing.plans[one!.id]).toMatchObject({
+        visibility: 'unlisted',
+        tags: ['ios', 'swift'],
+      });
+      expect(s().sharing.plans[two!.id]).toBeUndefined();
+    });
+
+    it('reports plans whose sharing failed, and still adds them', async () => {
+      const { s, backend } = await busy();
+      await vi.waitFor(() => expect(s().sharing.status).toBe('ready'));
+      const unshared: string[][] = [];
+      vi.spyOn(backend.sharing, 'setSharing').mockRejectedValueOnce(new Error('sharing is down'));
+      const ok = await s().addPlans(backup, [{ visibility: 'unlisted', tags: [] }, null], (n) =>
+        unshared.push(n),
+      );
+      expect(ok).toBe(true);
+      expect(s().data.goals.map((g) => g.name)).toEqual(['Prep', 'One', 'Two']);
+      expect(unshared).toEqual([['One']]);
+    });
+
     it('keeps plans another device saved meanwhile when adding plans', async () => {
       const { s, backend, saved } = await busy();
       // Another device adds a plan this one has not loaded.

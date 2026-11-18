@@ -90,6 +90,47 @@ export function randomDisplayName(random: () => number = Math.random): string {
   return `${pick(NAME_ADJECTIVES)} ${pick(NAME_NOUNS)} ${digits}`;
 }
 
+/** What a plan file asks for when it is imported: who can open the plan, and its tags. */
+export interface ImportShare {
+  visibility: Exclude<Visibility, 'private'>;
+  tags: string[];
+}
+
+const VISIBILITIES: readonly Visibility[] = ['private', 'unlisted', 'public'];
+
+/**
+ * Reads the optional `sharing` key of a plan in an import file. A missing key and `private`
+ * both give null (nothing to share). Anything unusable is repaired towards the safer
+ * choice, private, and described in `notes` so the user sees it before confirming.
+ */
+export function readImportSharing(
+  raw: unknown,
+  planName: string,
+): { share: ImportShare | null; notes: string[] } {
+  if (raw == null) return { share: null, notes: [] };
+  const o = typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
+  const visibility = o.visibility;
+  if (!VISIBILITIES.includes(visibility as Visibility))
+    return {
+      share: null,
+      notes: [`"${planName}" has an unknown sharing setting and will stay private.`],
+    };
+  if (visibility === 'private') return { share: null, notes: [] };
+  const list = Array.isArray(o.tags) ? o.tags : [];
+  const given = list.filter((t): t is string => typeof t === 'string' && t.trim() !== '');
+  const tags = cleanTags(given);
+  const distinct = new Set(given.map((t) => t.trim().toLowerCase())).size;
+  const notes: string[] = [];
+  // Tags that are not a list of text are ignored, which the user should hear about.
+  if ((o.tags != null && !Array.isArray(o.tags)) || list.some((t) => typeof t !== 'string'))
+    notes.push(`"${planName}" has tags that are not a list of text; those will be ignored.`);
+  if (tags.length < distinct)
+    notes.push(
+      `"${planName}" has tags that are too long or more than ${MAX_TAGS}; only ${tags.length} will be kept.`,
+    );
+  return { share: { visibility: visibility as ImportShare['visibility'], tags }, notes };
+}
+
 /** Lowercase, trimmed, unique tags within the limits. The database applies the same rules. */
 export function cleanTags(tags: string[]): string[] {
   const out = new Set<string>();

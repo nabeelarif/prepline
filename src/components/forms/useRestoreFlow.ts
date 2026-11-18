@@ -15,7 +15,7 @@ export type RestoreState =
   | { step: 'invalid'; fileName: string; reason: RestoreFailure; detail: string }
   | { step: 'review'; fileName: string; preview: ImportPreview }
   | { step: 'restoring' | 'error'; fileName: string; preview: ImportPreview }
-  | { step: 'success' };
+  | { step: 'success'; unshared: string[] };
 
 export type RestoreFlow = ReturnType<typeof useRestoreFlow>;
 
@@ -62,8 +62,11 @@ export function useRestoreFlow() {
     if (state.step !== 'review' && state.step !== 'error') return;
     const { fileName, preview } = state;
     setState({ step: 'restoring', fileName, preview });
-    const ok = await useStore.getState().addPlans(preview.data);
-    setState(ok ? { step: 'success' } : { step: 'error', fileName, preview });
+    let unshared: string[] = [];
+    const ok = await useStore
+      .getState()
+      .addPlans(preview.data, preview.shares, (names) => (unshared = names));
+    setState(ok ? { step: 'success', unshared } : { step: 'error', fileName, preview });
   };
 
   const reset = () => {

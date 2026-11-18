@@ -7,6 +7,7 @@
       "description": "Get ready for mid-level iOS interviews: Swift memory and concurrency, SwiftUI, coding problems, and a mock interview.",
       "targetDate": "2026-12-31",
       "hoursPerDay": 2,
+      "sharing": { "visibility": "unlisted", "tags": ["ios", "swift", "interview"] },
       "phases": [
         {
           "id": "swift",

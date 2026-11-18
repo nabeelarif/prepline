@@ -24,6 +24,7 @@ import { describeError, RepositoryError } from '../repositories/errors';
 import type { PublicListQuery } from '../repositories/sharing';
 import {
   copyOfSharedPlan,
+  type ImportShare,
   type PlanSharing,
   type PlanSummary,
   type SharedPlan,
@@ -194,7 +195,12 @@ export interface Store {
    * atomic backend call. Memory changes only after the backend confirms, so a failure
    * changes nothing. Returns whether it worked. Keeps the import overlay open for the result.
    */
-  addPlans(data: AppData): Promise<boolean>;
+  addPlans(
+    data: AppData,
+    shares?: (ImportShare | null)[],
+    /** Called with the names of plans whose sharing failed, once the plans themselves are saved. */
+    onUnshared?: (names: string[]) => void,
+  ): Promise<boolean>;
   /** Deletes all saved data, the same way. Closes overlays on success. */
   deleteAllData(): Promise<boolean>;
 }
@@ -756,13 +762,29 @@ export function createAppStore({ repo, auth, sharing }: Backend) {
       dismissToast: () => setUi({ toast: null }),
 
       // Appends only the new plans, so plans another device saved meanwhile stay untouched.
-      addPlans: (data) => {
+      addPlans: async (data, shares = [], onUnshared) => {
+        const merged = mergePlans(get().data, data);
+        // Pair each new plan with its share now, by id, so nothing later depends on position.
+        const wanted = merged.goals
+          .slice(get().data.goals.length)
+          .flatMap((g, i) => (shares[i] ? [{ goal: g, share: shares[i]! }] : []));
         const existing = get().data.goals.length;
-        return replaceData(
+        const ok = await replaceData(
           (clean) => repo.addGoals(clean.goals.slice(existing), clean.activeGoalId),
-          mergePlans(get().data, data),
+          merged,
           { overlay: { kind: 'import' } },
         );
+        if (!ok) return false;
+        // The plans are saved; sharing is a separate step that may fail without undoing them.
+        const results = await Promise.all(
+          wanted.map(async ({ goal, share }) =>
+            (await get().setPlanSharing(goal.id, share.visibility, share.tags)) === null
+              ? null
+              : goal.name,
+          ),
+        );
+        onUnshared?.(results.filter((n) => n !== null));
+        return true;
       },
 
       deleteAllData: async () => {

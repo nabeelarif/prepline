@@ -3,6 +3,7 @@ import { exportedAtOf } from './backup';
 import { PHASE_COLORS, TYPES } from './constants';
 import { todayISO, validISO } from './dates';
 import { num, uid } from './format';
+import { readImportSharing, type ImportShare } from './share';
 import type { AppData, Goal, Phase, PhaseColor, Resource, ResourceType } from './types';
 
 /*
@@ -131,6 +132,8 @@ export interface ImportPreview {
   version: 1;
   /** When the backup was downloaded, if the file says so (local "YYYY-MM-DDTHH:MM:SS"). */
   exportedAt: string | null;
+  /** Who can open each plan once added, aligned with `data.goals`; null keeps it private. */
+  shares: (ImportShare | null)[];
   /** What was repaired or converted, in plain words. Empty for a clean backup. */
   notes: string[];
 }
@@ -278,6 +281,11 @@ export function previewImport(
       `${linked - kept} resource${linked - kept === 1 ? '' : 's'} pointing to a missing phase will have no phase.`,
     );
 
+  // One entry per plan, in file order: `BackupShape` has already rejected any non-object plan, so
+  // `data.goals` has the same plans in the same order.
+  const shared = goals.map((g, i) => readImportSharing(g.sharing, data.goals[i]!.name));
+  notes.push(...shared.flatMap((x) => x.notes));
+
   const count = (f: (g: Goal) => number) => data.goals.reduce((a, g) => a + f(g), 0);
   return {
     ok: true,
@@ -288,6 +296,7 @@ export function previewImport(
       phases: count((g) => g.phases.length),
       version: 1,
       exportedAt: exportedAtOf(raw),
+      shares: shared.map((x) => x.share),
       notes,
     },
   };

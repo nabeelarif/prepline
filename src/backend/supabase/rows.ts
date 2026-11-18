@@ -11,6 +11,8 @@ export interface GoalRow {
   start_date: string | null;
   target_date: string | null;
   hours_per_day: number | string | null;
+  source_slug: string | null;
+  source_name: string | null;
   created_at: string;
   position: number;
 }
@@ -48,6 +50,8 @@ export const goalPayload = (g: Omit<Goal, 'resources' | 'phases'>) => ({
   start_date: g.startDate,
   target_date: g.targetDate,
   hours_per_day: g.hoursPerDay,
+  source_slug: g.source?.slug ?? null,
+  source_name: g.source?.name ?? null,
   created_at: g.createdAt,
 });
 
@@ -103,6 +107,7 @@ export function rowsToAppData(
       startDate: g.start_date,
       targetDate: g.target_date,
       hoursPerDay: g.hours_per_day === null ? null : Number(g.hours_per_day),
+      source: g.source_slug ? { slug: g.source_slug, name: g.source_name ?? '' } : null,
       createdAt: g.created_at,
       phases: phases
         .filter((p) => p.goal_id === g.id)

@@ -19,6 +19,8 @@ const planFieldsChanged = (a: Goal, b: Goal) =>
   a.startDate !== b.startDate ||
   a.targetDate !== b.targetDate ||
   a.hoursPerDay !== b.hoursPerDay ||
+  a.source?.slug !== b.source?.slug ||
+  a.source?.name !== b.source?.name ||
   a.createdAt !== b.createdAt;
 
 const planFields = (g: Goal): Omit<Goal, 'resources' | 'phases'> => ({
@@ -28,6 +30,7 @@ const planFields = (g: Goal): Omit<Goal, 'resources' | 'phases'> => ({
   startDate: g.startDate,
   targetDate: g.targetDate,
   hoursPerDay: g.hoursPerDay,
+  source: g.source,
   createdAt: g.createdAt,
 });
 

@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { cleanTags, type PlanSharing } from '../../domain/share';
+import { cleanTags, type PlanSharing, type PublicTag } from '../../domain/share';
 import { RepositoryError } from '../../repositories/errors';
 import type { PlanSharingRepository } from '../../repositories/sharing';
 import { call } from './call';
@@ -26,8 +26,17 @@ export function createSupabaseSharing(client: SupabaseClient): PlanSharingReposi
           p_tag: q.tag ?? null,
           p_limit: q.limit ?? 24,
           p_offset: q.offset ?? 0,
+          p_sort: q.sort ?? 'new',
         }),
       );
+      return ((list ?? []) as SummaryJson[]).map(toSummary);
+    },
+    async listPopularTags(limit = 20) {
+      const list = await call(client.rpc('list_popular_tags', { p_limit: limit }));
+      return (list ?? []) as PublicTag[];
+    },
+    async listSimilar(slug, limit = 6) {
+      const list = await call(client.rpc('similar_plans', { p_slug: slug, p_limit: limit }));
       return ((list ?? []) as SummaryJson[]).map(toSummary);
     },
     async loadSharing() {

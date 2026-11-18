@@ -43,6 +43,15 @@ export interface PlanSummary {
   totalMinutes: number;
 }
 
+/** How Explore orders plans: newest first, or most copied first. */
+export type PublicSort = 'new' | 'popular';
+
+/** A tag used by public plans and how many use it. */
+export interface PublicTag {
+  tag: string;
+  count: number;
+}
+
 /** The owner's sharing settings for one plan. */
 export interface PlanSharing {
   visibility: Visibility;
@@ -94,6 +103,7 @@ export function copyOfSharedPlan(shared: SharedPlan, today: ISODate = todayISO()
     startDate: null,
     targetDate: null,
     hoursPerDay: null,
+    source: { slug: shared.slug, name: shared.name },
     createdAt: today,
     phases: shared.phases.map((p) => ({ ...p, id: phaseIds.get(p.id)! })),
     resources: shared.resources.map((r) => ({

@@ -223,10 +223,14 @@ export function describeSharingContract(name: string, make: () => Promise<Contra
           phases: [{ id: `${id}-p1`, name: 'Basics', description: '', color: 'green' }],
         },
       );
-    const share = async (id: string, visibility: 'unlisted' | 'public') => {
+    const share = async (
+      id: string,
+      visibility: 'unlisted' | 'public',
+      tags = ['Swift', 'swift', ' iOS '],
+    ) => {
       await repo.saveGoalTree(planWithProgress(id));
       await sharing.setDisplayName('Ada');
-      return sharing.setSharing(id, visibility, ['Swift', 'swift', ' iOS ']);
+      return sharing.setSharing(id, visibility, tags);
     };
 
     it('shares content only, never progress, dates or daily hours', async () => {
@@ -254,6 +258,25 @@ export function describeSharingContract(name: string, make: () => Promise<Contra
       expect(list[0]).toMatchObject({ resourceCount: 2, phaseCount: 1, author: 'Ada' });
       expect(await sharing.listPublic({ query: 'nothing like this' })).toEqual([]);
       expect(await sharing.listPublic({ tag: 'swift' })).toHaveLength(1);
+    });
+
+    it('searches tags, sorts by copies, lists popular tags and finds similar plans', async () => {
+      const a = await share('g1', 'public', ['swift', 'ios']);
+      const b = await share('g2', 'public', ['swift']);
+      await subject.switchUser('b');
+      await sharing.recordCopy(b.slug!);
+      await subject.signOut();
+      expect((await sharing.listPublic({ query: 'ios' })).map((p) => p.slug)).toEqual([a.slug]);
+      expect((await sharing.listPublic({ sort: 'popular' })).map((p) => p.slug)).toEqual([
+        b.slug,
+        a.slug,
+      ]);
+      expect(await sharing.listPopularTags()).toEqual([
+        { tag: 'swift', count: 2 },
+        { tag: 'ios', count: 1 },
+      ]);
+      expect((await sharing.listSimilar(a.slug!)).map((p) => p.slug)).toEqual([b.slug]);
+      expect(await sharing.listSimilar('no-such-plan')).toEqual([]);
     });
 
     it('stops sharing, and a plan that is deleted is no longer shared', async () => {

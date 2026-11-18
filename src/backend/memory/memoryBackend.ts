@@ -345,6 +345,13 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
     totalMinutes: p.resources.reduce((n, r) => n + r.minutes, 0),
   });
 
+  /** Public, visible plans with at least one resource (an empty plan is not listed). */
+  const listed = () =>
+    allShares()
+      .filter((f) => f.share.visibility === 'public' && !f.share.hidden)
+      .map(toShared)
+      .filter((p) => p.resources.length > 0);
+
   const sharing: PlanSharingRepository = {
     getShared: (slug) =>
       shared('getShared', false, () => {
@@ -354,25 +361,50 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
     listPublic: (q = {}) =>
       shared('listPublic', false, () => {
         const needle = (q.query ?? '').trim().toLowerCase();
-        return (
-          allShares()
-            .filter((f) => f.share.visibility === 'public' && !f.share.hidden)
-            .map(toShared)
-            // Not listed until it has a resource.
-            .filter((p) => p.resources.length > 0)
-            .filter(
-              (p) =>
-                (!needle ||
-                  p.name.toLowerCase().includes(needle) ||
-                  p.description.toLowerCase().includes(needle)) &&
-                (!q.tag || p.tags.includes(q.tag.toLowerCase())),
-            )
-            .sort(
-              (a, b) => b.publishedAt.localeCompare(a.publishedAt) || a.slug.localeCompare(b.slug),
-            )
-            .slice(q.offset ?? 0, (q.offset ?? 0) + Math.min(50, Math.max(1, q.limit ?? 24)))
-            .map(toSummary)
-        );
+        return listed()
+          .filter(
+            (p) =>
+              (!needle ||
+                p.name.toLowerCase().includes(needle) ||
+                p.description.toLowerCase().includes(needle) ||
+                p.tags.some((t) => t.includes(needle))) &&
+              (!q.tag || p.tags.includes(q.tag.toLowerCase())),
+          )
+          .sort(
+            (a, b) =>
+              (q.sort === 'popular' ? b.copyCount - a.copyCount : 0) ||
+              b.publishedAt.localeCompare(a.publishedAt) ||
+              a.slug.localeCompare(b.slug),
+          )
+          .slice(q.offset ?? 0, (q.offset ?? 0) + Math.min(50, Math.max(1, q.limit ?? 24)))
+          .map(toSummary);
+      }),
+    listPopularTags: (limit = 20) =>
+      shared('listPopularTags', false, () => {
+        const counts = new Map<string, number>();
+        for (const p of listed()) for (const t of p.tags) counts.set(t, (counts.get(t) ?? 0) + 1);
+        return [...counts]
+          .map(([tag, count]) => ({ tag, count }))
+          .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag))
+          .slice(0, Math.min(50, Math.max(1, limit)));
+      }),
+    listSimilar: (slug, limit = 6) =>
+      shared('listSimilar', false, () => {
+        const me = findShare(slug);
+        if (!me) return [];
+        const mine = new Set(me.share.tags);
+        return listed()
+          .filter((p) => p.slug !== slug)
+          .map((p) => ({ p, overlap: p.tags.filter((t) => mine.has(t)).length }))
+          .filter((x) => x.overlap > 0)
+          .sort(
+            (a, b) =>
+              b.overlap - a.overlap ||
+              b.p.copyCount - a.p.copyCount ||
+              a.p.slug.localeCompare(b.p.slug),
+          )
+          .slice(0, Math.min(24, Math.max(1, limit)))
+          .map((x) => toSummary(x.p));
       }),
     loadSharing: () =>
       shared('loadSharing', true, (me) => ({

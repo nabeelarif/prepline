@@ -1,9 +1,18 @@
-import type { PlanSharing, PlanSummary, SharedPlan, Visibility } from '../domain/share';
+import type {
+  PlanSharing,
+  PlanSummary,
+  PublicSort,
+  PublicTag,
+  SharedPlan,
+  Visibility,
+} from '../domain/share';
 
 export interface PublicListQuery {
-  /** Matches the title or description. */
+  /** Matches the title, description or a tag. */
   query?: string;
   tag?: string;
+  /** `new` (default) is newest first; `popular` is most copied first. */
+  sort?: PublicSort;
   limit?: number;
   offset?: number;
 }
@@ -18,8 +27,12 @@ export interface PublicListQuery {
 export interface PlanSharingRepository {
   /** A plan by its link. Null when the link is wrong, the plan is private or taken down. */
   getShared(slug: string): Promise<SharedPlan | null>;
-  /** Public plans, newest first. */
+  /** Public plans, newest first unless `sort` says otherwise. */
   listPublic(q?: PublicListQuery): Promise<PlanSummary[]>;
+  /** Tags used by public plans, most used first. */
+  listPopularTags(limit?: number): Promise<PublicTag[]>;
+  /** Public plans sharing tags with the plan at `slug`, best match first. Never includes it. */
+  listSimilar(slug: string, limit?: number): Promise<PlanSummary[]>;
 
   /** The signed-in user's sharing settings, by plan id; plans not shared are absent. */
   loadSharing(): Promise<{ plans: Record<string, PlanSharing>; displayName: string | null }>;

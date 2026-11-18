@@ -3,12 +3,13 @@ import { ExternalLink, Flag, Plus } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { TYPES } from '../../domain/constants';
 import { fmtHours, pl } from '../../domain/format';
-import type { SharedPlan, SharedResource } from '../../domain/share';
+import type { PlanSummary, SharedPlan, SharedResource } from '../../domain/share';
 import { hostOf, safeUrl } from '../../domain/urls';
 import { paths } from '../../routes';
 import { useStore } from '../../state/store';
 import { EmptyState } from '../EmptyState';
 import { TypeIcon } from '../icons';
+import { PlanCard } from './PlanCard';
 import { useAsync } from './useAsync';
 import { useRequestSignIn } from './useRequestSignIn';
 
@@ -45,6 +46,14 @@ export function SharedPlanPage() {
   const busy = useStore((s) => s.busy);
   // A missing plan is a normal answer (null), not a failure.
   const [result] = useAsync<SharedPlan | null>(() => useStore.getState().fetchShared(slug), [slug]);
+  const [similar] = useAsync<PlanSummary[]>(
+    () =>
+      useStore
+        .getState()
+        .fetchSimilar(slug)
+        .catch(() => []),
+    [slug],
+  );
   const [message, setMessage] = useState('');
   const [reporting, setReporting] = useState(false);
   const [reason, setReason] = useState('');
@@ -113,15 +122,16 @@ export function SharedPlanPage() {
         {plan.tags.length > 0 && (
           <p className="explore-tags">
             {plan.tags.map((t) => (
-              <span key={t} className="badge">
+              <Link key={t} className="badge" to={paths.exploreTag(t)}>
                 {t}
-              </span>
+              </Link>
             ))}
           </p>
         )}
         <p className="muted">
           {pl(plan.resources.length, 'resource')} · {fmtHours(total)}
           {plan.phases.length > 0 && ` · ${pl(plan.phases.length, 'phase')}`}
+          {plan.copyCount > 0 && ` · copied ${pl(plan.copyCount, 'time')}`}
         </p>
         <div className="btn-row">
           <button className="btn primary" onClick={add} disabled={busy}>
@@ -191,6 +201,16 @@ export function SharedPlanPage() {
               <Item key={r.id} r={r} />
             ))}
           </ol>
+        </section>
+      )}
+      {similar.status === 'ready' && similar.data.length > 0 && (
+        <section aria-label="Similar plans">
+          <h2>Similar plans</h2>
+          <ul className="plan-grid">
+            {similar.data.map((p) => (
+              <PlanCard key={p.slug} plan={p} />
+            ))}
+          </ul>
         </section>
       )}
     </>

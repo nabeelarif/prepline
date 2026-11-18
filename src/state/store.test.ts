@@ -76,6 +76,7 @@ describe('store', () => {
     const copy = s().data.goals[0]!;
     expect(copy).toMatchObject({ name: original.name, startDate: null, targetDate: null });
     expect(copy.id).not.toBe(original.id);
+    expect(copy.source).toEqual({ slug, name: original.name });
     expect(copy.resources[0]).toMatchObject({ title: 'Read', done: false, doneMinutes: 0 });
     expect(copy.resources[0]!.id).not.toBe(original.resourceId);
     // The copy is the new user's own: it is not shared, and sharing settings are not carried over.

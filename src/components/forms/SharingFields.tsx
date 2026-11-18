@@ -57,20 +57,22 @@ export function SharingFields({
           />
         </label>
       )}
-      {value.visibility !== 'private' && (
-        <label className="field">
-          <span>
-            Tags <small>(optional, up to {MAX_TAGS}, separated by commas)</small>
-          </span>
-          <input
-            type="text"
-            value={value.tags}
-            maxLength={MAX_TAGS * (MAX_TAG_LENGTH + 2)}
-            placeholder="swift, interview"
-            onChange={(e) => onChange({ ...value, tags: e.target.value })}
-          />
-        </label>
-      )}
+      <label className="field">
+        <span>
+          Tags <small>(optional, up to {MAX_TAGS}, separated by commas)</small>
+        </span>
+        <input
+          id="shTags"
+          type="text"
+          value={value.tags}
+          maxLength={MAX_TAGS * (MAX_TAG_LENGTH + 2)}
+          placeholder="swift, interview"
+          onChange={(e) => onChange({ ...value, tags: e.target.value })}
+        />
+        {value.visibility === 'private' && (
+          <small>Tags help people find a plan, so they are saved once you share it.</small>
+        )}
+      </label>
       <p className="share-note">
         <strong>Shared:</strong> the title, description, phases and resources with their notes and
         links. Changes you make to the plan show up for viewers.

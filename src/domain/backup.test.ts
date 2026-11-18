@@ -1,4 +1,10 @@
-import { createEmptyAppData, exportedAtOf, mergePlans } from './backup';
+import {
+  createEmptyAppData,
+  exportedAtOf,
+  formatGeneratedBy,
+  generatedByOf,
+  mergePlans,
+} from './backup';
 import { parseAppData, previewImport } from './schema';
 import type { AppData } from './types';
 
@@ -110,4 +116,37 @@ describe('mergePlans', () => {
   it('changes nothing when the file has no plans', () => {
     expect(mergePlans(data, createEmptyAppData())).toEqual(data);
   });
+});
+
+describe('generatedByOf', () => {
+  it('reads the text keys it knows, trimmed and capped', () => {
+    expect(
+      generatedByOf({
+        generatedBy: { tool: ' Claude ', model: 'm'.repeat(80), skill: 'x 1.0', extra: 'ignored' },
+      }),
+    ).toEqual({ tool: 'Claude', model: 'm'.repeat(60), skill: 'x 1.0' });
+  });
+
+  it('keeps a partial value and skips keys that are not text', () => {
+    expect(
+      generatedByOf({ generatedBy: { model: 'claude-opus-5-5', tool: 7, skill: '  ' } }),
+    ).toEqual({
+      model: 'claude-opus-5-5',
+    });
+  });
+
+  it.each([null, {}, { generatedBy: 'Claude' }, { generatedBy: ['Claude'] }, { generatedBy: {} }])(
+    'is null when missing or not usable: %j',
+    (raw) => expect(generatedByOf(raw)).toBeNull(),
+  );
+});
+
+describe('formatGeneratedBy', () => {
+  it.each([
+    [{ tool: 'Claude', model: 'm1', skill: 's 1.0' }, 'Claude (m1) · s 1.0'],
+    [{ tool: 'Claude', model: 'm1' }, 'Claude (m1)'],
+    [{ model: 'm1', skill: 's 1.0' }, 'm1 · s 1.0'],
+    [{ tool: 'Claude' }, 'Claude'],
+    [{ skill: 's 1.0' }, 's 1.0'],
+  ])('shows %j as %s', (value, text) => expect(formatGeneratedBy(value)).toBe(text));
 });

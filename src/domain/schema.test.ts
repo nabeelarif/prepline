@@ -1,5 +1,6 @@
 import spec from '../../docs/agent-plan-format.md?raw';
 import skillCopy from '../../.claude/skills/create-roadtogoals-plan/references/agent-plan-format.md?raw';
+import skillDoc from '../../.claude/skills/create-roadtogoals-plan/SKILL.md?raw';
 import example from '../../docs/examples/ios-interview-prep.json?raw';
 import { parseAppData, previewImport } from './schema';
 
@@ -315,6 +316,23 @@ describe('agent plan format (docs/agent-plan-format.md)', () => {
     expect(r.preview).toMatchObject({ plans: 1, phases: 3, resources: 8 });
     const minutes = r.preview.data.goals[0]!.resources.reduce((a, x) => a + x.minutes, 0);
     expect(minutes).toBe(4825);
+  });
+
+  it('shows who made the example and when', () => {
+    const r = previewImport(JSON.parse(example));
+    if (!r.ok) throw new Error(r.error);
+    expect(r.preview.exportedAt).toBe('2026-11-18T14:32:05-05:00');
+    expect(r.preview.generatedBy).toEqual({
+      tool: 'Claude',
+      model: 'claude-opus-5-5',
+      skill: 'create-roadtogoals-plan 1.1.0',
+    });
+  });
+
+  it('stamps the example with the skill version in SKILL.md', () => {
+    const name = skillDoc.match(/^name: (.+)$/m)?.[1];
+    const version = skillDoc.match(/^ {2}version: '(.+)'$/m)?.[1];
+    expect(JSON.parse(example).generatedBy.skill).toBe(`${name} ${version}`);
   });
 
   it('reads who can open the example plan, with its tags', () => {

@@ -28,6 +28,8 @@ Add to My Plans**, which keeps the user's existing plans.
 ```json
 {
   "version": 1,
+  "exportedAt": "YYYY-MM-DDTHH:MM:SS+00:00",
+  "generatedBy": { "tool": "…", "model": "…", "skill": "…" },
   "goals": [
     {
       "id": "…",
@@ -59,6 +61,17 @@ Add to My Plans**, which keeps the user's existing plans.
 - Use plain JSON: no comments and no trailing commas.
 
 ## 3. Field reference
+
+### File metadata (top level)
+
+Optional. Road to Goals shows these on the import review and does not store them.
+
+| Field         | Type   | Meaning and limits                                                                                                                                      |
+| ------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `exportedAt`  | string | When you made the file: the user's local time with its UTC offset, such as `2026-11-18T14:32:05-05:00`. Shown as "Created".                             |
+| `generatedBy` | object | Who made it, with optional text keys `tool` (for example `Claude`), `model` and `skill` (name and version). Max 60 characters each. Shown as "Made by". |
+
+Report only what you know. Leave a key out when you are unsure; never guess a model name.
 
 ### Plan (`goals[]`)
 
@@ -184,6 +197,7 @@ size the plan by what the user needs to learn.
 - [ ] `type` is one of `article`, `video`, `course`, `practice`.
 - [ ] `minutes` are whole numbers, and their total fits 80% of capacity.
 - [ ] `targetDate` is either left out, or a real date written `YYYY-MM-DD` in the future.
+- [ ] `exportedAt` is the current local time with its UTC offset, and `generatedBy` only holds keys you know.
 - [ ] `sharing` is left out (private), or has a valid `visibility` and at most 5 tags of 24 characters or fewer.
 - [ ] Every URL was opened and checked during this task.
 
@@ -196,6 +210,12 @@ capacity when there are at least 51 days to go.
 ```json
 {
   "version": 1,
+  "exportedAt": "2026-11-18T14:32:05-05:00",
+  "generatedBy": {
+    "tool": "Claude",
+    "model": "claude-opus-5-5",
+    "skill": "create-roadtogoals-plan 1.1.0"
+  },
   "goals": [
     {
       "id": "ios-interview",

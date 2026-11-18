@@ -1,5 +1,11 @@
 {
   "version": 1,
+  "exportedAt": "2026-11-18T14:32:05-05:00",
+  "generatedBy": {
+    "tool": "Claude",
+    "model": "claude-opus-5-5",
+    "skill": "create-roadtogoals-plan 1.1.0"
+  },
   "goals": [
     {
       "id": "ios-interview",

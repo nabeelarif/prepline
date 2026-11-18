@@ -8,6 +8,7 @@ import {
   TriangleAlert,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { formatGeneratedBy } from '../../domain/backup';
 import { paths } from '../../routes';
 import { useStore } from '../../state/store';
 import type { RestoreFailure, RestoreFlow } from './useRestoreFlow';
@@ -235,6 +236,12 @@ export function RestoreFlowPanel({ flow }: { flow: RestoreFlow }) {
           <div>
             <dt>Created</dt>
             <dd>{fmtExported(preview.exportedAt)}</dd>
+          </div>
+        )}
+        {preview.generatedBy && (
+          <div>
+            <dt>Made by</dt>
+            <dd>{formatGeneratedBy(preview.generatedBy)}</dd>
           </div>
         )}
         <div>

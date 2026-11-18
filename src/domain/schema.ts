@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { exportedAtOf } from './backup';
+import { exportedAtOf, generatedByOf, type GeneratedBy } from './backup';
 import { PHASE_COLORS, TYPES } from './constants';
 import { todayISO, validISO } from './dates';
 import { num, uid } from './format';
@@ -132,6 +132,8 @@ export interface ImportPreview {
   version: 1;
   /** When the backup was downloaded, if the file says so (local "YYYY-MM-DDTHH:MM:SS"). */
   exportedAt: string | null;
+  /** Which AI and skill made the file, if it says so. */
+  generatedBy: GeneratedBy | null;
   /** Who can open each plan once added, aligned with `data.goals`; null keeps it private. */
   shares: (ImportShare | null)[];
   /** What was repaired or converted, in plain words. Empty for a clean backup. */
@@ -296,6 +298,7 @@ export function previewImport(
       phases: count((g) => g.phases.length),
       version: 1,
       exportedAt: exportedAtOf(raw),
+      generatedBy: generatedByOf(raw),
       shares: shared.map((x) => x.share),
       notes,
     },

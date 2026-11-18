@@ -70,6 +70,29 @@ describe('Import plans', () => {
     expect(useStore.getState().data).toEqual(current);
   });
 
+  it('shows who made a file, and hides it when the file does not say', async () => {
+    await open();
+    pick(
+      JSON.stringify({
+        ...backup,
+        generatedBy: {
+          tool: 'Claude',
+          model: 'claude-opus-5-5',
+          skill: 'create-roadtogoals-plan 1.1.0',
+        },
+      }),
+    );
+    const review = await screen.findByRole('region', { name: 'File contents' });
+    expect(review).toHaveTextContent(
+      'Made byClaude (claude-opus-5-5) · create-roadtogoals-plan 1.1.0',
+    );
+    fireEvent.click(within(review).getByRole('button', { name: 'Cancel' }));
+    pick(JSON.stringify(backup));
+    expect(await screen.findByRole('region', { name: 'File contents' })).not.toHaveTextContent(
+      'Made by',
+    );
+  });
+
   it('hides the creation date for backups that do not record one', async () => {
     await open();
     pick(JSON.stringify({ ...backup, exportedAt: undefined }));

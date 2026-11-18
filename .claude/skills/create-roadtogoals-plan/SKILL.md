@@ -1,6 +1,8 @@
 ---
 name: create-roadtogoals-plan
 description: Create or convert learning plans into importable Road to Goals (formerly Prepline) version 1 JSON files when the user supplies a topic, outline, resources, or planning instructions.
+metadata:
+  version: '1.1.0'
 ---
 
 # Create a Road to Goals plan
@@ -31,8 +33,12 @@ Follow the reference's types, estimates, field limits, ordering and phase colors
 
 New plans omit all progress and timestamp keys (`done`, `doneMinutes`, `doneAt`, `startedAt`, `loggedOn`, `loggedMinutes`, `createdAt`, `startDate`). Include only supported keys. Add `sharing: { "visibility": "unlisted" | "public", "tags": [...] }` only when the plan is not private. Use unique stable strings for phase IDs, and make every `phaseId` resolve within the same plan.
 
+## Stamp the file
+
+Set top-level `exportedAt` to the user's current local time with its UTC offset (for example `2026-11-18T14:32:05-05:00`). Set `generatedBy` to `{ "tool", "model", "skill" }`: the AI and model you actually are (leave a key out if unsure, never guess) and `skill` to `create-roadtogoals-plan` plus this skill's `metadata.version`. These show as "Created" and "Made by" on the import review and are not stored.
+
 ## Validate and deliver
 
-Before delivery, parse the JSON and check: root `version` is 1 with a `goals` array; required fields and types; integer minute bounds; string limits; `targetDate` absent or a valid future date; allowed colors and resource types; unique IDs and resolving phase references; `sharing` absent or valid, with at most 5 tags; no progress keys; the capacity rule above. If the app repository is available, also run the file through `previewImport()` and require no repairs (`notes` empty). The example `docs/examples/ios-interview-prep.json` shows a clean file. If execution tools prevent programmatic validation, say so; do not claim it ran. Keep the evidence of the link checks. If research access is unavailable, ask for verified source material or report the limitation instead of fabricating a researched plan.
+Before delivery, parse the JSON and check: root `version` is 1 with a `goals` array, a valid `exportedAt`, and `generatedBy` holding only the keys the reference lists, as short text; required fields and types; integer minute bounds; string limits; `targetDate` absent or a valid future date; allowed colors and resource types; unique IDs and resolving phase references; `sharing` absent or valid, with at most 5 tags; no progress keys; the capacity rule above. If the app repository is available, also run the file through `previewImport()` and require no repairs (`notes` empty). The example `docs/examples/ios-interview-prep.json` shows a clean file. If execution tools prevent programmatic validation, say so; do not claim it ran. Keep the evidence of the link checks. If research access is unavailable, ask for verified source material or report the limitation instead of fabricating a researched plan.
 
 Deliver a UTF-8 file named `roadtogoals-plan-<topic>.json`, containing only JSON (no Markdown fences or commentary). Keep the reply brief: link the file, mention substantial scope omissions, and give the import path **My Plans → Import plan → Choose File → Add to My Plans**. Add one line on sharing when it is on: the import screen lists "Will be shared" for confirmation, and a public plan is listed in Explore once it has a resource. Do not claim to have imported or synced anything: this skill creates import files and has no live connection to the app.

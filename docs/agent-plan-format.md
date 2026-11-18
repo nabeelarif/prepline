@@ -13,6 +13,9 @@ Add to My Plans**, which keeps the user's existing plans.
    user has no date, or you can't ask, leave `targetDate` out (the plan then arrives
    as "Not started", with no deadline, and the user starts it when ready). If hours
    are missing and you can't ask, use 2 hours a day and say so in the plan's `description`.
+   Also ask **who can open the plan** (private, anyone with the link, or public in
+   Explore) and, if it is shared, up to 5 tags. Default to private with no `sharing`.
+   Never ask for a display name: the author shown is the account's own.
 2. Research resources. Open every URL you include and check that it loads and is
    what you describe. **Never invent or guess a URL.**
 3. Group the resources into phases, put them in study order, and estimate each one's
@@ -25,6 +28,8 @@ Add to My Plans**, which keeps the user's existing plans.
 ```json
 {
   "version": 1,
+  "exportedAt": "YYYY-MM-DDTHH:MM:SS+00:00",
+  "generatedBy": { "tool": "…", "model": "…", "skill": "…" },
   "goals": [
     {
       "id": "…",
@@ -32,6 +37,7 @@ Add to My Plans**, which keeps the user's existing plans.
       "description": "…",
       "targetDate": "YYYY-MM-DD",
       "hoursPerDay": 2,
+      "sharing": { "visibility": "unlisted", "tags": ["…"] },
       "phases": [{ "id": "…", "name": "…", "description": "…", "color": "blue" }],
       "resources": [
         {
@@ -56,6 +62,17 @@ Add to My Plans**, which keeps the user's existing plans.
 
 ## 3. Field reference
 
+### File metadata (top level)
+
+Optional. Road to Goals shows these on the import review and does not store them.
+
+| Field         | Type   | Meaning and limits                                                                                                                                      |
+| ------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `exportedAt`  | string | When you made the file: the user's local time with its UTC offset, such as `2026-11-18T14:32:05-05:00`. Shown as "Created".                             |
+| `generatedBy` | object | Who made it, with optional text keys `tool` (for example `Claude`), `model` and `skill` (name and version). Max 60 characters each. Shown as "Made by". |
+
+Report only what you know. Leave a key out when you are unsure; never guess a model name.
+
 ### Plan (`goals[]`)
 
 | Field         | Required | Type             | Meaning and limits                                                                                                                                                                                                                                              |
@@ -64,9 +81,25 @@ Add to My Plans**, which keeps the user's existing plans.
 | `description` | no       | string           | One to three sentences on the aim and level. Max 1000 characters.                                                                                                                                                                                               |
 | `targetDate`  | no       | `"YYYY-MM-DD"`   | The date the user wants to be ready. Must be a real calendar date. **Leave it out when the user has no deadline.** With a date the plan starts running on import; without one it arrives Not started and the user starts it, optionally adding a deadline then. |
 | `hoursPerDay` | no       | number or `null` | Daily study capacity, 0.25 to 16. Road to Goals uses it to say whether the plan is on track. With `null` it shows only the pace needed.                                                                                                                         |
+| `sharing`     | no       | object           | Who can open the plan. Leave it out for a private plan. See "Sharing" below.                                                                                                                                                                                    |
 | `id`          | no       | string           | Any unique string. Road to Goals gives every plan, phase and resource new ids on import. You only need ids so resources can point at phases.                                                                                                                    |
 | `phases`      | no       | array            | Optional groups, shown as milestones. See below.                                                                                                                                                                                                                |
 | `resources`   | no       | array            | The study items, **in the order the user should do them**.                                                                                                                                                                                                      |
+
+### Sharing (`goals[].sharing`)
+
+Optional. Leave it out for a private plan (the default). Only ask for sharing when the
+user wants it.
+
+| Field        | Required | Type            | Meaning and limits                                                                                                                                |
+| ------------ | -------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `visibility` | yes      | string          | `private` (only the owner), `unlisted` (anyone with the link, no account needed) or `public` (also listed in Explore). Unknown becomes `private`. |
+| `tags`       | no       | array of string | Up to **5** tags that help people find the plan. Lowercase, 24 characters or fewer each. Extra or too-long tags are dropped.                      |
+
+- The user sees "Will be shared" on the import review screen and confirms before anything is published.
+- Do not write a display name. The author shown is the display name on the user's account.
+- A public plan appears in Explore once it has at least one resource.
+- Only the plan's content is ever shared (title, description, phases, resources, notes), never the user's progress, dates or daily hours.
 
 ### Phase (`phases[]`)
 
@@ -164,6 +197,8 @@ size the plan by what the user needs to learn.
 - [ ] `type` is one of `article`, `video`, `course`, `practice`.
 - [ ] `minutes` are whole numbers, and their total fits 80% of capacity.
 - [ ] `targetDate` is either left out, or a real date written `YYYY-MM-DD` in the future.
+- [ ] `exportedAt` is the current local time with its UTC offset, and `generatedBy` only holds keys you know.
+- [ ] `sharing` is left out (private), or has a valid `visibility` and at most 5 tags of 24 characters or fewer.
 - [ ] Every URL was opened and checked during this task.
 
 ## 10. Example
@@ -175,6 +210,12 @@ capacity when there are at least 51 days to go.
 ```json
 {
   "version": 1,
+  "exportedAt": "2026-11-18T14:32:05-05:00",
+  "generatedBy": {
+    "tool": "Claude",
+    "model": "claude-opus-5-5",
+    "skill": "create-roadtogoals-plan 1.1.0"
+  },
   "goals": [
     {
       "id": "ios-interview",
@@ -182,6 +223,7 @@ capacity when there are at least 51 days to go.
       "description": "Get ready for mid-level iOS interviews: Swift memory and concurrency, SwiftUI, coding problems, and a mock interview.",
       "targetDate": "2026-12-31",
       "hoursPerDay": 2,
+      "sharing": { "visibility": "unlisted", "tags": ["ios", "swift", "interview"] },
       "phases": [
         {
           "id": "swift",

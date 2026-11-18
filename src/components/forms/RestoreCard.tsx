@@ -8,6 +8,7 @@ import {
   TriangleAlert,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { formatGeneratedBy } from '../../domain/backup';
 import { paths } from '../../routes';
 import { useStore } from '../../state/store';
 import type { RestoreFailure, RestoreFlow } from './useRestoreFlow';
@@ -162,6 +163,12 @@ export function RestoreFlowPanel({ flow }: { flow: RestoreFlow }) {
           Plans added successfully
         </h3>
         <p className="muted">The new plans are next to your existing ones.</p>
+        {state.unshared.length > 0 && (
+          <p role="alert" className="backup-notes">
+            Sharing could not be turned on for {state.unshared.map((n) => `"${n}"`).join(', ')}.
+            They are private. Use the Share button on each plan to try again.
+          </p>
+        )}
         <button type="button" className="btn primary wide-btn" onClick={done}>
           Continue to Dashboard
         </button>
@@ -231,6 +238,12 @@ export function RestoreFlowPanel({ flow }: { flow: RestoreFlow }) {
             <dd>{fmtExported(preview.exportedAt)}</dd>
           </div>
         )}
+        {preview.generatedBy && (
+          <div>
+            <dt>Made by</dt>
+            <dd>{formatGeneratedBy(preview.generatedBy)}</dd>
+          </div>
+        )}
         <div>
           <dt>Version</dt>
           <dd>{preview.version} (compatible)</dd>
@@ -242,6 +255,28 @@ export function RestoreFlowPanel({ flow }: { flow: RestoreFlow }) {
             <li key={n}>{n}</li>
           ))}
         </ul>
+      )}
+      {preview.shares.some(Boolean) && (
+        <div className="backup-share">
+          <h4>Will be shared</h4>
+          <ul className="backup-notes">
+            {preview.data.goals.map((g, i) => {
+              const share = preview.shares[i];
+              return (
+                share && (
+                  <li key={g.id}>
+                    "{g.name}":{' '}
+                    {share.visibility === 'public' ? 'public in Explore' : 'anyone with the link'}
+                    {share.tags.length > 0 && ` · tags: ${share.tags.join(', ')}`}
+                    {share.visibility === 'public' &&
+                      g.resources.length === 0 &&
+                      ' (listed once it has a resource)'}
+                  </li>
+                )
+              );
+            })}
+          </ul>
+        </div>
       )}
       <p className="muted">
         Add to My Plans keeps everything saved in your account and adds the plans from this file.

@@ -1,5 +1,11 @@
 {
   "version": 1,
+  "exportedAt": "2026-11-18T14:32:05-05:00",
+  "generatedBy": {
+    "tool": "Claude",
+    "model": "claude-opus-5-5",
+    "skill": "create-roadtogoals-plan 1.1.0"
+  },
   "goals": [
     {
       "id": "ios-interview",
@@ -7,6 +13,7 @@
       "description": "Get ready for mid-level iOS interviews: Swift memory and concurrency, SwiftUI, coding problems, and a mock interview.",
       "targetDate": "2026-12-31",
       "hoursPerDay": 2,
+      "sharing": { "visibility": "unlisted", "tags": ["ios", "swift", "interview"] },
       "phases": [
         {
           "id": "swift",

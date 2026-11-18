@@ -307,6 +307,10 @@ test('adds the documented agent plan next to an existing plan', async ({ page })
   await openImport(page);
   await chooseFile(page, readFileSync('docs/examples/ios-interview-prep.json'), 'plan.json');
   await expect(page.getByRole('region', { name: 'File contents' })).toBeVisible();
+  // The example asks to be shared by link, so the review says so before anything happens.
+  await expect(page.getByText('Made by')).toBeVisible();
+  await expect(page.getByText('Will be shared')).toBeVisible();
+  await expect(page.getByText(/anyone with the link · tags: interview, ios, swift/)).toBeVisible();
   await page.getByRole('button', { name: 'Add to My Plans' }).click();
   await expect(page.getByText('Plans added successfully')).toBeVisible();
   await page.getByRole('button', { name: 'Continue to Dashboard' }).click();

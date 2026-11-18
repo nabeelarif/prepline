@@ -1,4 +1,6 @@
 import spec from '../../docs/agent-plan-format.md?raw';
+import skillCopy from '../../.claude/skills/create-roadtogoals-plan/references/agent-plan-format.md?raw';
+import skillDoc from '../../.claude/skills/create-roadtogoals-plan/SKILL.md?raw';
 import example from '../../docs/examples/ios-interview-prep.json?raw';
 import { parseAppData, previewImport } from './schema';
 
@@ -316,8 +318,86 @@ describe('agent plan format (docs/agent-plan-format.md)', () => {
     expect(minutes).toBe(4825);
   });
 
+  it('shows who made the example and when', () => {
+    const r = previewImport(JSON.parse(example));
+    if (!r.ok) throw new Error(r.error);
+    expect(r.preview.exportedAt).toBe('2026-11-18T14:32:05-05:00');
+    expect(r.preview.generatedBy).toEqual({
+      tool: 'Claude',
+      model: 'claude-opus-5-5',
+      skill: 'create-roadtogoals-plan 1.1.0',
+    });
+  });
+
+  it('stamps the example with the skill version in SKILL.md', () => {
+    const name = skillDoc.match(/^name: (.+)$/m)?.[1];
+    const version = skillDoc.match(/^ {2}version: '(.+)'$/m)?.[1];
+    expect(JSON.parse(example).generatedBy.skill).toBe(`${name} ${version}`);
+  });
+
+  it('reads who can open the example plan, with its tags', () => {
+    const r = previewImport(JSON.parse(example));
+    if (!r.ok) throw new Error(r.error);
+    expect(r.preview.shares).toEqual([
+      { visibility: 'unlisted', tags: ['interview', 'ios', 'swift'] },
+    ]);
+  });
+
+  it('is bundled unchanged with the skill (run `npm run sync-skill` if this fails)', () => {
+    expect(skillCopy).toBe(spec);
+  });
+
   it('shows the same example in the document', () => {
     const block = spec.split('## 10. Example')[1]?.match(/```json\n([\s\S]*?)```/)?.[1];
     expect(JSON.parse(block ?? 'null')).toEqual(JSON.parse(example));
+  });
+});
+
+describe('sharing in a plan file', () => {
+  const file = (sharing: unknown) => ({ version: 1, goals: [{ name: 'Plan', sharing }] });
+  const read = (sharing: unknown) => {
+    const r = previewImport(file(sharing));
+    if (!r.ok) throw new Error(r.error);
+    return r.preview;
+  };
+
+  it('keeps a plan private when there is no sharing, or it says private', () => {
+    expect(read(undefined)).toMatchObject({ shares: [null], notes: [] });
+    expect(read({ visibility: 'private', tags: ['x'] })).toMatchObject({
+      shares: [null],
+      notes: [],
+    });
+  });
+
+  it('accepts link and public sharing with cleaned tags', () => {
+    expect(read({ visibility: 'public', tags: [' Swift ', 'swift', 'iOS'] }).shares).toEqual([
+      { visibility: 'public', tags: ['ios', 'swift'] },
+    ]);
+    expect(read({ visibility: 'unlisted' }).shares).toEqual([{ visibility: 'unlisted', tags: [] }]);
+  });
+
+  it('falls back to private, and says so, for an unknown setting', () => {
+    const p = read({ visibility: 'everyone' });
+    expect(p.shares).toEqual([null]);
+    expect(p.notes).toEqual(['"Plan" has an unknown sharing setting and will stay private.']);
+    expect(read('public').shares).toEqual([null]);
+  });
+
+  it('notes tags that are not a list of text', () => {
+    for (const tags of ['ios', [123, 'swift']]) {
+      const p = read({ visibility: 'unlisted', tags });
+      expect(p.notes).toEqual([
+        '"Plan" has tags that are not a list of text; those will be ignored.',
+      ]);
+    }
+  });
+
+  it('keeps at most 5 tags and notes the ones dropped', () => {
+    const p = read({
+      visibility: 'unlisted',
+      tags: ['a', 'b', 'c', 'd', 'e', 'f', 'x'.repeat(25)],
+    });
+    expect(p.shares[0]!.tags).toHaveLength(5);
+    expect(p.notes).toHaveLength(1);
   });
 });

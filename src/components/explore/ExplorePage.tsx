@@ -1,11 +1,10 @@
-import { useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Compass, Search } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { fmtHours, pl } from '../../domain/format';
-import type { PlanSummary } from '../../domain/share';
-import { paths } from '../../routes';
+import { useSearchParams } from 'react-router-dom';
+import type { PlanSummary, PublicSort, PublicTag } from '../../domain/share';
 import { useStore } from '../../state/store';
 import { EmptyState } from '../EmptyState';
+import { PlanCard } from './PlanCard';
 import { useAsync } from './useAsync';
 
 const PAGE = 24;
@@ -18,22 +17,42 @@ interface Listing {
 /** Public plans anyone can look through. Content only: nothing about the author's progress. */
 export function ExplorePage() {
   const fetchPublic = useStore((s) => s.fetchPublic);
-  const [draft, setDraft] = useState('');
-  const [query, setQuery] = useState('');
-  const [tag, setTag] = useState('');
+  const fetchPopularTags = useStore((s) => s.fetchPopularTags);
+  // Search, tag and sort live in the address, so a view can be shared and survives a reload.
+  const [params, setParams] = useSearchParams();
+  const query = params.get('q') ?? '';
+  const tag = params.get('tag') ?? '';
+  const sort: PublicSort = params.get('sort') === 'popular' ? 'popular' : 'new';
+  const [draft, setDraft] = useState(query);
+  // Back/forward or Clear changes the address; keep the box in step with it.
+  useEffect(() => setDraft(query), [query]);
+  const update = (key: string, value: string) =>
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (value) next.set(key, value);
+        else next.delete(key);
+        return next;
+      },
+      { replace: true },
+    );
+  const [tags] = useAsync<PublicTag[]>(
+    () => fetchPopularTags().catch(() => []),
+    [fetchPopularTags],
+  );
   const [result, setResult] = useAsync<Listing>(
     () =>
-      fetchPublic({ query, tag, limit: PAGE }).then((plans) => ({
+      fetchPublic({ query, tag, sort, limit: PAGE }).then((plans) => ({
         plans,
         more: plans.length === PAGE,
       })),
-    [fetchPublic, query, tag],
+    [fetchPublic, query, tag, sort],
   );
   const [loadingMore, setLoadingMore] = useState(false);
 
   // What is being searched now, so a slow "Load more" for an older search is dropped.
   const searchKey = useRef('');
-  searchKey.current = `${query}\u0000${tag}`;
+  searchKey.current = `${query}\u0000${tag}\u0000${sort}`;
 
   const loadMore = async () => {
     if (result.status !== 'ready') return;
@@ -41,7 +60,7 @@ export function ExplorePage() {
     const key = searchKey.current;
     setLoadingMore(true);
     try {
-      const next = await fetchPublic({ query, tag, limit: PAGE, offset: plans.length });
+      const next = await fetchPublic({ query, tag, sort, limit: PAGE, offset: plans.length });
       if (key !== searchKey.current) return;
       setResult({
         status: 'ready',
@@ -56,7 +75,7 @@ export function ExplorePage() {
 
   const search = (e: FormEvent) => {
     e.preventDefault();
-    setQuery(draft.trim());
+    update('q', draft.trim());
   };
 
   return (
@@ -75,17 +94,43 @@ export function ExplorePage() {
           id="exQuery"
           type="search"
           value={draft}
-          placeholder="Search by title or description"
+          placeholder="Search by title, description or tag"
           onChange={(e) => setDraft(e.target.value)}
         />
         <button className="btn primary" type="submit">
           <Search size={18} aria-hidden="true" /> Search
         </button>
       </form>
+      <div className="explore-controls">
+        <label>
+          Sort by{' '}
+          <select
+            value={sort}
+            onChange={(e) => update('sort', e.target.value === 'new' ? '' : e.target.value)}
+          >
+            <option value="new">Newest</option>
+            <option value="popular">Most copied</option>
+          </select>
+        </label>
+      </div>
+      {tags.status === 'ready' && tags.data.length > 0 && (
+        <p className="explore-tags" aria-label="Popular tags">
+          {tags.data.map((t) => (
+            <button
+              key={t.tag}
+              className="badge"
+              aria-pressed={t.tag === tag}
+              onClick={() => update('tag', t.tag === tag ? '' : t.tag)}
+            >
+              {t.tag} ({t.count})
+            </button>
+          ))}
+        </p>
+      )}
       {tag && (
         <p className="explore-filter">
           Tag: <span className="badge">{tag}</span>{' '}
-          <button className="btn sm" onClick={() => setTag('')}>
+          <button className="btn sm" onClick={() => update('tag', '')}>
             Clear
           </button>
         </p>
@@ -108,32 +153,7 @@ export function ExplorePage() {
         <>
           <ul className="plan-grid">
             {result.data.plans.map((p) => (
-              <li key={p.slug} className="card plan-card">
-                <div className="plan-title">
-                  <h2>{p.name}</h2>
-                </div>
-                {p.description && <p className="plan-desc">{p.description}</p>}
-                {p.tags.length > 0 && (
-                  <p className="explore-tags">
-                    {p.tags.map((t) => (
-                      <button key={t} className="badge" onClick={() => setTag(t)}>
-                        {t}
-                      </button>
-                    ))}
-                  </p>
-                )}
-                <p className="muted">
-                  {pl(p.resourceCount, 'resource')} · {fmtHours(p.totalMinutes)}
-                  {p.phaseCount > 0 && ` · ${pl(p.phaseCount, 'phase')}`}
-                  {p.author && ` · by ${p.author}`}
-                </p>
-                <div className="plan-foot">
-                  <span />
-                  <Link className="btn sm primary" to={paths.shared(p.slug)}>
-                    View plan
-                  </Link>
-                </div>
-              </li>
+              <PlanCard key={p.slug} plan={p} onTag={(t) => update('tag', t)} />
             ))}
           </ul>
           {result.data.more && (

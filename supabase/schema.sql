@@ -44,6 +44,10 @@ create table public.plan_settings (
   start_date date,
   target_date date,
   hours_per_day numeric check (hours_per_day is null or hours_per_day between 0.25 and 16),
+  -- Where a copy came from (the shared plan's link and its title then). Private to the owner:
+  -- the public functions never read this table.
+  source_slug text check (source_slug is null or char_length(source_slug) <= 64),
+  source_name text check (source_name is null or char_length(source_name) <= 120),
   primary key (user_id, goal_id),
   check (start_date is null or target_date is null or start_date <= target_date),
   foreign key (user_id, goal_id) references public.goals (user_id, id) on delete cascade
@@ -165,14 +169,15 @@ begin
   on conflict (user_id, id) do update set
     name = excluded.name, description = excluded.description,
     created_at = excluded.created_at;
-  insert into public.plan_settings (goal_id, start_date, target_date, hours_per_day)
+  insert into public.plan_settings (goal_id, start_date, target_date, hours_per_day, source_slug, source_name)
   values (
     p_goal ->> 'id', (p_goal ->> 'start_date')::date, (p_goal ->> 'target_date')::date,
-    (p_goal ->> 'hours_per_day')::numeric
+    (p_goal ->> 'hours_per_day')::numeric, p_goal ->> 'source_slug', p_goal ->> 'source_name'
   )
   on conflict (user_id, goal_id) do update set
     start_date = excluded.start_date, target_date = excluded.target_date,
-    hours_per_day = excluded.hours_per_day;
+    hours_per_day = excluded.hours_per_day,
+    source_slug = excluded.source_slug, source_name = excluded.source_name;
 end $$;
 
 create function public.save_phase(p_goal_id text, p_phase jsonb) returns void
@@ -320,7 +325,8 @@ language sql stable security invoker set search_path = public as $$
     'goals', coalesce((
       select jsonb_agg(
         to_jsonb(g) || jsonb_build_object(
-          'start_date', s.start_date, 'target_date', s.target_date, 'hours_per_day', s.hours_per_day)
+          'start_date', s.start_date, 'target_date', s.target_date, 'hours_per_day', s.hours_per_day,
+          'source_slug', s.source_slug, 'source_name', s.source_name)
         order by g.position, g.id)
       from public.goals g
       left join public.plan_settings s on s.user_id = g.user_id and s.goal_id = g.id), '[]'),
@@ -456,13 +462,17 @@ language sql stable security definer set search_path = '' as $$
   where s.slug = p_slug and not s.hidden
 $$;
 
--- Summaries of public plans, newest first. Unlisted plans never appear.
-create function public.list_public_plans(p_query text, p_tag text, p_limit integer, p_offset integer)
+-- Summaries of public plans: newest first, or (p_sort = 'popular') most copied first.
+-- A query matches the name, the description or a tag. Unlisted plans never appear.
+create function public.list_public_plans(
+  p_query text, p_tag text, p_limit integer, p_offset integer, p_sort text default 'new')
 returns jsonb
 language sql stable security definer set search_path = '' as $$
-  select coalesce(jsonb_agg(t.item order by t.published_at desc, t.slug), '[]')
+  select coalesce(jsonb_agg(t.item order by
+    case when p_sort = 'popular' then t.copy_count end desc nulls last,
+    t.published_at desc, t.slug), '[]')
   from (
-    select s.published_at, s.slug, jsonb_build_object(
+    select s.copy_count, s.published_at, s.slug, jsonb_build_object(
       'slug', s.slug, 'name', g.name, 'description', g.description, 'author', p.display_name,
       'tags', to_jsonb(s.tags), 'published_at', s.published_at, 'copy_count', s.copy_count,
       'phase_count', ph.n, 'resource_count', rs.n, 'total_minutes', rs.minutes
@@ -485,9 +495,61 @@ language sql stable security definer set search_path = '' as $$
         p_query is null or btrim(p_query) = ''
         or g.name ilike '%' || replace(replace(replace(btrim(p_query), '\', '\\'), '%', '\%'), '_', '\_') || '%'
         or g.description ilike '%' || replace(replace(replace(btrim(p_query), '\', '\\'), '%', '\%'), '_', '\_') || '%'
+        or exists (
+          select 1 from unnest(s.tags) tg
+          where tg ilike '%' || replace(replace(replace(btrim(p_query), '\', '\\'), '%', '\%'), '_', '\_') || '%')
       )
-    order by s.published_at desc, s.slug
+    order by
+      case when p_sort = 'popular' then s.copy_count end desc nulls last,
+      s.published_at desc, s.slug
     limit least(greatest(coalesce(p_limit, 24), 1), 50) offset greatest(coalesce(p_offset, 0), 0)
+  ) t
+$$;
+
+-- The tags used by public plans, most used first, for the Explore topic row.
+create function public.list_popular_tags(p_limit integer default 20) returns jsonb
+language sql stable security definer set search_path = '' as $$
+  select coalesce(jsonb_agg(jsonb_build_object('tag', t.tag, 'count', t.n) order by t.n desc, t.tag), '[]')
+  from (
+    select tg as tag, count(*) as n
+    from public.plan_shares s
+    cross join lateral unnest(s.tags) tg
+    where s.visibility = 'public' and not s.hidden
+      and exists (select 1 from public.resources r where r.user_id = s.user_id and r.goal_id = s.goal_id)
+    group by tg
+    order by count(*) desc, tg
+    limit least(greatest(coalesce(p_limit, 20), 1), 50)
+  ) t
+$$;
+
+-- Public plans that share at least one tag with the plan behind p_slug, most shared tags
+-- first, then most copied. Same item shape as list_public_plans. Empty when the slug is
+-- wrong or hidden. The plan itself is never included.
+create function public.similar_plans(p_slug text, p_limit integer default 6) returns jsonb
+language sql stable security definer set search_path = '' as $$
+  select coalesce(jsonb_agg(t.item order by t.overlap desc, t.copy_count desc, t.slug), '[]')
+  from (
+    select cardinality(array(select unnest(s.tags) intersect select unnest(me.tags))) as overlap,
+      s.copy_count, s.slug, jsonb_build_object(
+      'slug', s.slug, 'name', g.name, 'description', g.description, 'author', p.display_name,
+      'tags', to_jsonb(s.tags), 'published_at', s.published_at, 'copy_count', s.copy_count,
+      'phase_count', ph.n, 'resource_count', rs.n, 'total_minutes', rs.minutes
+    ) as item
+    from public.plan_shares me
+    join public.plan_shares s on s.slug <> me.slug and s.tags && me.tags
+    join public.goals g on g.user_id = s.user_id and g.id = s.goal_id
+    left join public.profiles p on p.user_id = s.user_id
+    cross join lateral (
+      select count(*) as n, coalesce(sum(r.minutes), 0) as minutes
+      from public.resources r where r.user_id = g.user_id and r.goal_id = g.id
+    ) rs
+    cross join lateral (
+      select count(*) as n from public.phases x where x.user_id = g.user_id and x.goal_id = g.id
+    ) ph
+    where me.slug = p_slug and not me.hidden
+      and s.visibility = 'public' and not s.hidden and rs.n > 0
+    order by 1 desc, s.copy_count desc, s.slug
+    limit least(greatest(coalesce(p_limit, 6), 1), 24)
   ) t
 $$;
 
@@ -601,12 +663,14 @@ begin
 end $$;
 
 revoke all on function
-  public.get_shared_plan(text), public.list_public_plans(text, text, integer, integer),
+  public.get_shared_plan(text), public.list_public_plans(text, text, integer, integer, text),
+  public.list_popular_tags(integer), public.similar_plans(text, integer),
   public.set_plan_sharing(text, text, text[], text), public.set_display_name(text),
   public.record_plan_copy(text), public.report_plan(text, text)
   from public, anon;
 grant execute on function
-  public.get_shared_plan(text), public.list_public_plans(text, text, integer, integer)
+  public.get_shared_plan(text), public.list_public_plans(text, text, integer, integer, text),
+  public.list_popular_tags(integer), public.similar_plans(text, integer)
   to anon, authenticated;
 grant execute on function
   public.set_plan_sharing(text, text, text[], text), public.set_display_name(text),

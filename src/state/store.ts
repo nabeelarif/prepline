@@ -28,6 +28,7 @@ import {
   type PlanSummary,
   type SharedPlan,
   type Visibility,
+  type PublicTag,
 } from '../domain/share';
 import { diffData } from './syncOps';
 import { IDLE_SYNC, WriteQueue, type SyncState } from './writeQueue';
@@ -116,6 +117,8 @@ export interface Store {
   /** Reads for anyone, signed in or not. They reject with an Error whose message can be shown. */
   fetchShared(slug: string): Promise<SharedPlan | null>;
   fetchPublic(q?: PublicListQuery): Promise<PlanSummary[]>;
+  fetchPopularTags(limit?: number): Promise<PublicTag[]>;
+  fetchSimilar(slug: string, limit?: number): Promise<PlanSummary[]>;
   /**
    * Changes who can open a plan. Returns an error text to show, or null on success.
    * Public needs a display name; pass it to set it in the same step.
@@ -439,6 +442,8 @@ export function createAppStore({ repo, auth, sharing }: Backend) {
       // Rejects with an Error whose message is safe to show.
       fetchShared: (slug) => sharing.getShared(slug).catch(rethrowShown),
       fetchPublic: (q) => sharing.listPublic(q).catch(rethrowShown),
+      fetchPopularTags: (limit) => sharing.listPopularTags(limit).catch(rethrowShown),
+      fetchSimilar: (slug, limit) => sharing.listSimilar(slug, limit).catch(rethrowShown),
 
       setPlanSharing: async (goalId, visibility, tags, displayName) => {
         const startedFor = userId;

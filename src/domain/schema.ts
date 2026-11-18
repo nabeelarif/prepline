@@ -81,6 +81,12 @@ export const GoalSchema: z.ZodType<Goal, unknown> = z
     startDate: optDate,
     targetDate: optDate,
     hoursPerDay: field((v) => (v == null || v === '' ? null : num(v, 0.25, 16, 2))),
+    source: field((v) => {
+      const o = v as { slug?: unknown; name?: unknown } | null;
+      return o && typeof o.slug === 'string' && o.slug && typeof o.name === 'string'
+        ? { slug: o.slug.slice(0, 64), name: o.name.slice(0, 120) }
+        : null;
+    }),
     createdAt: date(todayISO),
     resources: listOf(ResourceSchema),
     phases: listOf(PhaseSchema),
@@ -97,7 +103,9 @@ export const GoalSchema: z.ZodType<Goal, unknown> = z
     // earlier than the creation date becomes the start.
     const startDate =
       g.startDate ?? (g.targetDate && (g.createdAt < g.targetDate ? g.createdAt : g.targetDate));
-    return { ...g, startDate, phases, resources };
+    // An own plan has no `source` key at all, so it equals what the app built in memory.
+    const { source, ...rest } = g;
+    return { ...rest, ...(source ? { source } : {}), startDate, phases, resources };
   });
 
 const AppDataSchema = z
@@ -258,7 +266,11 @@ export function previewImport(
   if (res.some((r) => r.rating != null))
     notes.push('Self-ratings from an older version are not kept.');
 
-  const data = AppDataSchema.parse(raw);
+  // A file cannot claim to be a copy of a shared plan: the label is only set by copying.
+  const data = AppDataSchema.parse({
+    ...raw,
+    goals: goals.map((goal) => ({ ...goal, source: null })),
+  });
   const linked = res.filter((r) => r.phaseId).length;
   const kept = data.goals.flatMap((g) => g.resources).filter((r) => r.phaseId).length;
   if (linked > kept)

@@ -13,7 +13,7 @@ import {
   Plus,
   Share2,
 } from 'lucide-react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { diffDays, fmtDate } from '../domain/dates';
 import { fmtHours, pl } from '../domain/format';
 import type { Metrics } from '../domain/metrics';
@@ -177,6 +177,11 @@ export function PlanBox({
           </button>
         </div>
       </div>
+      {goal.source && (
+        <p className="muted plan-source">
+          Forked from <Link to={paths.shared(goal.source.slug)}>{goal.source.name}</Link>
+        </p>
+      )}
 
       <VelocityStrip goal={goal} met={met} pace={pace} />
 

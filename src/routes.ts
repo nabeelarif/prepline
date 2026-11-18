@@ -11,6 +11,8 @@ export const paths = {
   /** Public gallery, and one shared plan by its link. Both work without an account. */
   explore: '/explore',
   shared: (slug: string) => `/explore/${encodeURIComponent(slug)}`,
+  /** Explore filtered to one tag. */
+  exploreTag: (tag: string) => `/explore?tag=${encodeURIComponent(tag)}`,
 };
 
 const RETURN_KEY = 'roadtogoals:returnTo';

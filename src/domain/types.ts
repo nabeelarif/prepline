@@ -35,6 +35,12 @@ export interface Phase {
   color: PhaseColor;
 }
 
+/** Where a copied plan came from. A label only: there is no live link to the original. */
+export interface PlanSource {
+  slug: string;
+  name: string;
+}
+
 /** A plan. Called a goal in code for compatibility with saved data. */
 export interface Goal {
   id: string;
@@ -46,6 +52,8 @@ export interface Goal {
   targetDate: ISODate | null;
   /** Daily study capacity; null when the user has not set one. */
   hoursPerDay: number | null;
+  /** The shared plan this was copied from (its link and title then); null for own plans. */
+  source?: PlanSource | null;
   createdAt: ISODate;
   /** Order is priority order: the journey follows it from first to last. */
   resources: Resource[];

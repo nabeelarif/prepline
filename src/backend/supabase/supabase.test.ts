@@ -62,6 +62,8 @@ describe('row mapping', () => {
           start_date: '2026-01-01',
           target_date: '2026-05-01',
           hours_per_day: null,
+          source_slug: null,
+          source_name: null,
           created_at: '2026-01-01',
           position: 1,
         },
@@ -72,6 +74,8 @@ describe('row mapping', () => {
           start_date: '2026-01-01',
           target_date: '2026-05-01',
           hours_per_day: '1.50',
+          source_slug: null,
+          source_name: null,
           created_at: '2026-01-01',
           position: 0,
         },
@@ -270,20 +274,31 @@ describe('sharing', () => {
         : { data: [] },
     );
     const sharing = createSupabaseSharing(client);
-    await sharing.listPublic({ query: 'swift', limit: 10 });
+    await sharing.listPublic({ query: 'swift', limit: 10, sort: 'popular' });
+    await sharing.listPopularTags();
+    await sharing.listSimilar('s');
     await sharing.setSharing('g1', 'public', [' iOS ', 'ios', '']);
     await sharing.setDisplayName('Ada');
     await sharing.recordCopy('s');
     await sharing.report('s', 'spam');
     expect(calls.map((c) => c.call)).toEqual([
       'rpc:list_public_plans',
+      'rpc:list_popular_tags',
+      'rpc:similar_plans',
       'rpc:set_plan_sharing',
       'rpc:set_display_name',
       'rpc:record_plan_copy',
       'rpc:report_plan',
     ]);
-    expect(calls[0]!.args).toMatchObject({ p_query: 'swift', p_limit: 10, p_offset: 0 });
-    expect(calls[1]!.args).toEqual({
+    expect(calls[0]!.args).toMatchObject({
+      p_query: 'swift',
+      p_limit: 10,
+      p_offset: 0,
+      p_sort: 'popular',
+    });
+    expect(calls[1]!.args).toEqual({ p_limit: 20 });
+    expect(calls[2]!.args).toEqual({ p_slug: 's', p_limit: 6 });
+    expect(calls[3]!.args).toEqual({
       p_goal_id: 'g1',
       p_visibility: 'public',
       p_tags: ['ios'],

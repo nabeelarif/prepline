@@ -21,7 +21,7 @@ Optional, with the local stack running (`supabase start`, needs Docker): `supaba
 
 ### Sharing and moderation
 
-Plans can be shared by link or listed publicly in Explore. Other people read plans only through the functions `get_shared_plan` and `list_public_plans`, which return plan content and never progress, dates or daily hours. The `anon` role still has no table access. Because the schema changed in place (no migrations yet), a project created from an older `schema.sql` must be recreated or have the new tables and functions applied by hand.
+Plans can be shared by link or listed publicly in Explore. Other people read plans only through the functions `get_shared_plan`, `list_public_plans`, `list_popular_tags` and `similar_plans`, which return plan content and never progress, dates or daily hours. The `anon` role still has no table access. Because the schema changed in place (no migrations yet), a project created from an older `schema.sql` must be recreated or have the new tables and functions applied by hand. For a project that already has the earlier `list_public_plans(text, text, integer, integer)`, run `drop function public.list_public_plans(text, text, integer, integer);` before applying the new five-argument version, and add the `source_slug` and `source_name` columns to `plan_settings`.
 
 To take a plan down (for example after a report), run in the SQL Editor:
 

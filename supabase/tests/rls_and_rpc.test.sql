@@ -1,7 +1,7 @@
 -- pgTAP tests. Run with: supabase test db   (needs the local stack: supabase start)
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(87);
+select plan(91);
 
 -- Two users and some data for each, created as the table owner.
 insert into auth.users (id, instance_id, aud, role, email)
@@ -158,6 +158,13 @@ select is((select copy_count from public.plan_shares where goal_id = 'g1'), 1, '
 set local role anon;
 select is((public.list_public_plans('plan', null, 24, 0) -> 0 ->> 'resource_count')::int, 3, 'a public plan is listed with its counts');
 select is(jsonb_array_length(public.list_public_plans('100%', null, 24, 0)), 0, 'search treats % literally');
+reset role;
+update public.plan_shares set tags = array['ios', 'swift'] where goal_id = 'g1';
+set local role anon;
+select is(jsonb_array_length(public.list_public_plans('swi', null, 24, 0)), 1, 'search also matches tags');
+select is(jsonb_array_length(public.list_public_plans(null, null, 24, 0, 'popular')), 1, 'a plan can be listed most copied first');
+select is(public.list_popular_tags(10) -> 0 ->> 'tag', 'ios', 'popular tags are listed for anyone');
+select is(public.similar_plans((select slug from shared_slug)), '[]'::jsonb, 'a plan is never similar to itself');
 reset role;
 update public.plan_shares set hidden = true where goal_id = 'g1';
 set local role anon;

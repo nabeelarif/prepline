@@ -18,6 +18,10 @@ export interface Resource {
   doneAt: ISODate | null;
   /** Set when the user starts the resource, so it can be In Progress at 0 minutes. */
   startedAt: ISODate | null;
+  /** The day `loggedMinutes` counts, so "studied today" can be told apart from earlier days. */
+  loggedOn: ISODate | null;
+  /** Minutes credited on `loggedOn`; only the latest day is kept. */
+  loggedMinutes: number;
   /** Optional grouping; null means the resource is in no phase. */
   phaseId: string | null;
   createdAt: ISODate;

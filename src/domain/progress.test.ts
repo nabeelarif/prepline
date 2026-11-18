@@ -2,7 +2,7 @@ import { addDays } from './dates';
 import { goal, res, TODAY } from '../test/fixtures';
 import { metrics } from './metrics';
 import { estimatedFinish, pace, velocity } from './pace';
-import { resDone, resStatus } from './resources';
+import { progressPatch, resDone, resStatus, statusPatch, studiedToday } from './resources';
 
 describe('resource progress', () => {
   it('credits partial minutes, capped at the estimate, and full minutes when done', () => {
@@ -127,5 +127,37 @@ describe('velocity', () => {
     expect(velocity(pace(none, metrics([]), TODAY), 2)).toBeNull();
     const late = goal(work, { hoursPerDay: 2, targetDate: '2026-03-09' });
     expect(velocity(pace(late, metrics(late.resources), TODAY), 2)).toBeNull();
+  });
+});
+
+describe('study log', () => {
+  const r0 = res({ id: 'a', minutes: 100 });
+
+  it('adds up what is recorded on one day and starts again on the next', () => {
+    const a = { ...r0, ...progressPatch(r0, 30, TODAY) };
+    expect(studiedToday(a, TODAY)).toBe(30);
+    const b = { ...a, ...progressPatch(a, 50, TODAY) };
+    expect(studiedToday(b, TODAY)).toBe(50);
+    expect(studiedToday(b, '2026-03-11')).toBe(0);
+    const c = { ...b, ...progressPatch(b, 70, '2026-03-11') };
+    expect(c).toMatchObject({ loggedOn: '2026-03-11', loggedMinutes: 20 });
+  });
+
+  it('credits the rest when completed, and takes it back on reopen or Not Started', () => {
+    const a = { ...r0, ...progressPatch(r0, 30, TODAY) };
+    const done = { ...a, ...statusPatch(a, 'completed', TODAY) };
+    expect(studiedToday(done, TODAY)).toBe(100);
+    const reopened = { ...done, ...statusPatch(done, 'in_progress', TODAY) };
+    expect(studiedToday(reopened, TODAY)).toBe(30);
+    expect(statusPatch(reopened, 'not_started', TODAY)).toMatchObject({
+      loggedOn: null,
+      loggedMinutes: 0,
+    });
+  });
+
+  it('never goes below zero when earlier progress is lowered', () => {
+    const a = res({ id: 'a', minutes: 100, doneMinutes: 80, startedAt: '2026-03-01' });
+    const b = { ...a, ...progressPatch(a, 20, TODAY) };
+    expect(b).toMatchObject({ loggedOn: null, loggedMinutes: 0 });
   });
 });

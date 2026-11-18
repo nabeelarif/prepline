@@ -89,6 +89,9 @@ create table public.resource_progress (
   done boolean not null default false,
   done_at date,
   started_at date,
+  -- Minutes credited on logged_on: what was studied that day. Only the latest day is kept.
+  logged_on date,
+  logged_minutes integer not null default 0 check (logged_minutes >= 0),
   primary key (user_id, resource_id),
   foreign key (user_id, resource_id) references public.resources (user_id, id) on delete cascade
 );
@@ -204,16 +207,20 @@ begin
   if coalesce((p_resource ->> 'done')::boolean, false)
      or coalesce((p_resource ->> 'done_minutes')::integer, 0) > 0
      or p_resource ->> 'done_at' is not null
-     or p_resource ->> 'started_at' is not null then
-    insert into public.resource_progress (resource_id, done_minutes, done, done_at, started_at)
+     or p_resource ->> 'started_at' is not null
+     or coalesce((p_resource ->> 'logged_minutes')::integer, 0) > 0 then
+    insert into public.resource_progress
+      (resource_id, done_minutes, done, done_at, started_at, logged_on, logged_minutes)
     values (
       p_resource ->> 'id', coalesce((p_resource ->> 'done_minutes')::integer, 0),
       coalesce((p_resource ->> 'done')::boolean, false),
-      (p_resource ->> 'done_at')::date, (p_resource ->> 'started_at')::date
+      (p_resource ->> 'done_at')::date, (p_resource ->> 'started_at')::date,
+      (p_resource ->> 'logged_on')::date, coalesce((p_resource ->> 'logged_minutes')::integer, 0)
     )
     on conflict (user_id, resource_id) do update set
       done_minutes = excluded.done_minutes, done = excluded.done,
-      done_at = excluded.done_at, started_at = excluded.started_at;
+      done_at = excluded.done_at, started_at = excluded.started_at,
+      logged_on = excluded.logged_on, logged_minutes = excluded.logged_minutes;
   else
     delete from public.resource_progress where resource_id = p_resource ->> 'id';
   end if;
@@ -295,7 +302,8 @@ language sql stable security invoker set search_path = public as $$
       select jsonb_agg(
         to_jsonb(r) || jsonb_build_object(
           'done_minutes', coalesce(q.done_minutes, 0), 'done', coalesce(q.done, false),
-          'done_at', q.done_at, 'started_at', q.started_at)
+          'done_at', q.done_at, 'started_at', q.started_at,
+          'logged_on', q.logged_on, 'logged_minutes', coalesce(q.logged_minutes, 0))
         order by r.position, r.id)
       from public.resources r
       left join public.resource_progress q on q.user_id = r.user_id and q.resource_id = r.id), '[]'),

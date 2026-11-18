@@ -1,4 +1,12 @@
-import { Check, Compass, House, LayoutList, LoaderCircle, TriangleAlert } from 'lucide-react';
+import {
+  CalendarCheck,
+  Check,
+  Compass,
+  House,
+  LayoutList,
+  LoaderCircle,
+  TriangleAlert,
+} from 'lucide-react';
 import { Link, NavLink } from 'react-router-dom';
 import { paths } from '../routes';
 import { useStore } from '../state/store';
@@ -8,6 +16,7 @@ import { Logo } from './icons';
 /** My Plans stays active on a plan's own page, which is where its "Open plan" leads. */
 const NAV: [string, string, typeof House][] = [
   [paths.dashboard, 'Dashboard', House],
+  [paths.today, 'Today', CalendarCheck],
   [paths.plans, 'My Plans', LayoutList],
   [paths.explore, 'Explore', Compass],
 ];

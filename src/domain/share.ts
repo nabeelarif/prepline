@@ -104,6 +104,8 @@ export function copyOfSharedPlan(shared: SharedPlan, today: ISODate = todayISO()
       doneMinutes: 0,
       doneAt: null,
       startedAt: null,
+      loggedOn: null,
+      loggedMinutes: 0,
       createdAt: today,
     })),
   };

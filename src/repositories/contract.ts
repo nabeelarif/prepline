@@ -176,7 +176,14 @@ export function describeSharingContract(name: string, make: () => Promise<Contra
       makeGoal(
         [
           res({ id: `${id}-r1`, title: 'Read', done: true, doneMinutes: 30, doneAt: '2026-03-02' }),
-          res({ id: `${id}-r2`, title: 'Watch', phaseId: `${id}-p1`, startedAt: '2026-03-03' }),
+          res({
+            id: `${id}-r2`,
+            title: 'Watch',
+            phaseId: `${id}-p1`,
+            startedAt: '2026-03-03',
+            loggedOn: '2026-03-03',
+            loggedMinutes: 20,
+          }),
         ],
         {
           id,

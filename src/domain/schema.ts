@@ -47,6 +47,8 @@ export const ResourceSchema: z.ZodType<Resource, unknown> = z
     done: flag,
     doneAt: optDate,
     startedAt: optDate,
+    loggedOn: optDate,
+    loggedMinutes: field((v) => Math.max(0, Math.round(Number(v)) || 0)),
     phaseId: field((v) => (v ? String(v) : null)),
     createdAt: date(todayISO),
     sections: listOf(LegacySectionSchema),

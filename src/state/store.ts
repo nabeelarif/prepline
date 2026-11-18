@@ -597,6 +597,8 @@ export function createAppStore({ repo, auth, sharing }: Backend) {
               done: false,
               doneAt: null,
               startedAt: null,
+              loggedOn: null,
+              loggedMinutes: 0,
               createdAt: todayISO(),
               ...input,
               phaseId: validPhase(g, input.phaseId),

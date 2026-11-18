@@ -13,6 +13,8 @@ export const res = (o: Partial<Resource> & { id: string }): Resource => ({
   done: false,
   doneAt: null,
   startedAt: null,
+  loggedOn: null,
+  loggedMinutes: 0,
   phaseId: null,
   createdAt: TODAY,
   ...o,

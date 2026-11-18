@@ -2,6 +2,8 @@
 export const paths = {
   home: '/',
   dashboard: '/dashboard',
+  /** What to study today and this week, for the current plan. */
+  today: '/today',
   /** The sign-in screen; it works signed out and goes back to the page asked for. */
   signIn: '/signin',
   plans: '/plans',

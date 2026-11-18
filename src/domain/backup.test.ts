@@ -27,6 +27,8 @@ const data: AppData = {
           done: false,
           doneAt: null,
           startedAt: '2026-10-02',
+          loggedOn: null,
+          loggedMinutes: 0,
           phaseId: 'p',
           createdAt: '2026-10-01',
         },

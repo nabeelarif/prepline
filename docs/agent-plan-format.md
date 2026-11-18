@@ -90,7 +90,7 @@ Add to My Plans**, which keeps the user's existing plans.
 | `id`      | no       | string           | Any unique string.                                                                                  |
 
 Leave these out of a new plan. They record the user's own progress:
-`done`, `doneMinutes`, `doneAt`, `startedAt`, `createdAt`, and the plan's `startDate`. Road to Goals ignores any other key.
+`done`, `doneMinutes`, `doneAt`, `startedAt`, `loggedOn`, `loggedMinutes`, `createdAt`, and the plan's `startDate`. Road to Goals ignores any other key.
 
 ## 4. Choosing `type`
 

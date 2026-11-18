@@ -34,6 +34,8 @@ export interface ResourceRow {
   done: boolean;
   done_at: string | null;
   started_at: string | null;
+  logged_on: string | null;
+  logged_minutes: number;
   phase_id: string | null;
   created_at: string;
   position: number;
@@ -67,6 +69,8 @@ export const resourcePayload = (r: Resource) => ({
   done: r.done,
   done_at: r.doneAt,
   started_at: r.startedAt,
+  logged_on: r.loggedOn,
+  logged_minutes: r.loggedMinutes,
   phase_id: r.phaseId,
   created_at: r.createdAt,
 });
@@ -118,6 +122,8 @@ export function rowsToAppData(
           done: r.done,
           doneAt: r.done_at,
           startedAt: r.started_at,
+          loggedOn: r.logged_on,
+          loggedMinutes: r.logged_minutes,
           phaseId: r.phase_id,
           createdAt: r.created_at,
         })),

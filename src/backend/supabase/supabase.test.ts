@@ -21,6 +21,7 @@ function fakeClient(answer: (call: string, args?: unknown) => { data?: unknown; 
     Object.assign(chain, {
       select: () => chain,
       order: () => chain,
+      gte: () => chain,
       maybeSingle: () => respond(`${name}.maybeSingle`),
       delete: () => {
         const filters: unknown[] = [];
@@ -200,6 +201,19 @@ describe('repository', () => {
       ['goal_id', 'g1'],
       ['id', 'r1'],
     ]);
+  });
+
+  it('saves a study day through one RPC and reads the log as a day map', async () => {
+    const { client, calls } = fakeClient((call) =>
+      call === 'study_log.select' ? { data: [{ day: '2026-03-10', minutes: 40 }] } : {},
+    );
+    const repo = createSupabaseRepository(client);
+    await repo.saveStudyDay('2026-03-10', 40);
+    expect(calls[0]).toEqual({
+      call: 'rpc:save_study_day',
+      args: { p_day: '2026-03-10', p_minutes: 40 },
+    });
+    expect(await repo.loadStudyLog(371)).toEqual({ '2026-03-10': 40 });
   });
 
   it('throws app-level errors for failed writes', async () => {

@@ -1,3 +1,4 @@
+import { todayISO } from '../domain/dates';
 import type { AppData } from '../domain/types';
 import { createMemoryBackend, type MemoryBackend } from '../backend/memory/memoryBackend';
 import { createAppStore, type ResourceInput } from './store';
@@ -434,7 +435,8 @@ describe('store', () => {
       const r = add({ title: 'First' });
       await vi.waitFor(() => expect(s().sync.status).toBe('error'));
       s().setProgress(r.id, 15);
-      expect(s().sync.pending).toBe(2);
+      // The resource save, the progress save, and today's study-log total.
+      expect(s().sync.pending).toBe(3);
       expect(saved().goals[0]!.resources).toHaveLength(0);
       s().retrySync();
       await flush();
@@ -669,6 +671,79 @@ describe('store', () => {
       expect(store.getState().data.goals).toHaveLength(1);
       expect((await s().unlinkProvider('password')).ok).toBe(true);
       expect((await s().unlinkProvider('google')).ok).toBe(false);
+    });
+  });
+
+  describe('study log', () => {
+    const today = () => todayISO();
+
+    it('adds minutes studied today and saves the day total', async () => {
+      const { s, add, saved, flush, backend } = await setup();
+      await vi.waitFor(() => expect(s().studyLog.ready).toBe(true));
+      const r = add({ minutes: 60 });
+      s().setProgress(r.id, 20);
+      s().setProgress(r.id, 45);
+      expect(s().studyLog.days).toEqual({ [today()]: 45 });
+      await flush();
+      expect(await backend.repo.loadStudyLog(30)).toEqual({ [today()]: 45 });
+      s().setStatus(r.id, 'completed');
+      await flush();
+      expect(await backend.repo.loadStudyLog(30)).toEqual({ [today()]: 60 });
+      // Taking progress back takes the minutes back; the plan itself is not the log.
+      s().setStatus(r.id, 'not_started');
+      await flush();
+      expect(await backend.repo.loadStudyLog(30)).toEqual({});
+      expect(saved().goals).toHaveLength(1);
+    });
+
+    it('keeps the log when a plan is deleted, and clears it with Delete All Data', async () => {
+      const { s, add, g, flush, backend } = await setup();
+      await vi.waitFor(() => expect(s().studyLog.ready).toBe(true));
+      s().setProgress(add().id, 30);
+      s().deleteGoal(g().id);
+      await flush();
+      expect(await backend.repo.loadStudyLog(30)).toEqual({ [today()]: 30 });
+      expect(await s().deleteAllData()).toBe(true);
+      expect(s().studyLog.days).toEqual({});
+      expect(await backend.repo.loadStudyLog(30)).toEqual({});
+    });
+
+    it('does not count twice when the save is retried', async () => {
+      const { s, add, flush, backend } = await setup();
+      await vi.waitFor(() => expect(s().studyLog.ready).toBe(true));
+      const r = add();
+      await flush();
+      backend.failNext(1);
+      s().setProgress(r.id, 25);
+      await vi.waitFor(() => expect(s().sync.status).toBe('error'));
+      s().retrySync();
+      await flush();
+      expect(await backend.repo.loadStudyLog(30)).toEqual({ [today()]: 25 });
+    });
+
+    it('loads the saved log on sign-in', async () => {
+      const backend = createMemoryBackend({ signedInAs: 'a@example.test' });
+      await backend.repo.saveStudyDay(today(), 15);
+      const { store } = await open(backend);
+      await vi.waitFor(() =>
+        expect(store.getState().studyLog).toEqual({ ready: true, days: { [today()]: 15 } }),
+      );
+    });
+
+    it('records nothing, and still works, when the log cannot be loaded', async () => {
+      const backend = createMemoryBackend({ signedInAs: 'a@example.test' });
+      backend.repo.loadStudyLog = () => Promise.reject(new Error('down'));
+      const { store } = await open(backend);
+      await vi.waitFor(() => expect(store.getState().studyLog.ready).toBe(false));
+      store
+        .getState()
+        .createGoal({ name: 'P', description: '', targetDate: null, hoursPerDay: null });
+      store.getState().addResource(input());
+      const id = store.getState().data.goals[0]!.resources[0]!.id;
+      store.getState().setProgress(id, 10);
+      await flush(store);
+      expect(backend.calls).not.toContain('saveStudyDay');
+      expect(store.getState().sync.status).toBe('saved');
     });
   });
 });

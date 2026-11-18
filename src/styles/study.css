@@ -1,0 +1,83 @@
+/* Study log: streak and heatmap */
+.study-log {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-top: 16px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.study-streak {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+}
+.study-streak > svg {
+  width: 28px;
+  height: 28px;
+  color: var(--muted);
+}
+.study-streak > svg.lit {
+  color: var(--ph-orange);
+}
+.study-streak > div {
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+}
+.study-streak strong {
+  font-size: 18px;
+}
+.study-heat-wrap {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+}
+.study-heat {
+  display: flex;
+  gap: 3px;
+  width: max-content;
+  margin-left: auto;
+}
+.study-week {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.study-cell {
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+  background: var(--surface-2);
+}
+.study-cell.none {
+  background: none;
+}
+.study-cell.lvl-1 {
+  background: color-mix(in srgb, var(--accent) 30%, var(--surface-2));
+}
+.study-cell.lvl-2 {
+  background: color-mix(in srgb, var(--accent) 55%, var(--surface-2));
+}
+.study-cell.lvl-3 {
+  background: color-mix(in srgb, var(--accent) 80%, var(--surface-2));
+}
+.study-cell.lvl-4 {
+  background: var(--accent);
+}
+@media (max-width: 680px) {
+  .study-log {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .study-heat-wrap {
+    width: 100%;
+  }
+  .study-heat {
+    margin-left: 0;
+  }
+}

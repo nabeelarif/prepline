@@ -1,4 +1,5 @@
-import type { AppData, Goal, Phase, Resource } from '../domain/types';
+import type { StudyLog } from '../domain/studyLog';
+import type { AppData, Goal, ISODate, Phase, Resource } from '../domain/types';
 
 /**
  * Everything the app needs from durable storage, in application terms. Implementations
@@ -35,6 +36,13 @@ export interface AppRepository {
    * already saved is touched, so plans another device saved meanwhile are kept.
    */
   addGoals(goals: Goal[], activeGoalId: string | null): Promise<void>;
-  /** Deletes all of the user's data, atomically. */
+  /** Minutes studied per day for the last `days` days. Days with none are absent. */
+  loadStudyLog(days: number): Promise<StudyLog>;
+  /**
+   * Sets the minutes studied on a day (an absolute value, so a retry is safe). Zero removes
+   * the day. The log belongs to the user, not to a plan: deleting plans keeps it.
+   */
+  saveStudyDay(day: ISODate, minutes: number): Promise<void>;
+  /** Deletes all of the user's data, including the study log, atomically. */
   deleteAll(): Promise<void>;
 }

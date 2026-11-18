@@ -244,6 +244,25 @@ describe('Today', () => {
   });
 });
 
+describe('Study log', () => {
+  it('shows the streak and heatmap, and grows them as progress is recorded', async () => {
+    await resetApp({
+      version: 1,
+      activeGoalId: 'a',
+      goals: [goal([res({ id: 'a', title: 'Intro', minutes: 90 })], { id: 'a' })],
+    });
+    renderApp('/dashboard');
+    const card = await screen.findByRole('region', { name: 'Study log' });
+    expect(within(card).getByText('no streak yet')).toBeVisible();
+    expect(within(card).getByText('Nothing logged today')).toBeVisible();
+    act(() => useStore.getState().setProgress('a', 30));
+    expect(await within(card).findByText('current streak')).toBeVisible();
+    expect(within(card).getByText('1 day')).toBeVisible();
+    expect(within(card).getByText('30m studied today')).toBeVisible();
+    expect(within(card).getByRole('img', { name: /last 20 weeks: 1 day studied/ })).toBeVisible();
+  });
+});
+
 describe('routes: return path and deletion', () => {
   const twoPlans = () =>
     resetApp({

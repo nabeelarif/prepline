@@ -96,6 +96,15 @@ create table public.resource_progress (
   foreign key (user_id, resource_id) references public.resources (user_id, id) on delete cascade
 );
 
+-- Minutes studied per day, for streaks and the heatmap. It belongs to the user, not to a
+-- plan, so deleting a plan keeps it; progress changes add to or take back from a day.
+create table public.study_log (
+  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  day date not null,
+  minutes integer not null check (minutes between 1 and 1440),
+  primary key (user_id, day)
+);
+
 -- The active plan survives only while it exists.
 alter table public.profiles
   add foreign key (user_id, active_goal_id) references public.goals (user_id, id)
@@ -112,6 +121,7 @@ alter table public.plan_settings enable row level security;
 alter table public.phases enable row level security;
 alter table public.resources enable row level security;
 alter table public.resource_progress enable row level security;
+alter table public.study_log enable row level security;
 
 create policy profiles_owner on public.profiles for all to authenticated
   using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
@@ -127,11 +137,14 @@ create policy resources_owner on public.resources for all to authenticated
 create policy resource_progress_owner on public.resource_progress for all to authenticated
   using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
 
+create policy study_log_owner on public.study_log for all to authenticated
+  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+
 revoke all on public.profiles, public.goals, public.plan_settings, public.phases,
-  public.resources, public.resource_progress from anon;
+  public.resources, public.resource_progress, public.study_log from anon;
 grant select, insert, update, delete
   on public.profiles, public.goals, public.plan_settings, public.phases,
-  public.resources, public.resource_progress to authenticated;
+  public.resources, public.resource_progress, public.study_log to authenticated;
 
 -- Atomic operations. All functions are SECURITY INVOKER, so Row Level Security applies
 -- exactly as for direct table access. Each call runs in one transaction.
@@ -281,6 +294,20 @@ language plpgsql security invoker set search_path = public as $$
 begin
   delete from public.profiles where user_id = auth.uid();
   delete from public.goals where user_id = auth.uid();
+  delete from public.study_log where user_id = auth.uid();
+end $$;
+
+-- Sets the minutes studied on a day. An absolute value, so a retried save is harmless;
+-- zero removes the day.
+create function public.save_study_day(p_day date, p_minutes integer) returns void
+language plpgsql security invoker set search_path = public as $$
+begin
+  if p_minutes <= 0 then
+    delete from public.study_log where user_id = auth.uid() and day = p_day;
+  else
+    insert into public.study_log (day, minutes) values (p_day, p_minutes)
+    on conflict (user_id, day) do update set minutes = excluded.minutes;
+  end if;
 end $$;
 
 -- Everything the signed-in user owns, read in one statement so it is one consistent
@@ -335,13 +362,15 @@ revoke all on function
   public.save_goal(jsonb), public.save_phase(text, jsonb), public.save_resource(text, jsonb),
   public.reorder_resources(text, text[]), public.reorder_phases(text, text[]),
   public.save_goal_tree(jsonb), public.delete_all_data(),
-  public.set_active_goal(text), public.load_all_data(), public.append_goals(jsonb, text)
+  public.set_active_goal(text), public.load_all_data(), public.append_goals(jsonb, text),
+  public.save_study_day(date, integer)
   from public, anon;
 grant execute on function
   public.save_goal(jsonb), public.save_phase(text, jsonb), public.save_resource(text, jsonb),
   public.reorder_resources(text, text[]), public.reorder_phases(text, text[]),
   public.save_goal_tree(jsonb), public.delete_all_data(),
-  public.set_active_goal(text), public.load_all_data(), public.append_goals(jsonb, text)
+  public.set_active_goal(text), public.load_all_data(), public.append_goals(jsonb, text),
+  public.save_study_day(date, integer)
   to authenticated;
 
 -- ---------------------------------------------------------------------------------------

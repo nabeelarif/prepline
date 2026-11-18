@@ -6,6 +6,7 @@ import { uid } from '../domain/format';
 import type { RoadmapView } from '../domain/roadmap';
 import { progressPatch, statusPatch } from '../domain/resources';
 import { parseAppData } from '../domain/schema';
+import { addStudy, STUDY_LOG_DAYS, studyDelta, type StudyLog } from '../domain/studyLog';
 import type {
   AppData,
   Goal,
@@ -86,8 +87,21 @@ export interface SharingState {
   displayName: string | null;
 }
 
+/**
+ * Minutes studied per day. Kept beside `data` rather than in it: it is the user's own
+ * history, not plan content, so backups and shared plans never carry it. `commit()` updates
+ * it when progress changes. `ready` is false until it has loaded (or if loading failed).
+ */
+export interface StudyLogState {
+  ready: boolean;
+  days: StudyLog;
+}
+
+const NO_STUDY: StudyLogState = { ready: false, days: {} };
+
 export interface Store {
   data: AppData;
+  studyLog: StudyLogState;
   sharing: SharingState;
   ui: UiState;
   auth: AuthState;
@@ -273,6 +287,17 @@ export function createAppStore({ repo, auth, sharing }: Backend) {
       const patch = confirmed === null ? { ...rest, toast: null } : rest;
       set((s) => ({ data, ui: ui ? { ...s.ui, ...patch } : s.ui }));
       const ops = diffData(prev, data, repo);
+      // Minutes studied today feed the study log. The new total is saved as an absolute
+      // value, so a retried write cannot count twice. Skipped until the log has loaded,
+      // because adding to an empty log would overwrite the saved day.
+      const today = todayISO();
+      const delta = get().studyLog.ready ? studyDelta(prev, data, today) : 0;
+      if (delta !== 0) {
+        const days = addStudy(get().studyLog.days, today, delta);
+        set({ studyLog: { ready: true, days } });
+        const minutes = days[today] ?? 0;
+        ops.push({ key: `study:${today}`, run: () => repo.saveStudyDay(today, minutes) });
+      }
       if (confirmed) {
         if (ops.length === 0) set((s) => ({ ui: { ...s.ui, toast: confirmed } }));
         else ops[ops.length - 1]!.after = () => set((s) => ({ ui: { ...s.ui, toast: confirmed } }));
@@ -314,11 +339,16 @@ export function createAppStore({ repo, auth, sharing }: Backend) {
 
     const loadData = async () => {
       const seq = ++loadSeq;
-      set({ load: { status: 'loading', error: null } });
+      set((s) => ({
+        load: { status: 'loading', error: null },
+        // Not ready, so progress made while it reloads is not added to a stale day.
+        studyLog: { ...s.studyLog, ready: false },
+      }));
       try {
         const loading = repo.loadAll();
         // Sharing does not depend on the plans, so it loads alongside them.
         void loadSharing();
+        void loadStudyLog();
         const loaded = await loading;
         if (seq !== loadSeq) return;
         set({
@@ -329,6 +359,16 @@ export function createAppStore({ repo, auth, sharing }: Backend) {
         if (seq !== loadSeq) return;
         console.error('Loading data failed:', e, (e as Error | undefined)?.cause);
         set({ load: { status: 'error', error: describeError(e) } });
+      }
+    };
+    const loadStudyLog = async () => {
+      const seq = loadSeq;
+      try {
+        const days = await repo.loadStudyLog(STUDY_LOG_DAYS);
+        if (seq === loadSeq) set({ studyLog: { ready: true, days } });
+      } catch {
+        // The log is a nicety: without it the app works, and nothing is written to it.
+        if (seq === loadSeq) set({ studyLog: NO_STUDY });
       }
     };
     const loadSharing = async () => {
@@ -354,6 +394,7 @@ export function createAppStore({ repo, auth, sharing }: Backend) {
       const reset = {
         data: createEmptyAppData(),
         sharing: NO_SHARING,
+        studyLog: NO_STUDY,
         ui: freshUi(),
         sync: IDLE_SYNC,
         busy: false,
@@ -386,6 +427,7 @@ export function createAppStore({ repo, auth, sharing }: Backend) {
 
     return {
       data: createEmptyAppData(),
+      studyLog: NO_STUDY,
       sharing: NO_SHARING,
       ui: freshUi(),
       auth: { status: 'loading', user: null },
@@ -737,13 +779,16 @@ export function createAppStore({ repo, auth, sharing }: Backend) {
         );
       },
 
-      deleteAllData: () =>
-        replaceData(
+      deleteAllData: async () => {
+        const ok = await replaceData(
           () => repo.deleteAll(),
           createEmptyAppData(),
           toast('All Road to Goals data deleted'),
           true,
-        ),
+        );
+        if (ok) set({ studyLog: { ready: true, days: {} } });
+        return ok;
+      },
     };
   });
 }

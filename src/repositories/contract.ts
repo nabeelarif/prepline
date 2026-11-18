@@ -1,4 +1,5 @@
 import { createEmptyAppData } from '../domain/backup';
+import { addDays, todayISO } from '../domain/dates';
 import type { Goal } from '../domain/types';
 import { goal as makeGoal, res } from '../test/fixtures';
 import { RepositoryError } from './errors';
@@ -135,6 +136,34 @@ export function describeRepositoryContract(name: string, make: () => Promise<Con
       const data = await repo.loadAll();
       expect(data.goals.map((g) => g.id)).toEqual(['old', 'new1', 'new2']);
       expect(data.activeGoalId).toBe('new1');
+    });
+
+    it('stores minutes per day as absolute values, and zero removes a day', async () => {
+      const today = todayISO();
+      await repo.saveStudyDay(today, 25);
+      await repo.saveStudyDay(today, 40);
+      await repo.saveStudyDay(addDays(today, -1), 10);
+      await repo.saveStudyDay(addDays(today, -400), 10);
+      expect(await repo.loadStudyLog(371)).toEqual({ [today]: 40, [addDays(today, -1)]: 10 });
+      await repo.saveStudyDay(addDays(today, -1), 0);
+      expect(await repo.loadStudyLog(371)).toEqual({ [today]: 40 });
+    });
+
+    it('keeps the study log when plans are deleted, but not on delete-all', async () => {
+      const today = todayISO();
+      await repo.saveGoalTree(tree('g1'));
+      await repo.saveStudyDay(today, 30);
+      await repo.deleteGoal('g1');
+      expect(await repo.loadStudyLog(371)).toEqual({ [today]: 30 });
+      await repo.deleteAll();
+      expect(await repo.loadStudyLog(371)).toEqual({});
+    });
+
+    it('keeps each user’s study log private', async () => {
+      await repo.saveStudyDay(todayISO(), 30);
+      await subject.switchUser('b');
+      expect(await repo.loadStudyLog(371)).toEqual({});
+      await subject.switchUser('a');
     });
 
     it('keeps each user’s data private', async () => {

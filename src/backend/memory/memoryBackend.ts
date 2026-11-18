@@ -8,7 +8,9 @@ import {
   type LinkedMethod,
 } from '../../auth/types';
 import { createEmptyAppData } from '../../domain/backup';
+import { addDays, todayISO } from '../../domain/dates';
 import { parseAppData } from '../../domain/schema';
+import type { StudyLog } from '../../domain/studyLog';
 import type { AppData, Goal } from '../../domain/types';
 import { RepositoryError, type RepositoryErrorCode } from '../../repositories/errors';
 import {
@@ -52,6 +54,7 @@ interface Snapshot {
   current: string | null;
   shares?: Record<string, Record<string, Share>>;
   names?: Record<string, string>;
+  study?: Record<string, StudyLog>;
   reports?: { slug: string; by: string; reason: string }[];
 }
 
@@ -91,6 +94,7 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
   let seq = 0;
   let shares: Record<string, Record<string, Share>> = {};
   let names: Record<string, string> = {};
+  let study: Record<string, StudyLog> = {};
   let reports: { slug: string; by: string; reason: string }[] = [];
 
   try {
@@ -102,6 +106,7 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
       current = snap.current;
       shares = snap.shares ?? {};
       names = snap.names ?? {};
+      study = snap.study ?? {};
       reports = snap.reports ?? [];
     }
   } catch {
@@ -111,7 +116,15 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
     try {
       opts.persist?.setItem(
         key,
-        JSON.stringify({ accounts, data, current, shares, names, reports } satisfies Snapshot),
+        JSON.stringify({
+          accounts,
+          data,
+          current,
+          shares,
+          names,
+          study,
+          reports,
+        } satisfies Snapshot),
       );
     } catch {
       /* ignore */
@@ -231,9 +244,25 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
         for (const g of added.goals) upsert(d.goals, g);
         if (activeGoalId) d.activeGoalId = activeGoalId;
       }),
+    loadStudyLog: (days) =>
+      run('loadStudyLog', () => {
+        const since = addDays(todayISO(), -days);
+        return Object.fromEntries(
+          Object.entries(study[current!] ?? {}).filter(([day]) => day >= since),
+        );
+      }),
+    saveStudyDay: (day, minutes) =>
+      run('saveStudyDay', () => {
+        if (!Number.isInteger(minutes) || minutes < 0 || minutes > 1440)
+          throw new RepositoryError('validation', 'minutes out of range');
+        const mine = (study[current!] ??= {});
+        if (minutes > 0) mine[day] = minutes;
+        else delete mine[day];
+      }),
     deleteAll: () =>
       run('deleteAll', (d) => {
         Object.assign(d, createEmptyAppData());
+        delete study[current!];
       }),
   };
 
@@ -502,6 +531,7 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
       delete data[me.id];
       delete shares[me.id];
       delete names[me.id];
+      delete study[me.id];
       reports = reports.filter((r) => r.by !== me.id);
       current = null;
       persist();

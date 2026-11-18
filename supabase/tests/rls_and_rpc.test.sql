@@ -1,7 +1,7 @@
 -- pgTAP tests. Run with: supabase test db   (needs the local stack: supabase start)
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(77);
+select plan(87);
 
 -- Two users and some data for each, created as the table owner.
 insert into auth.users (id, instance_id, aud, role, email)
@@ -87,11 +87,25 @@ select throws_ok($$
   values ('00000000-0000-0000-0000-00000000000b', 'evil', 'x', '2026-01-01')
 $$, '42501', null, 'cannot insert a row owned by another user');
 
+-- Study log: per user, absolute saves, zero removes a day.
+select lives_ok($$ select public.save_study_day('2026-03-10', 25) $$, 'A logs a day');
+select lives_ok($$ select public.save_study_day('2026-03-10', 40) $$, 'saving the day again sets it');
+select is((select minutes from public.study_log where day = '2026-03-10'), 40, 'the value is absolute, not added');
+select is((select count(*)::int from public.study_log), 1, 'one row per day');
+select throws_ok($$ select public.save_study_day('2026-03-11', 1441) $$, '23514', null, 'a day cannot exceed 24 hours');
+select lives_ok($$ select public.save_study_day('2026-03-11', 5) $$, 'A logs a second day');
+select lives_ok($$ select public.save_study_day('2026-03-11', 0) $$, 'zero minutes');
+select is((select count(*)::int from public.study_log), 1, 'removes that day');
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000b');
+select is((select count(*)::int from public.study_log), 0, 'B cannot see A''s study log');
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
+
 -- The anon role gets nothing.
 reset role;
 set local role anon;
 select throws_ok($$ select count(*) from public.goals $$, '42501', null, 'anon cannot read plans');
 select throws_ok($$ select count(*) from public.resource_progress $$, '42501', null, 'anon cannot read progress');
+select throws_ok($$ select count(*) from public.study_log $$, '42501', null, 'anon cannot read the study log');
 
 -- Appending keeps what is saved; an id used by another plan is an error, not a silent skip.
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { AppRepository } from '../../repositories/types';
+import { addDays, todayISO } from '../../domain/dates';
 import { call } from './call';
 import {
   goalPayload,
@@ -46,6 +47,15 @@ export function createSupabaseRepository(client: SupabaseClient): AppRepository 
     reorderPhases: (goalId, ids) => rpc('reorder_phases', { p_goal_id: goalId, p_ids: ids }),
     addGoals: (goals, activeGoalId) =>
       rpc('append_goals', { p_goals: goals.map(goalTreePayload), p_active_goal_id: activeGoalId }),
+    async loadStudyLog(days) {
+      const rows = await call(
+        client.from('study_log').select('day, minutes').gte('day', addDays(todayISO(), -days)),
+      );
+      return Object.fromEntries(
+        ((rows ?? []) as { day: string; minutes: number }[]).map((r) => [r.day, r.minutes]),
+      );
+    },
+    saveStudyDay: (day, minutes) => rpc('save_study_day', { p_day: day, p_minutes: minutes }),
     deleteAll: () => rpc('delete_all_data', {}),
   };
 }

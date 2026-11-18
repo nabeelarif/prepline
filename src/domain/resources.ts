@@ -28,7 +28,26 @@ export function statusLosesProgress(r: Resource, to: ResourceStatus): boolean {
   return to === 'not_started' && (r.done || resDone(r) > 0);
 }
 
-type Progress = Pick<Resource, 'done' | 'doneAt' | 'doneMinutes' | 'startedAt'>;
+type Progress = Pick<
+  Resource,
+  'done' | 'doneAt' | 'doneMinutes' | 'startedAt' | 'loggedOn' | 'loggedMinutes'
+>;
+
+/** Minutes of this resource credited today. */
+export function studiedToday(r: Resource, today: ISODate): number {
+  return r.loggedOn === today ? r.loggedMinutes : 0;
+}
+
+/**
+ * The day's tally after credited minutes change to `nextDone`: gains add to today's total,
+ * and losses (reopening, Not Started) take back from it, never below zero.
+ */
+function logged(r: Resource, nextDone: number, today: ISODate) {
+  const minutes = Math.max(0, studiedToday(r, today) + nextDone - resDone(r));
+  return minutes > 0
+    ? { loggedOn: today, loggedMinutes: minutes }
+    : { loggedOn: null, loggedMinutes: 0 };
+}
 
 /**
  * Fields to change for a status move. Starting credits nothing. Completing credits
@@ -39,21 +58,32 @@ export function statusPatch(r: Resource, to: ResourceStatus, today: ISODate): Pr
   const startedAt = r.startedAt ?? today;
   switch (to) {
     case 'not_started':
-      return { done: false, doneAt: null, doneMinutes: 0, startedAt: null };
-    case 'in_progress':
       return {
         done: false,
         doneAt: null,
-        // A full partial value would read as finished, so a reopen starts that one at 0.
-        doneMinutes: r.doneMinutes < r.minutes ? r.doneMinutes : 0,
-        startedAt,
+        doneMinutes: 0,
+        startedAt: null,
+        loggedOn: null,
+        loggedMinutes: 0,
       };
+    case 'in_progress': {
+      // A full partial value would read as finished, so a reopen starts that one at 0.
+      const doneMinutes = r.doneMinutes < r.minutes ? r.doneMinutes : 0;
+      return {
+        done: false,
+        doneAt: null,
+        doneMinutes,
+        startedAt,
+        ...logged(r, Math.min(doneMinutes, r.minutes), today),
+      };
+    }
     case 'completed':
       return {
         done: true,
         doneAt: r.done ? r.doneAt : today,
         doneMinutes: r.doneMinutes,
         startedAt,
+        ...logged(r, r.minutes, today),
       };
   }
 }
@@ -66,7 +96,13 @@ export function statusPatch(r: Resource, to: ResourceStatus, today: ISODate): Pr
 export function progressPatch(r: Resource, minutes: number, today: ISODate): Progress {
   const m = Math.round(Math.min(Math.max(0, minutes), r.minutes));
   if (m === r.minutes) return statusPatch(r, 'completed', today);
-  return { done: false, doneAt: null, doneMinutes: m, startedAt: r.startedAt ?? today };
+  return {
+    done: false,
+    doneAt: null,
+    doneMinutes: m,
+    startedAt: r.startedAt ?? today,
+    ...logged(r, m, today),
+  };
 }
 
 /**

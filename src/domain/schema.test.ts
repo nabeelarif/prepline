@@ -103,6 +103,8 @@ describe('parseAppData', () => {
               done: false,
               doneAt: null,
               startedAt: '2026-04-02',
+              loggedOn: '2026-04-03',
+              loggedMinutes: 15,
               phaseId: 'p',
               createdAt: '2026-04-01',
             },
@@ -112,6 +114,16 @@ describe('parseAppData', () => {
       ],
     };
     expect(parseAppData(input)).toEqual(input);
+  });
+
+  it('repairs a bad study tally', () => {
+    const d = parseAppData({
+      version: 1,
+      goals: [
+        { id: 'g', name: 'G', resources: [{ title: 'r', loggedOn: 'x', loggedMinutes: -5 }] },
+      ],
+    });
+    expect(d!.goals[0]!.resources[0]).toMatchObject({ loggedOn: null, loggedMinutes: 0 });
   });
 
   it('migrates data from earlier versions: sections become partial progress, ratings go', () => {

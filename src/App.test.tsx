@@ -1,8 +1,8 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { App } from './App';
 import { useStore } from './state/store';
-import { goal } from './test/fixtures';
+import { goal, res } from './test/fixtures';
 import { renderApp } from './test/renderApp';
 import { memory, resetApp, serverData } from './test/harness';
 
@@ -182,6 +182,65 @@ describe('routes', () => {
     await two();
     renderApp('/nowhere');
     expect(await screen.findByRole('heading', { level: 1, name: 'Page not found' })).toBeVisible();
+  });
+});
+
+describe('Today', () => {
+  it('fills the day from the plan, and switches to the week', async () => {
+    await resetApp({
+      version: 1,
+      activeGoalId: 'a',
+      goals: [
+        goal(
+          [res({ id: 'a', title: 'Intro', minutes: 90 }), res({ id: 'b', title: 'Deep dive' })],
+          {
+            id: 'a',
+            hoursPerDay: 1,
+            targetDate: null,
+          },
+        ),
+      ],
+    });
+    renderApp('/today');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Today' })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Today' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByText('Intro')).toBeVisible();
+    expect(screen.queryByText('Deep dive')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'This week' }));
+    expect(screen.getByRole('heading', { level: 1, name: 'This week' })).toBeVisible();
+    expect(screen.getAllByText('Deep dive')).toHaveLength(2);
+  });
+
+  it('counts progress recorded today and stops filling the day once the goal is met', async () => {
+    await resetApp({
+      version: 1,
+      activeGoalId: 'a',
+      goals: [
+        goal([res({ id: 'a', title: 'Intro', minutes: 180 })], {
+          id: 'a',
+          hoursPerDay: 1,
+          targetDate: null,
+        }),
+      ],
+    });
+    renderApp('/today');
+    expect(await screen.findByText('Intro')).toBeVisible();
+    act(() => useStore.getState().setProgress('a', 60));
+    expect(await screen.findByText(/done today/)).toHaveTextContent('1h of 1h done today');
+    expect(screen.getByText(/goal reached/)).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Done today' })).toBeVisible();
+    expect(screen.queryByRole('link', { name: /Open|Continue/ })).toBeNull();
+  });
+
+  it('asks to start a plan that has not started', async () => {
+    await resetApp({
+      version: 1,
+      activeGoalId: 'a',
+      goals: [goal([res({ id: 'a' })], { id: 'a', startDate: null, targetDate: null })],
+    });
+    renderApp('/today');
+    expect(await screen.findByText('This plan has not started')).toBeVisible();
   });
 });
 

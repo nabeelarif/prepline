@@ -1,7 +1,7 @@
 -- pgTAP tests. Run with: supabase test db   (needs the local stack: supabase start)
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(75);
+select plan(77);
 
 -- Two users and some data for each, created as the table owner.
 insert into auth.users (id, instance_id, aud, role, email)
@@ -59,6 +59,8 @@ select is((select count(*)::int from public.resource_progress where resource_id 
 select is((select (e ->> 'done')::boolean from jsonb_array_elements(public.load_all_data() -> 'resources') e where e ->> 'id' = 'r3'), true, 'load_all_data joins progress back onto the resource');
 select lives_ok($$ select public.save_resource('g1', '{"id": "r3", "title": "R3b", "type": "course", "minutes": 90, "created_at": "2026-01-01"}'::jsonb) $$, 'saving without progress runs');
 select is((select count(*)::int from public.resource_progress where resource_id = 'r3'), 0, 'no progress is stored as no row');
+select lives_ok($$ select public.save_resource('g1', '{"id": "r3", "title": "R3b", "type": "course", "minutes": 90, "created_at": "2026-01-01", "logged_on": "2026-02-01", "logged_minutes": 25}'::jsonb) $$, 'saving only a study tally runs');
+select is((select (e ->> 'logged_minutes')::int || ' on ' || (e ->> 'logged_on') from jsonb_array_elements(public.load_all_data() -> 'resources') e where e ->> 'id' = 'r3'), '25 on 2026-02-01', 'the tally is stored and loaded back');
 select lives_ok($$ select public.save_resource('g1', '{"id": "r3", "title": "R3b", "type": "course", "minutes": 90, "created_at": "2026-01-01", "started_at": "2026-02-01"}'::jsonb) $$, 're-adding progress for the isolation checks');
 
 -- Atomic: a bad row anywhere rolls back the whole append.

@@ -12,6 +12,7 @@ import { ResourceViewer } from './components/forms/ResourceViewer';
 import { ResourceForm } from './components/forms/ResourceForm';
 import { EmptyState } from './components/EmptyState';
 import { GoalView } from './components/GoalView';
+import { TodayView } from './components/TodayView';
 import { MyPlans } from './components/MyPlans';
 import { Overlay } from './components/Overlay';
 import { TopBar } from './components/TopBar';
@@ -148,6 +149,11 @@ function Dashboard() {
   return goal ? <GoalView goal={goal} /> : <NoPlans />;
 }
 
+function Today() {
+  const goal = useActiveGoal();
+  return goal ? <TodayView goal={goal} /> : <NoPlans />;
+}
+
 function NotFound({ plan = false }: { plan?: boolean }) {
   return (
     <section className="card welcome">
@@ -205,6 +211,7 @@ function Shell() {
             <Route path={paths.home} element={<Home />} />
             <Route path={paths.signIn} element={<Home />} />
             <Route path={paths.dashboard} element={<Dashboard />} />
+            <Route path={paths.today} element={<Today />} />
             <Route path={paths.plans} element={<MyPlans />} />
             <Route path={`${paths.plans}/:planId`} element={<PlanPage />} />
             {exploreRoutes}

@@ -1,7 +1,7 @@
 -- pgTAP tests. Run with: supabase test db   (needs the local stack: supabase start)
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(91);
+select plan(93);
 
 -- Two users and some data for each, created as the table owner.
 insert into auth.users (id, instance_id, aud, role, email)
@@ -120,13 +120,12 @@ $$, '23505', null, 'a resource id used by another plan is rejected');
 
 -- Sharing. Other people get content only, never progress, dates or daily hours.
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
-select throws_ok($$ select public.set_plan_sharing('g1', 'public', '{}') $$, '23514', null, 'public needs a display name');
-select lives_ok($$ select public.set_display_name('Ada') $$, 'set a display name');
-select lives_ok($$ select public.set_plan_sharing('g1', 'unlisted', '{}', ' Ada L ') $$, 'a name can travel with the sharing change');
-select is((select display_name from public.profiles), 'Ada L', 'and is trimmed and saved');
+select is((select display_name ~ '^[A-Z][a-z]+ [A-Z][a-z]+ [0-9]{2}$' from public.profiles), true, 'a new account is given a random name');
+select lives_ok($$ select public.set_display_name('  Ada  ') $$, 'the name can be changed');
+select is((select display_name from public.profiles), 'Ada', 'and is trimmed and saved');
+select throws_ok($$ select public.set_display_name('   ') $$, '23514', null, 'a blank name is rejected');
+select is((select display_name from public.profiles), 'Ada', 'and does not clear the saved name');
 select lives_ok($$ select public.set_display_name('Ada') $$, 'restore the name');
-select throws_ok($$ select public.set_plan_sharing('g1', 'public', '{}', '   ') $$, '23514', null, 'going public with a blank name is rejected');
-select is((select display_name from public.profiles), 'Ada', 'and the rejected call did not clear the saved name');
 select lives_ok($$ select public.set_plan_sharing('g1', 'unlisted', array['Swift', ' swift ', 'ios']) $$, 'share a plan by link');
 select is((select tags from public.plan_shares where goal_id = 'g1'), array['ios', 'swift'], 'tags are normalised');
 select lives_ok($$ select public.set_plan_sharing('g2', 'unlisted', '{}') $$, 'a plan can be shared before it has resources');
@@ -157,6 +156,13 @@ reset role;
 select is((select copy_count from public.plan_shares where goal_id = 'g1'), 1, 'counts each person once');
 set local role anon;
 select is((public.list_public_plans('plan', null, 24, 0) -> 0 ->> 'resource_count')::int, 3, 'a public plan is listed with its counts');
+select is(public.list_public_plans('plan', null, 24, 0) -> 0 ->> 'author', 'Ada', 'the author is the owner''s account name');
+reset role;
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
+select lives_ok($$ select public.set_display_name('Ada Lovelace') $$, 'the owner renames their account');
+reset role;
+set local role anon;
+select is(public.get_shared_plan((select slug from shared_slug)) ->> 'author', 'Ada Lovelace', 'and the author of the shared plan follows the new name');
 select is(jsonb_array_length(public.list_public_plans('100%', null, 24, 0)), 0, 'search treats % literally');
 reset role;
 update public.plan_shares set tags = array['ios', 'swift'] where goal_id = 'g1';

@@ -554,10 +554,11 @@ language sql stable security definer set search_path = '' as $$
 $$;
 
 -- Sets how a plan the caller owns is shared. 'private' stops sharing. Returns the new settings.
--- A plan can be shared while empty (it is chosen when the plan is created). A non-null
--- p_display_name sets the author name in the same call, so going public is one step.
+-- A plan can be shared while empty (it is chosen when the plan is created).
+-- The author shown to others is the owner's profile display_name, read when the plan is
+-- viewed, so renaming the account renames the author of every shared plan.
 create function public.set_plan_sharing(
-  p_goal_id text, p_visibility text, p_tags text[], p_display_name text default null)
+  p_goal_id text, p_visibility text, p_tags text[])
 returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare
@@ -579,9 +580,6 @@ begin
   end if;
   if p_visibility is null or p_visibility not in ('unlisted', 'public') then
     raise exception 'unknown visibility' using errcode = '23514';
-  end if;
-  if p_display_name is not null then
-    perform public.set_display_name(p_display_name);
   end if;
   if p_visibility = 'public' then
     if (select display_name from public.profiles where user_id = uid) is null then
@@ -606,13 +604,39 @@ begin
     'visibility', share.visibility, 'slug', share.slug, 'tags', to_jsonb(share.tags));
 end $$;
 
+-- A friendly name like 'Curious Pathfinder 42' (adjective, noun, 00-99) for accounts that do
+-- not pick one. About 160,000 combinations; names are not unique and need not be, because a
+-- plan's author is looked up by user id. The app has a copy of the word lists
+-- (`randomDisplayName` in src/domain/share.ts) for the in-memory backend.
+create function public.random_display_name() returns text
+language sql volatile set search_path = '' as $$
+  select (a.w)[1 + floor(random() * array_length(a.w, 1))::int] || ' '
+      || (n.w)[1 + floor(random() * array_length(n.w, 1))::int] || ' '
+      || lpad(floor(random() * 100)::int::text, 2, '0')
+  from (select array[
+    'Curious', 'Focused', 'Steady', 'Bright', 'Patient', 'Eager', 'Keen', 'Daring', 'Mindful',
+    'Swift', 'Bold', 'Calm', 'Clever', 'Diligent', 'Nimble', 'Resolute', 'Determined',
+    'Thoughtful', 'Radiant', 'Plucky', 'Gritty', 'Sharp', 'Humble', 'Lively', 'Fearless',
+    'Earnest', 'Inventive', 'Tenacious', 'Quiet', 'Witty', 'Brave', 'Restless', 'Hopeful',
+    'Agile', 'Wise', 'Spirited', 'Driven', 'Gentle', 'Ambitious', 'Cheerful'] as w) a,
+  (select array[
+    'Pathfinder', 'Navigator', 'Voyager', 'Scholar', 'Explorer', 'Wayfarer', 'Trailblazer',
+    'Climber', 'Learner', 'Compass', 'Otter', 'Heron', 'Fox', 'Falcon', 'Pioneer',
+    'Cartographer', 'Wanderer', 'Ranger', 'Sherpa', 'Lantern', 'Summit', 'Meadow', 'Comet',
+    'Harbor', 'Owl', 'Lynx', 'Raven', 'Badger', 'Sparrow', 'Dolphin', 'Panda', 'Maple', 'Cedar',
+    'Ember', 'Horizon', 'Beacon', 'Anchor', 'Quill', 'Atlas', 'Journeyer'] as w) n;
+$$;
+
 -- Sign-up can pass a name as user metadata ({ display_name }); this makes it the profile's
--- display_name, so it is set even before the email is confirmed.
+-- display_name, so it is set even before the email is confirmed. Without one (a blank
+-- name, Google or X), the account gets a random name. It can be changed at any time.
 create function public.handle_new_user() returns trigger
 language plpgsql security definer set search_path = '' as $$
 begin
   insert into public.profiles (user_id, display_name)
-  values (new.id, nullif(left(btrim(coalesce(new.raw_user_meta_data ->> 'display_name', '')), 40), ''))
+  values (new.id, coalesce(
+    nullif(left(btrim(coalesce(new.raw_user_meta_data ->> 'display_name', '')), 40), ''),
+    public.random_display_name()))
   on conflict (user_id) do nothing;
   return new;
 end $$;
@@ -620,11 +644,21 @@ end $$;
 create trigger on_auth_user_created after insert on auth.users
   for each row execute function public.handle_new_user();
 
+-- Accounts created before names were assigned get one too.
+update public.profiles set display_name = public.random_display_name() where display_name is null;
+revoke all on function public.random_display_name() from public, anon, authenticated;
+
+-- A name is always present: it is the author of every plan the user shares, so a blank one
+-- is rejected rather than clearing it.
 create function public.set_display_name(p_name text) returns void
-language sql security invoker set search_path = public as $$
-  insert into public.profiles (user_id, display_name) values (auth.uid(), nullif(btrim(p_name), ''))
+language plpgsql security invoker set search_path = public as $$
+begin
+  if btrim(coalesce(p_name, '')) = '' then
+    raise exception 'a display name cannot be empty' using errcode = '23514';
+  end if;
+  insert into public.profiles (user_id, display_name) values (auth.uid(), btrim(p_name))
   on conflict (user_id) do update set display_name = excluded.display_name;
-$$;
+end $$;
 
 -- Counts each person's first copy of a plan. People copying their own plan do not count.
 create function public.record_plan_copy(p_slug text) returns void
@@ -665,7 +699,7 @@ end $$;
 revoke all on function
   public.get_shared_plan(text), public.list_public_plans(text, text, integer, integer, text),
   public.list_popular_tags(integer), public.similar_plans(text, integer),
-  public.set_plan_sharing(text, text, text[], text), public.set_display_name(text),
+  public.set_plan_sharing(text, text, text[]), public.set_display_name(text),
   public.record_plan_copy(text), public.report_plan(text, text)
   from public, anon;
 grant execute on function
@@ -673,7 +707,7 @@ grant execute on function
   public.list_popular_tags(integer), public.similar_plans(text, integer)
   to anon, authenticated;
 grant execute on function
-  public.set_plan_sharing(text, text, text[], text), public.set_display_name(text),
+  public.set_plan_sharing(text, text, text[]), public.set_display_name(text),
   public.record_plan_copy(text), public.report_plan(text, text)
   to authenticated;
 

@@ -1,10 +1,5 @@
-import {
-  MAX_DISPLAY_NAME,
-  MAX_TAG_LENGTH,
-  MAX_TAGS,
-  type SharingValue,
-  type Visibility,
-} from '../../domain/share';
+import { MAX_TAG_LENGTH, MAX_TAGS, type SharingValue, type Visibility } from '../../domain/share';
+import { useStore } from '../../state/store';
 import { RadioChoice } from './RadioChoice';
 
 const OPTIONS: { value: Visibility; label: string; hint: string }[] = [
@@ -17,11 +12,11 @@ const OPTIONS: { value: Visibility; label: string; hint: string }[] = [
   {
     value: 'public',
     label: 'Public in Explore',
-    hint: 'Anyone can find it in Explore and open it. Needs a display name. It is listed once it has a resource.',
+    hint: 'Anyone can find it in Explore and open it. It is listed once it has a resource.',
   },
 ];
 
-/** Who can open a plan, plus the display name and tags that go with sharing it. */
+/** Who can open a plan, plus the tags that go with sharing it. The author is the account's name. */
 export function SharingFields({
   value,
   onChange,
@@ -29,6 +24,7 @@ export function SharingFields({
   value: SharingValue;
   onChange: (next: SharingValue) => void;
 }) {
+  const authorName = useStore((s) => s.sharing.displayName);
   return (
     <>
       <fieldset className="field">
@@ -44,18 +40,11 @@ export function SharingFields({
           />
         ))}
       </fieldset>
-      {value.visibility === 'public' && (
-        <label className="field">
-          <span>Display name</span>
-          <input
-            id="shName"
-            type="text"
-            maxLength={MAX_DISPLAY_NAME}
-            value={value.displayName}
-            placeholder="How you want to be credited"
-            onChange={(e) => onChange({ ...value, displayName: e.target.value })}
-          />
-        </label>
+      {value.visibility === 'public' && authorName && (
+        <p className="share-note">
+          Shown as the author: <strong>{authorName}</strong>. You can change your name in Account
+          settings.
+        </p>
       )}
       <label className="field">
         <span>

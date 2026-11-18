@@ -302,7 +302,6 @@ describe('sharing', () => {
       p_goal_id: 'g1',
       p_visibility: 'public',
       p_tags: ['ios'],
-      p_display_name: null,
     });
   });
 

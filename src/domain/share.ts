@@ -70,14 +70,24 @@ export interface SharingValue {
   visibility: Visibility;
   /** Comma separated, as typed. */
   tags: string;
-  displayName: string;
 }
 
-/** Why a sharing choice cannot be saved, or null. Public plans are credited to a name. */
-export function sharingProblem(v: SharingValue): string | null {
-  return v.visibility === 'public' && !v.displayName.trim()
-    ? 'Add a display name. It is shown as the author. Your email is never shown.'
-    : null;
+// Word lists for the name every new account gets. `supabase/schema.sql` has a copy in
+// `random_display_name()`, which is what production uses; keep the two in step.
+export const NAME_ADJECTIVES =
+  'Curious Focused Steady Bright Patient Eager Keen Daring Mindful Swift Bold Calm Clever Diligent Nimble Resolute Determined Thoughtful Radiant Plucky Gritty Sharp Humble Lively Fearless Earnest Inventive Tenacious Quiet Witty Brave Restless Hopeful Agile Wise Spirited Driven Gentle Ambitious Cheerful'.split(
+    ' ',
+  );
+export const NAME_NOUNS =
+  'Pathfinder Navigator Voyager Scholar Explorer Wayfarer Trailblazer Climber Learner Compass Otter Heron Fox Falcon Pioneer Cartographer Wanderer Ranger Sherpa Lantern Summit Meadow Comet Harbor Owl Lynx Raven Badger Sparrow Dolphin Panda Maple Cedar Ember Horizon Beacon Anchor Quill Atlas Journeyer'.split(
+    ' ',
+  );
+
+/** A friendly name for an account that did not pick one, like "Curious Pathfinder 42". */
+export function randomDisplayName(random: () => number = Math.random): string {
+  const pick = (list: string[]) => list[Math.floor(random() * list.length)]!;
+  const digits = String(Math.floor(random() * 100)).padStart(2, '0');
+  return `${pick(NAME_ADJECTIVES)} ${pick(NAME_NOUNS)} ${digits}`;
 }
 
 /** Lowercase, trimmed, unique tags within the limits. The database applies the same rules. */
@@ -123,10 +133,6 @@ export function copyOfSharedPlan(shared: SharedPlan, today: ISODate = todayISO()
 }
 
 /** The arguments `setPlanSharing` takes after the plan id, from the form's value. */
-export function sharingArgs(v: SharingValue): [Visibility, string[], string | undefined] {
-  return [
-    v.visibility,
-    cleanTags(v.tags.split(/[,\n]/)),
-    v.visibility === 'public' ? v.displayName : undefined,
-  ];
+export function sharingArgs(v: SharingValue): [Visibility, string[]] {
+  return [v.visibility, cleanTags(v.tags.split(/[,\n]/))];
 }

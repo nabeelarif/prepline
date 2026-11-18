@@ -16,6 +16,7 @@ import { RepositoryError, type RepositoryErrorCode } from '../../repositories/er
 import {
   cleanTags,
   MAX_DISPLAY_NAME,
+  randomDisplayName,
   type PlanSharing,
   type Visibility,
   type PlanSummary,
@@ -142,6 +143,8 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
       };
       accounts.push(a);
       data[a.id] = createEmptyAppData();
+      // Like the database trigger: every account starts with a name, which can be changed.
+      names[a.id] = randomDisplayName();
     }
     if (!a.methods.includes(method)) a.methods.push(method);
     return a;
@@ -413,7 +416,7 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
         ),
         displayName: names[me] ?? null,
       })),
-    setSharing: (goalId, visibility, tags, displayName) =>
+    setSharing: (goalId, visibility, tags) =>
       shared('setSharing', true, (me) => {
         const g = (data[me] ?? createEmptyAppData()).goals.find((x) => x.id === goalId);
         if (!g) throw new RepositoryError('notFound', 'plan not found');
@@ -422,10 +425,8 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
           delete mine[goalId];
           return { visibility: 'private', slug: null, tags: [], hidden: false, copyCount: 0 };
         }
-        // Like the SQL function, a rejected call changes nothing, name included.
-        const name = displayName === undefined ? names[me] : validName(displayName);
         if (visibility === 'public') {
-          if (!name) {
+          if (!names[me]) {
             throw new RepositoryError(
               'validation',
               'set a display name before making a plan public',
@@ -447,12 +448,13 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
           copiedBy: existing?.copiedBy ?? [],
         };
         mine[goalId] = next;
-        if (displayName !== undefined) saveName(me, name);
         return toSettings(next);
       }),
     setDisplayName: (name) =>
       shared('setDisplayName', true, (me) => {
-        saveName(me, validName(name));
+        const clean = validName(name);
+        if (!clean) throw new RepositoryError('validation', 'a display name cannot be empty');
+        saveName(me, clean);
       }),
     recordCopy: (slug) =>
       shared('recordCopy', true, (me) => {

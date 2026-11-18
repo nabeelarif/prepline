@@ -54,13 +54,12 @@ export function createSupabaseSharing(client: SupabaseClient): PlanSharingReposi
       }
       return { plans, displayName: (profile?.display_name as string | null) ?? null };
     },
-    async setSharing(goalId, visibility, tags, displayName) {
+    async setSharing(goalId, visibility, tags) {
       const j = (await call(
         client.rpc('set_plan_sharing', {
           p_goal_id: goalId,
           p_visibility: visibility,
           p_tags: cleanTags(tags),
-          p_display_name: displayName ?? null,
         }),
       )) as SharingJson | null;
       if (!j) throw new RepositoryError('unknown', 'No answer from the server');

@@ -300,17 +300,25 @@ export function describeSharingContract(name: string, make: () => Promise<Contra
       expect(mine.plans['g1']).toMatchObject({ visibility: 'public', slug: first.slug });
     });
 
-    it('needs a display name to go public', async () => {
+    it('gives every account a name, so a plan can go public without asking for one', async () => {
       await repo.saveGoalTree(planWithProgress('g1'));
-      await expect(sharing.setSharing('g1', 'public', [])).rejects.toMatchObject({
-        code: 'validation',
-      });
+      const { displayName } = await sharing.loadSharing();
+      expect(displayName).toMatch(/^[A-Z][a-z]+ [A-Z][a-z]+ \d{2}$/);
+      const { slug } = await sharing.setSharing('g1', 'public', []);
+      expect((await sharing.getShared(slug!))?.author).toBe(displayName);
     });
 
-    it('saves the display name in the same step as going public', async () => {
-      await repo.saveGoalTree(planWithProgress('g1'));
-      await sharing.setSharing('g1', 'public', [], ' Ada ');
-      expect((await sharing.loadSharing()).displayName).toBe('Ada');
+    it('rejects a blank name instead of clearing the author of shared plans', async () => {
+      const { slug } = await share('g1', 'public');
+      await expect(sharing.setDisplayName('   ')).rejects.toMatchObject({ code: 'validation' });
+      expect((await sharing.getShared(slug!))?.author).toBe('Ada');
+    });
+
+    it('shows the current name of the account as the author, not a copy from sharing time', async () => {
+      const { slug } = await share('g1', 'public');
+      await sharing.setDisplayName('Ada Lovelace');
+      expect((await sharing.getShared(slug!))?.author).toBe('Ada Lovelace');
+      expect((await sharing.listPublic())[0]?.author).toBe('Ada Lovelace');
     });
 
     it('lets an empty plan be shared, but lists it only once it has a resource', async () => {

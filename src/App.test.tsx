@@ -52,10 +52,8 @@ describe('App', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Create Your First Plan' }));
     fireEvent.change(screen.getByLabelText('Plan Title'), { target: { value: 'Open plan' } });
     fireEvent.click(screen.getByRole('radio', { name: /Public in Explore/ }));
-    // Public plans are credited to a name.
-    fireEvent.click(screen.getByRole('button', { name: 'Create Plan' }));
-    expect(await screen.findByText(/Add a display name/)).toBeVisible();
-    fireEvent.change(screen.getByLabelText('Display name'), { target: { value: 'Ada' } });
+    // The author is the account's own name; the dialog never asks for one.
+    expect(screen.queryByLabelText('Display name')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Create Plan' }));
     expect(await screen.findByText('Plan created')).toBeVisible();
 
@@ -64,7 +62,7 @@ describe('App', () => {
       const [plan] = Object.values(useStore.getState().sharing.plans);
       expect(plan).toMatchObject({ visibility: 'public' });
     });
-    expect(useStore.getState().sharing.displayName).toBe('Ada');
+    expect(useStore.getState().sharing.displayName).toMatch(/^\S+ \S+ \d{2}$/);
   });
 
   it('shows the plan at once, warns when saving fails, and saves after Retry', async () => {

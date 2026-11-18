@@ -121,14 +121,9 @@ export interface Store {
   fetchSimilar(slug: string, limit?: number): Promise<PlanSummary[]>;
   /**
    * Changes who can open a plan. Returns an error text to show, or null on success.
-   * Public needs a display name; pass it to set it in the same step.
+   * Other people see the account's display name as the author.
    */
-  setPlanSharing(
-    goalId: string,
-    visibility: Visibility,
-    tags: string[],
-    displayName?: string,
-  ): Promise<string | null>;
+  setPlanSharing(goalId: string, visibility: Visibility, tags: string[]): Promise<string | null>;
   /** Changes the name shown as the author of public plans. Returns an error text, or null. */
   saveDisplayName(name: string): Promise<string | null>;
   /** Copies a shared plan into the signed-in user's plans, with no progress. */
@@ -445,32 +440,18 @@ export function createAppStore({ repo, auth, sharing }: Backend) {
       fetchPopularTags: (limit) => sharing.listPopularTags(limit).catch(rethrowShown),
       fetchSimilar: (slug, limit) => sharing.listSimilar(slug, limit).catch(rethrowShown),
 
-      setPlanSharing: async (goalId, visibility, tags, displayName) => {
+      setPlanSharing: async (goalId, visibility, tags) => {
         const startedFor = userId;
         try {
           // A plan created a moment ago may not be saved yet, and sharing needs it to exist.
           await queue.settled();
-          // The name travels with the sharing change, so going public is one request.
-          const nameChanged =
-            displayName !== undefined && displayName.trim() !== (get().sharing.displayName ?? '');
-          const result = await sharing.setSharing(
-            goalId,
-            visibility,
-            tags,
-            nameChanged ? displayName : undefined,
-          );
+          const result = await sharing.setSharing(goalId, visibility, tags);
           if (userId !== startedFor) return null;
           set((s) => {
             const plans = { ...s.sharing.plans };
             if (result.visibility === 'private') delete plans[goalId];
             else plans[goalId] = result;
-            return {
-              sharing: {
-                status: 'ready',
-                plans,
-                displayName: nameChanged ? displayName.trim() || null : s.sharing.displayName,
-              },
-            };
+            return { sharing: { ...s.sharing, status: 'ready', plans } };
           });
           return null;
         } catch (e) {

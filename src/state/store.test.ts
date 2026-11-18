@@ -56,12 +56,10 @@ describe('store', () => {
     await flush();
     await vi.waitFor(() => expect(s().sharing.status).toBe('ready'));
 
-    // Public needs a display name; the error is shown as text, nothing is shared.
-    expect(await s().setPlanSharing(g().id, 'public', [])).toMatch(/display name/);
-    expect(s().sharing.plans).toEqual({});
-    expect(await s().setPlanSharing(g().id, 'public', ['Swift'], 'Ada')).toBeNull();
+    // Every account already has a name, so going public needs nothing more.
+    expect(s().sharing.displayName).toMatch(/^\S+ \S+ \d{2}$/);
+    expect(await s().setPlanSharing(g().id, 'public', ['Swift'])).toBeNull();
     const slug = s().sharing.plans[g().id]!.slug!;
-    expect(s().sharing.displayName).toBe('Ada');
 
     const shared = (await s().fetchShared(slug))!;
     expect(shared.resources).toHaveLength(1);

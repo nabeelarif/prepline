@@ -6,7 +6,7 @@ import { useMatch, useNavigate } from 'react-router-dom';
 import { paths } from '../../routes';
 import { useStore } from '../../state/store';
 import { ConfirmButton } from '../ConfirmButton';
-import { sharingArgs, sharingProblem, type SharingValue } from '../../domain/share';
+import { sharingArgs, type SharingValue } from '../../domain/share';
 import { DIALOG_TITLE } from '../Overlay';
 import { SharingFields } from './SharingFields';
 
@@ -15,7 +15,6 @@ export function GoalForm({ goal }: { goal: Goal | null }) {
   const { createGoal, updateGoal, deleteGoal, closeOverlay, setPlanSharing, showToast } =
     useStore.getState();
   const sharingStatus = useStore((s) => s.sharing.status);
-  const savedName = useStore((s) => s.sharing.displayName);
   const navigate = useNavigate();
   const onDashboard = useMatch(paths.dashboard) !== null;
   const viewedPlan = useMatch(`${paths.plans}/:planId`)?.params.planId;
@@ -28,7 +27,6 @@ export function GoalForm({ goal }: { goal: Goal | null }) {
   const [share, setShare] = useState<SharingValue>({
     visibility: 'private',
     tags: '',
-    displayName: savedName ?? '',
   });
   const [error, setError] = useState('');
 
@@ -53,11 +51,6 @@ export function GoalForm({ goal }: { goal: Goal | null }) {
     if (hrs !== null && !(hrs > 0)) {
       setError('Daily study hours must be more than 0, for example 1.5. Or leave it empty.');
       return focus('gHours');
-    }
-    const sharingInvalid = goal ? null : sharingProblem(share);
-    if (sharingInvalid) {
-      setError(sharingInvalid);
-      return focus('shName');
     }
     const input = {
       name: trimmed,

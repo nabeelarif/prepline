@@ -48,7 +48,6 @@ export function AuthGate() {
         },
       );
     }
-    if (mode === 'signUp' && !name.trim()) return setError('Enter your name.');
     if (!password) return setError('Enter your password.');
     setNotice('');
     return run(() =>
@@ -106,7 +105,9 @@ export function AuthGate() {
         <form noValidate onSubmit={submit}>
           {mode === 'signUp' && (
             <label className="field">
-              <span>Name</span>
+              <span>
+                Name <small>(optional)</small>
+              </span>
               <input
                 type="text"
                 autoComplete="name"
@@ -114,7 +115,10 @@ export function AuthGate() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
-              <small className="muted">Shown as the author if you share a plan publicly.</small>
+              <small className="muted">
+                Shown as the author of plans you share publicly. Leave it blank and we will pick one
+                for you. You can change it any time in Account settings.
+              </small>
             </label>
           )}
           <label className="field">

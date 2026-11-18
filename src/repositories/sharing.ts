@@ -37,16 +37,10 @@ export interface PlanSharingRepository {
   /** The signed-in user's sharing settings, by plan id; plans not shared are absent. */
   loadSharing(): Promise<{ plans: Record<string, PlanSharing>; displayName: string | null }>;
   /**
-   * Sets who can open one of the user's plans. Public needs a display name and at least one
-   * resource. `private` stops sharing. A `displayName` is saved in the same step; leave it
-   * out to keep the current one.
+   * Sets who can open one of the user's plans. `private` stops sharing. The author shown to
+   * others is the account's display name, which every account has (see `setDisplayName`).
    */
-  setSharing(
-    goalId: string,
-    visibility: Visibility,
-    tags: string[],
-    displayName?: string,
-  ): Promise<PlanSharing>;
+  setSharing(goalId: string, visibility: Visibility, tags: string[]): Promise<PlanSharing>;
   setDisplayName(name: string): Promise<void>;
   /** Counts the signed-in user's first copy of a plan. Never fails the copy itself. */
   recordCopy(slug: string): Promise<void>;

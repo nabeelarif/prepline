@@ -23,6 +23,20 @@ describe('WriteQueue', () => {
     await vi.waitFor(() => expect(state).toMatchObject({ status: 'saved', pending: 0 }));
   });
 
+  it('starts a write queued right after the last one finished', async () => {
+    const queue = new WriteQueue(() => {});
+    const second = vi.fn(async () => {});
+    queue.enqueue([
+      {
+        run: async () => {},
+        // Runs inside the drain loop; the microtask lands after the loop has exited but
+        // before the loop's promise has been cleaned up.
+        after: () => queueMicrotask(() => queue.enqueue([{ run: second }])),
+      },
+    ]);
+    await vi.waitFor(() => expect(second).toHaveBeenCalledTimes(1));
+  });
+
   it('keeps saving when a confirmation callback throws', async () => {
     let state!: SyncState;
     const queue = new WriteQueue((s) => (state = s));

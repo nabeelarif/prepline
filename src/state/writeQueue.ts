@@ -129,29 +129,36 @@ export class WriteQueue {
 
   private async drain() {
     const generation = this.generation;
-    while (this.ops.length && !this.failed && !this.paused && generation === this.generation) {
-      const op = this.ops[0]!;
-      this.current = op;
-      this.emit();
-      try {
-        await op.run();
-      } catch (e) {
+    try {
+      while (this.ops.length && !this.failed && !this.paused && generation === this.generation) {
+        const op = this.ops[0]!;
+        this.current = op;
+        this.emit();
+        try {
+          await op.run();
+        } catch (e) {
+          if (generation !== this.generation) return;
+          this.current = null;
+          this.failed = true;
+          this.retryable = !isPermanent(e);
+          this.error = describeError(e);
+          return;
+        }
         if (generation !== this.generation) return;
         this.current = null;
-        this.failed = true;
-        this.retryable = !isPermanent(e);
-        this.error = describeError(e);
-        return;
+        this.ops.shift();
+        this.saved = true;
+        try {
+          op.after?.();
+        } catch {
+          // A faulty callback (a toast) must not stop saving or leave a rejected promise.
+        }
       }
-      if (generation !== this.generation) return;
-      this.current = null;
-      this.ops.shift();
-      this.saved = true;
-      try {
-        op.after?.();
-      } catch {
-        // A faulty callback (a toast) must not stop saving or leave a rejected promise.
-      }
+    } finally {
+      // Clear the marker in the same tick the loop exits. Waiting for the promise's own
+      // cleanup leaves a gap in which a write queued from a microtask sees a loop that is
+      // already over, starts nothing, and sits unsaved.
+      if (generation === this.generation) this.loop = null;
     }
   }
 

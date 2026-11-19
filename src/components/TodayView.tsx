@@ -1,14 +1,17 @@
-import { ExternalLink, Gauge, Play } from 'lucide-react';
+import { ExternalLink, Flame, Gauge, Play } from 'lucide-react';
 import { useState } from 'react';
 import { fmtDate, relDay, todayISO } from '../domain/dates';
-import { fmtHours } from '../domain/format';
+import { fmtHours, pl } from '../domain/format';
 import { metrics } from '../domain/metrics';
 import { resStatus } from '../domain/resources';
 import { studyPlan, type StudyDay, type StudySlice } from '../domain/schedule';
+import { currentStreak } from '../domain/studyLog';
 import type { Goal } from '../domain/types';
 import { useStore } from '../state/store';
+import { useTimer } from '../state/timer';
 import { TypeIcon } from './icons';
 import { ResourceLink } from './ResourceLink';
+import { TimerButton } from './TimerButton';
 
 type Range = 'today' | 'week';
 
@@ -19,6 +22,9 @@ export function TodayView({ goal }: { goal: Goal }) {
   const days = studyPlan(goal, range === 'today' ? 1 : 7, today);
   const budget = days[0]?.budget ?? null;
   const finished = metrics(goal.resources).remaining === 0;
+  const log = useStore((s) => s.studyLog);
+  const timing = useTimer((s) => s.timer !== null);
+  const streak = log.ready ? currentStreak(log.days, today) : 0;
 
   return (
     <>
@@ -29,6 +35,13 @@ export function TodayView({ goal }: { goal: Goal }) {
             {goal.name} · {fmtDate(today)}
             {budget != null && ` · ${fmtHours(budget)} a day`}
           </p>
+          {log.ready && (
+            <p className="today-streak">
+              <Flame size={16} aria-hidden="true" className={streak > 0 ? 'lit' : ''} />{' '}
+              {streak > 0 ? `${pl(streak, 'day')} streak` : 'No streak yet'}
+              {streak > 0 && !timing && (log.days[today] ?? 0) === 0 && ' · study today to keep it'}
+            </p>
+          )}
         </div>
         <div className="seg" role="group" aria-label="Range">
           {(['today', 'week'] as const).map((r) => (
@@ -69,6 +82,7 @@ export function TodayView({ goal }: { goal: Goal }) {
             <DaySection
               key={d.date}
               day={d}
+              goalId={goal.id}
               today={today}
               showHeading={range === 'week'}
               finished={finished}
@@ -91,11 +105,13 @@ function Notice({ title, children }: { title: string; children: React.ReactNode 
 
 function DaySection({
   day,
+  goalId,
   today,
   showHeading,
   finished,
 }: {
   day: StudyDay;
+  goalId: string;
   today: string;
   showHeading: boolean;
   finished: boolean;
@@ -128,7 +144,12 @@ function DaySection({
       )}
       <ul className="today-list">
         {day.slices.map((s) => (
-          <SliceRow key={`${s.resource.id}:${s.from}`} slice={s} actions={day.date === today} />
+          <SliceRow
+            key={`${s.resource.id}:${s.from}`}
+            goalId={goalId}
+            slice={s}
+            actions={day.date === today}
+          />
         ))}
       </ul>
       {day.studiedItems.length > 0 && (
@@ -162,7 +183,15 @@ function DaySection({
   );
 }
 
-function SliceRow({ slice, actions }: { slice: StudySlice; actions: boolean }) {
+function SliceRow({
+  goalId,
+  slice,
+  actions,
+}: {
+  goalId: string;
+  slice: StudySlice;
+  actions: boolean;
+}) {
   const { setStatus, openOverlay } = useStore.getState();
   const r = slice.resource;
   const active = resStatus(r) === 'in_progress';
@@ -182,6 +211,7 @@ function SliceRow({ slice, actions }: { slice: StudySlice; actions: boolean }) {
       </div>
       {actions && (
         <div className="btn-row">
+          <TimerButton goalId={goalId} r={r} />
           {active && (
             <button
               className="btn sm"

@@ -54,3 +54,17 @@
   text-transform: uppercase;
   color: var(--muted);
 }
+
+.today-streak {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 0;
+  font-size: 0.9rem;
+}
+.today-streak svg {
+  color: var(--muted);
+}
+.today-streak svg.lit {
+  color: var(--ph-orange);
+}

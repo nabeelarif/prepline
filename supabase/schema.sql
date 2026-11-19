@@ -33,6 +33,10 @@ create table public.goals (
   description text not null default '' check (char_length(description) <= 1000),
   created_at date not null,
   position integer not null default 0,
+  -- Where a copy came from (the shared plan's link and its title then). Plan content: when
+  -- the copy is shared, the public functions show "Forked from" and link to the original.
+  source_slug text check (source_slug is null or char_length(source_slug) <= 64),
+  source_name text check (source_name is null or char_length(source_name) <= 120),
   primary key (user_id, id)
 );
 
@@ -44,10 +48,6 @@ create table public.plan_settings (
   start_date date,
   target_date date,
   hours_per_day numeric check (hours_per_day is null or hours_per_day between 0.25 and 16),
-  -- Where a copy came from (the shared plan's link and its title then). Private to the owner:
-  -- the public functions never read this table.
-  source_slug text check (source_slug is null or char_length(source_slug) <= 64),
-  source_name text check (source_name is null or char_length(source_name) <= 120),
   primary key (user_id, goal_id),
   check (start_date is null or target_date is null or start_date <= target_date),
   foreign key (user_id, goal_id) references public.goals (user_id, id) on delete cascade
@@ -160,24 +160,25 @@ language plpgsql security invoker set search_path = public as $$
 begin
   -- Two tabs adding at once would read the same max(position); take turns instead.
   perform pg_advisory_xact_lock(hashtext('goals:' || auth.uid()));
-  insert into public.goals (id, name, description, created_at, position)
+  insert into public.goals (id, name, description, created_at, position, source_slug, source_name)
   values (
     p_goal ->> 'id', p_goal ->> 'name', coalesce(p_goal ->> 'description', ''),
     (p_goal ->> 'created_at')::date,
-    coalesce((select max(position) + 1 from public.goals), 0)
+    coalesce((select max(position) + 1 from public.goals), 0),
+    p_goal ->> 'source_slug', p_goal ->> 'source_name'
   )
   on conflict (user_id, id) do update set
     name = excluded.name, description = excluded.description,
-    created_at = excluded.created_at;
-  insert into public.plan_settings (goal_id, start_date, target_date, hours_per_day, source_slug, source_name)
+    created_at = excluded.created_at,
+    source_slug = excluded.source_slug, source_name = excluded.source_name;
+  insert into public.plan_settings (goal_id, start_date, target_date, hours_per_day)
   values (
     p_goal ->> 'id', (p_goal ->> 'start_date')::date, (p_goal ->> 'target_date')::date,
-    (p_goal ->> 'hours_per_day')::numeric, p_goal ->> 'source_slug', p_goal ->> 'source_name'
+    (p_goal ->> 'hours_per_day')::numeric
   )
   on conflict (user_id, goal_id) do update set
     start_date = excluded.start_date, target_date = excluded.target_date,
-    hours_per_day = excluded.hours_per_day,
-    source_slug = excluded.source_slug, source_name = excluded.source_name;
+    hours_per_day = excluded.hours_per_day;
 end $$;
 
 create function public.save_phase(p_goal_id text, p_phase jsonb) returns void
@@ -325,8 +326,7 @@ language sql stable security invoker set search_path = public as $$
     'goals', coalesce((
       select jsonb_agg(
         to_jsonb(g) || jsonb_build_object(
-          'start_date', s.start_date, 'target_date', s.target_date, 'hours_per_day', s.hours_per_day,
-          'source_slug', s.source_slug, 'source_name', s.source_name)
+          'start_date', s.start_date, 'target_date', s.target_date, 'hours_per_day', s.hours_per_day)
         order by g.position, g.id)
       from public.goals g
       left join public.plan_settings s on s.user_id = g.user_id and s.goal_id = g.id), '[]'),
@@ -436,6 +436,19 @@ create policy plan_shares_owner_read on public.plan_shares for select to authent
 revoke all on public.plan_shares, public.plan_copies, public.plan_reports from anon, authenticated;
 grant select on public.plan_shares to authenticated;
 
+-- Where a copy came from, as other people see it: null for an original, otherwise the
+-- original's title, plus its link only while the original is public. An unlisted original
+-- is for people who have its link, so a copy never reveals it (`available` false, no slug).
+create function public.plan_origin(p_slug text, p_name text) returns jsonb
+language sql stable security definer set search_path = '' as $$
+  select case when p_slug is null then null else jsonb_build_object(
+    'slug', o.slug, 'name', p_name, 'available', o.slug is not null)
+  end
+  from (select 1) x
+  left join public.plan_shares o
+    on o.slug = p_slug and o.visibility = 'public' and not o.hidden
+$$;
+
 -- A plan for anyone with its link. Null when the link is wrong, private or taken down.
 create function public.get_shared_plan(p_slug text) returns jsonb
 language sql stable security definer set search_path = '' as $$
@@ -443,6 +456,7 @@ language sql stable security definer set search_path = '' as $$
     'slug', s.slug, 'visibility', s.visibility, 'tags', to_jsonb(s.tags),
     'published_at', s.published_at, 'copy_count', s.copy_count,
     'author', p.display_name,
+    'source', public.plan_origin(g.source_slug, g.source_name),
     'name', g.name, 'description', g.description,
     'phases', coalesce((
       select jsonb_agg(jsonb_build_object(
@@ -474,6 +488,7 @@ language sql stable security definer set search_path = '' as $$
   from (
     select s.copy_count, s.published_at, s.slug, jsonb_build_object(
       'slug', s.slug, 'name', g.name, 'description', g.description, 'author', p.display_name,
+      'source', public.plan_origin(g.source_slug, g.source_name),
       'tags', to_jsonb(s.tags), 'published_at', s.published_at, 'copy_count', s.copy_count,
       'phase_count', ph.n, 'resource_count', rs.n, 'total_minutes', rs.minutes
     ) as item
@@ -532,6 +547,7 @@ language sql stable security definer set search_path = '' as $$
     select cardinality(array(select unnest(s.tags) intersect select unnest(me.tags))) as overlap,
       s.copy_count, s.slug, jsonb_build_object(
       'slug', s.slug, 'name', g.name, 'description', g.description, 'author', p.display_name,
+      'source', public.plan_origin(g.source_slug, g.source_name),
       'tags', to_jsonb(s.tags), 'published_at', s.published_at, 'copy_count', s.copy_count,
       'phase_count', ph.n, 'resource_count', rs.n, 'total_minutes', rs.minutes
     ) as item
@@ -700,8 +716,8 @@ revoke all on function
   public.get_shared_plan(text), public.list_public_plans(text, text, integer, integer, text),
   public.list_popular_tags(integer), public.similar_plans(text, integer),
   public.set_plan_sharing(text, text, text[]), public.set_display_name(text),
-  public.record_plan_copy(text), public.report_plan(text, text)
-  from public, anon;
+  public.record_plan_copy(text), public.report_plan(text, text), public.plan_origin(text, text)
+  from public, anon, authenticated;
 grant execute on function
   public.get_shared_plan(text), public.list_public_plans(text, text, integer, integer, text),
   public.list_popular_tags(integer), public.similar_plans(text, integer)

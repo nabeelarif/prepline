@@ -248,6 +248,27 @@ export function describeSharingContract(name: string, make: () => Promise<Contra
       }
     });
 
+    it('shows where a copy came from, and links to the original only while it is shared', async () => {
+      const original = await share('g1', 'public');
+      await repo.saveGoalTree({
+        ...planWithProgress('g2'),
+        source: { slug: original.slug!, name: 'Plan g1' },
+      });
+      const copy = await sharing.setSharing('g2', 'public', []);
+      expect((await sharing.getShared(original.slug!))?.source).toBeNull();
+      const expected = { slug: original.slug, name: 'Plan g1', available: true };
+      expect((await sharing.getShared(copy.slug!))?.source).toEqual(expected);
+      const listed = await sharing.listPublic();
+      expect(listed.find((p) => p.slug === copy.slug)?.source).toEqual(expected);
+
+      // An unlisted original is for people with its link: a copy never reveals it.
+      const hidden = { slug: null, name: 'Plan g1', available: false };
+      await sharing.setSharing('g1', 'unlisted', []);
+      expect((await sharing.getShared(copy.slug!))?.source).toEqual(hidden);
+      await sharing.setSharing('g1', 'private', []);
+      expect((await sharing.getShared(copy.slug!))?.source).toEqual(hidden);
+    });
+
     it('can be read without an account; only public plans are listed', async () => {
       const unlisted = await share('g1', 'unlisted');
       const pub = await share('g2', 'public');

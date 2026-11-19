@@ -1,6 +1,6 @@
 import { parseAppData } from '../../domain/schema';
 import { createEmptyAppData } from '../../domain/backup';
-import type { PlanSharing, PlanSummary, SharedPlan } from '../../domain/share';
+import type { PlanOrigin, PlanSharing, PlanSummary, SharedPlan } from '../../domain/share';
 import type { AppData, Goal, Phase, Resource, ResourceType } from '../../domain/types';
 
 /** Database row shapes (snake_case). Private to the Supabase implementation. */
@@ -144,6 +144,7 @@ export interface SharedPlanJson {
   name: string;
   description: string;
   author: string | null;
+  source: PlanOrigin | null;
   tags: string[];
   published_at: string;
   copy_count: number;
@@ -163,6 +164,7 @@ export interface SummaryJson {
   name: string;
   description: string;
   author: string | null;
+  source: PlanOrigin | null;
   tags: string[];
   published_at: string;
   copy_count: number;
@@ -193,6 +195,7 @@ export const toShared = (j: SharedPlanJson): SharedPlan => ({
   name: j.name,
   description: j.description,
   author: j.author,
+  source: j.source ?? null,
   tags: j.tags ?? [],
   publishedAt: j.published_at,
   copyCount: j.copy_count,
@@ -213,6 +216,7 @@ export const toSummary = (j: SummaryJson): PlanSummary => ({
   name: j.name,
   description: j.description,
   author: j.author,
+  source: j.source ?? null,
   tags: j.tags ?? [],
   publishedAt: j.published_at,
   copyCount: j.copy_count,

@@ -12,6 +12,9 @@ import { TypeIcon } from '../icons';
 import { PlanCard } from './PlanCard';
 import { useAsync } from './useAsync';
 import { useRequestSignIn } from './useRequestSignIn';
+import { ForkedFrom } from './ForkedFrom';
+import { Byline } from './Byline';
+import { useOwnPlanId } from './useOwnPlanId';
 
 function Item({ r }: { r: SharedResource }) {
   const href = safeUrl(r.url);
@@ -58,6 +61,7 @@ export function SharedPlanPage() {
   const [reporting, setReporting] = useState(false);
   const [reason, setReason] = useState('');
   const requestSignIn = useRequestSignIn();
+  const ownPlanId = useOwnPlanId(slug);
 
   if (result.status === 'loading') return <p role="status">Loading plan…</p>;
   if (result.status === 'error') {
@@ -117,7 +121,14 @@ export function SharedPlanPage() {
           <Link to={paths.explore}>Explore</Link> / Shared plan
         </p>
         <h1>{plan.name}</h1>
-        {plan.author && <p className="muted">by {plan.author}</p>}
+        <p className="muted">
+          <Byline slug={plan.slug} author={plan.author} />
+        </p>
+        {plan.source && (
+          <p className="muted">
+            <ForkedFrom source={plan.source} />
+          </p>
+        )}
         {plan.description && <p className="plan-desc">{plan.description}</p>}
         {plan.tags.length > 0 && (
           <p className="explore-tags">
@@ -134,9 +145,15 @@ export function SharedPlanPage() {
           {plan.copyCount > 0 && ` · copied ${pl(plan.copyCount, 'time')}`}
         </p>
         <div className="btn-row">
-          <button className="btn primary" onClick={add} disabled={busy}>
-            <Plus size={18} aria-hidden="true" /> Add to My Plans
-          </button>
+          {ownPlanId ? (
+            <Link className="btn" to={paths.plan(ownPlanId)}>
+              Open in My Plans
+            </Link>
+          ) : (
+            <button className="btn primary" onClick={add} disabled={busy}>
+              <Plus size={18} aria-hidden="true" /> Add to My Plans
+            </button>
+          )}
           {signedIn && !reporting && (
             <button className="btn ghost" onClick={() => setReporting(true)}>
               <Flag size={16} aria-hidden="true" /> Report
@@ -144,7 +161,9 @@ export function SharedPlanPage() {
           )}
         </div>
         <p className="muted shared-note">
-          Adding makes your own copy with no progress. Nothing you do changes this plan.
+          {ownPlanId
+            ? 'This is your plan. It is already in My Plans.'
+            : 'Adding makes your own copy with no progress. Nothing you do changes this plan.'}
         </p>
         {reporting && (
           <div className="shared-report">

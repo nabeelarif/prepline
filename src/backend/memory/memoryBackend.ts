@@ -17,6 +17,7 @@ import {
   cleanTags,
   MAX_DISPLAY_NAME,
   randomDisplayName,
+  type PlanOrigin,
   type PlanSharing,
   type Visibility,
   type PlanSummary,
@@ -314,6 +315,12 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
     hidden: s.hidden,
     copyCount: s.copiedBy.length,
   });
+  /** The original's link only while it is public and not taken down. */
+  const origin = (src: { slug: string; name: string }): PlanOrigin => {
+    const o = findShare(src.slug);
+    const open = o?.share.visibility === 'public';
+    return { slug: open ? src.slug : null, name: src.name, available: open };
+  };
   const toShared = (f: NonNullable<ReturnType<typeof findShare>>): SharedPlan => {
     const g = data[f.owner]!.goals.find((x) => x.id === f.goalId)!;
     // Content only: this is what other people may see.
@@ -323,6 +330,7 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
       name: g.name,
       description: g.description,
       author: names[f.owner] ?? null,
+      source: g.source ? origin(g.source) : null,
       tags: f.share.tags,
       publishedAt: f.share.publishedAt,
       copyCount: f.share.copiedBy.length,
@@ -343,6 +351,7 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
     name: p.name,
     description: p.description,
     author: p.author,
+    source: p.source,
     tags: p.tags,
     publishedAt: p.publishedAt,
     copyCount: p.copyCount,

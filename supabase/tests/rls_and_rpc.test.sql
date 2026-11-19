@@ -1,7 +1,7 @@
 -- pgTAP tests. Run with: supabase test db   (needs the local stack: supabase start)
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(93);
+select plan(98);
 
 -- Two users and some data for each, created as the table owner.
 insert into auth.users (id, instance_id, aud, role, email)
@@ -190,6 +190,19 @@ select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
 select lives_ok($$ select public.set_plan_sharing('g2', 'public', '{}') $$, 'an empty plan can be made public');
 set local role anon;
 select is(jsonb_array_length(public.list_public_plans(null, null, 24, 0)), 0, 'but it is not listed until it has a resource');
+
+-- A copy shows where it came from once it is shared; the link works only while the original is shared.
+select lives_ok($$
+  select public.save_goal('{"id": "g3", "name": "A copy", "description": "", "created_at": "2026-01-01",
+    "source_slug": "some-slug", "source_name": "A plan"}'::jsonb)
+$$, 'a copy keeps where it came from');
+select lives_ok($$ select public.set_plan_sharing('g3', 'public', '{}') $$, 'and can be shared');
+create temp table copy_slug as select slug from public.plan_shares where goal_id = 'g3';
+grant all on copy_slug to anon, authenticated;
+set local role anon;
+select is(public.get_shared_plan((select slug from copy_slug)) -> 'source' ->> 'name', 'A plan', 'a shared copy shows its origin');
+select is(public.get_shared_plan((select slug from copy_slug)) -> 'source' -> 'available', 'false'::jsonb, 'and not as a link when the original is not shared');
+select is(public.get_shared_plan((select slug from copy_slug)) -> 'source' -> 'slug', 'null'::jsonb, 'and never reveals the link of an original that is not public');
 
 -- Deleting the account: anon cannot, and it removes only the caller's data.
 set local role anon;

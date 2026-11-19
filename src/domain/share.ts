@@ -14,6 +14,16 @@ export type SharedResource = Pick<
   'id' | 'title' | 'url' | 'type' | 'minutes' | 'notes' | 'phaseId'
 >;
 
+/**
+ * Where a shared plan was copied from. The link (`slug`) is given only while the original is
+ * public; otherwise `available` is false and only the title it had is shown.
+ */
+export interface PlanOrigin {
+  slug: string | null;
+  name: string;
+  available: boolean;
+}
+
 /** A shared plan, content only. No progress, no dates, no daily hours, no owner id. */
 export interface SharedPlan {
   slug: string;
@@ -22,6 +32,8 @@ export interface SharedPlan {
   description: string;
   /** The owner's display name; null if they never set one. */
   author: string | null;
+  /** The plan this one was copied from, if any. */
+  source: PlanOrigin | null;
   tags: string[];
   publishedAt: string;
   copyCount: number;
@@ -35,6 +47,7 @@ export interface PlanSummary {
   name: string;
   description: string;
   author: string | null;
+  source: PlanOrigin | null;
   tags: string[];
   publishedAt: string;
   copyCount: number;

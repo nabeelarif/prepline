@@ -2,6 +2,8 @@ import { Link } from 'react-router-dom';
 import { fmtHours, pl } from '../../domain/format';
 import type { PlanSummary } from '../../domain/share';
 import { paths } from '../../routes';
+import { Byline } from './Byline';
+import { ForkedFrom } from './ForkedFrom';
 
 /** One shared plan in a list. Tags are buttons only when `onTag` is given. */
 export function PlanCard({ plan: p, onTag }: { plan: PlanSummary; onTag?: (tag: string) => void }) {
@@ -29,9 +31,14 @@ export function PlanCard({ plan: p, onTag }: { plan: PlanSummary; onTag?: (tag: 
       <p className="muted">
         {pl(p.resourceCount, 'resource')} · {fmtHours(p.totalMinutes)}
         {p.phaseCount > 0 && ` · ${pl(p.phaseCount, 'phase')}`}
-        {p.author && ` · by ${p.author}`}
+        <Byline slug={p.slug} author={p.author} lead=" · " />
         {p.copyCount > 0 && ` · copied ${pl(p.copyCount, 'time')}`}
       </p>
+      {p.source && (
+        <p className="muted">
+          <ForkedFrom source={p.source} />
+        </p>
+      )}
       <div className="plan-foot">
         <span />
         <Link className="btn sm primary" to={paths.shared(p.slug)}>

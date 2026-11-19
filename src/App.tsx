@@ -21,6 +21,7 @@ import { NewPasswordScreen } from './components/NewPasswordScreen';
 import { AccountPanel } from './components/forms/AccountPanel';
 import { ConfigErrorScreen, LoadErrorScreen, LoadingScreen } from './components/StatusScreens';
 import { SyncBanner } from './components/SyncBanner';
+import { TimerBar } from './components/TimerBar';
 import { Toast } from './components/Toast';
 import { lazy, useEffect } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
@@ -98,7 +99,7 @@ function OverlayContent() {
     } else {
       const r = goal.resources.find((x) => x.id === overlay.resourceId);
       if (!r) return null;
-      content = <ResourceDetails r={r} phases={goal.phases} />;
+      content = <ResourceDetails r={r} phases={goal.phases} goalId={goal.id} />;
     }
   }
   return (
@@ -220,6 +221,7 @@ function Shell() {
         </main>
       </div>
       <OverlayContent />
+      <TimerBar />
       <Toast />
     </>
   );

@@ -116,3 +116,12 @@ export function focusResource(resources: Resource[]): Resource | null {
     null
   );
 }
+
+/** A resource in any plan, by plan and resource id. */
+export function findResource<R extends Pick<Resource, 'id'>>(
+  goals: { id: string; resources: R[] }[],
+  goalId: string,
+  resourceId: string,
+): R | undefined {
+  return goals.find((g) => g.id === goalId)?.resources.find((r) => r.id === resourceId);
+}

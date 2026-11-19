@@ -4,7 +4,7 @@ import { createEmptyAppData, mergePlans } from '../domain/backup';
 import { todayISO } from '../domain/dates';
 import { uid } from '../domain/format';
 import type { RoadmapView } from '../domain/roadmap';
-import { progressPatch, statusPatch } from '../domain/resources';
+import { findResource, progressPatch, resDone, statusPatch } from '../domain/resources';
 import { parseAppData } from '../domain/schema';
 import { addStudy, STUDY_LOG_DAYS, studyDelta, type StudyLog } from '../domain/studyLog';
 import type {
@@ -172,6 +172,13 @@ export interface Store {
   setStatus(id: string, status: ResourceStatus): void;
   /** Records completed minutes; the full estimate completes the resource. */
   setProgress(id: string, minutes: number): void;
+  /**
+   * Credits studied minutes to a resource in any plan (the study timer): adds to its
+   * progress through `progressPatch()`, so the daily log follows like manual entry.
+   * Returns false, changing nothing, when the log has not loaded, the data is being
+   * replaced, or the resource is gone or already completed.
+   */
+  addStudyMinutes(goalId: string, resourceId: string, minutes: number): boolean;
   setResourcePhase(id: string, phaseId: string | null): void;
 
   addPhase(input: PhaseInput): void;
@@ -694,6 +701,20 @@ export function createAppStore({ repo, auth, sharing }: Backend) {
           const r = resource(d, id);
           if (r) Object.assign(r, progressPatch(r, minutes, todayISO()));
         }),
+
+      addStudyMinutes: (goalId, resourceId, minutes) => {
+        const s = get();
+        const found = findResource(s.data.goals, goalId, resourceId);
+        if (!s.studyLog.ready || s.busy || !found || found.done || minutes < 1) return false;
+        commit(
+          (d) => {
+            const r = findResource(d.goals, goalId, resourceId);
+            if (r) Object.assign(r, progressPatch(r, resDone(r) + minutes, todayISO()));
+          },
+          { ...toast(`Logged ${Math.round(minutes)} min`) },
+        );
+        return true;
+      },
 
       setResourcePhase: (id, phaseId) =>
         commit((d) => {

@@ -1,0 +1,43 @@
+/* Study timer */
+.timer-start {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.timer-pomodoro {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8125rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+.timer-clock {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.details-timer {
+  margin: 12px 0 0;
+}
+.timer-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100vw - 32px);
+  padding: 8px 8px 8px 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.18);
+}
+.timer-what {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -12,11 +12,20 @@ import { DIALOG_TITLE } from '../Overlay';
 import { ProgressRing } from '../ProgressRing';
 import { ResourceLink } from '../ResourceLink';
 import { StatusButtons } from '../StatusButtons';
+import { TimerButton } from '../TimerButton';
 
 const hrs = (m: number) => Math.round((m / 60) * 100) / 100;
 
 /** One resource: its link and notes, its status, and progress recorded in hours. */
-export function ResourceDetails({ r, phases }: { r: Resource; phases: Phase[] }) {
+export function ResourceDetails({
+  r,
+  phases,
+  goalId,
+}: {
+  r: Resource;
+  phases: Phase[];
+  goalId: string;
+}) {
   const { setProgress, setStatus, openOverlay, closeOverlay, showToast } = useStore.getState();
   const done = resDone(r);
   const status = resStatus(r);
@@ -55,6 +64,10 @@ export function ResourceDetails({ r, phases }: { r: Resource; phases: Phase[] })
         <ExternalLink size={15} aria-hidden="true" /> Open resource
       </ResourceLink>
       {r.notes && <p className="details-notes">{r.notes}</p>}
+
+      <p className="details-timer">
+        <TimerButton goalId={goalId} r={r} />
+      </p>
 
       <form className="progress-box" noValidate onSubmit={save}>
         <ProgressRing pct={pct} size={64} stroke={7} label={`${pct}% done`}>

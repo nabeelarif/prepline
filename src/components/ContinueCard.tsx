@@ -6,6 +6,7 @@ import { useStore } from '../state/store';
 import { safeUrl } from '../domain/urls';
 import { TypeIcon } from './icons';
 import { ResourceLink } from './ResourceLink';
+import { TimerButton } from './TimerButton';
 
 /**
  * One line pointing at what to do now: the first In Progress resource, or the next
@@ -35,6 +36,7 @@ export function ContinueCard({ goal }: { goal: Goal }) {
         </p>
       </div>
       <div className="btn-row">
+        <TimerButton goalId={goal.id} r={r} />
         {active && (
           <button
             className="btn sm"

@@ -721,6 +721,36 @@ describe('store', () => {
       expect(saved().goals).toHaveLength(1);
     });
 
+    it('credits timer minutes to the resource and the log, in any plan', async () => {
+      const { s, add, g, flush, backend } = await setup();
+      await vi.waitFor(() => expect(s().studyLog.ready).toBe(true));
+      const r = add({ minutes: 60 });
+      const goalId = g().id;
+      expect(s().addStudyMinutes(goalId, r.id, 25)).toBe(true);
+      expect(s().addStudyMinutes(goalId, r.id, 10)).toBe(true);
+      expect(g().resources[0]!.doneMinutes).toBe(35);
+      await flush();
+      expect(await backend.repo.loadStudyLog(30)).toEqual({ [today()]: 35 });
+      // Reaching the estimate completes it; a completed or missing resource is refused.
+      expect(s().addStudyMinutes(goalId, r.id, 500)).toBe(true);
+      expect(g().resources[0]!.done).toBe(true);
+      expect(s().addStudyMinutes(goalId, r.id, 5)).toBe(false);
+      expect(s().addStudyMinutes(goalId, 'nope', 5)).toBe(false);
+    });
+
+    it('refuses timer minutes while the log is not loaded', async () => {
+      const backend = createMemoryBackend({ signedInAs: 'a@example.test' });
+      backend.repo.loadStudyLog = () => Promise.reject(new Error('down'));
+      const { store } = await open(backend);
+      const s = () => store.getState();
+      s().createGoal({ name: 'Prep', description: '', targetDate: null, hoursPerDay: null });
+      s().addResource(input());
+      const g = s().data.goals[0]!;
+      expect(s().studyLog.ready).toBe(false);
+      expect(s().addStudyMinutes(g.id, g.resources[0]!.id, 10)).toBe(false);
+      expect(s().data.goals[0]!.resources[0]!.doneMinutes).toBe(0);
+    });
+
     it('keeps the log when a plan is deleted, and clears it with Delete All Data', async () => {
       const { s, add, g, flush, backend } = await setup();
       await vi.waitFor(() => expect(s().studyLog.ready).toBe(true));

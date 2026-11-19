@@ -241,6 +241,8 @@ describe('sharing', () => {
     tags: ['ios'],
     published_at: '2026-03-01T00:00:00Z',
     copy_count: 2,
+    favorite_count: 5,
+    favorited: true,
     phases: [{ id: 'p1', name: 'One', description: '', color: 'blue' }],
     resources: [
       {
@@ -261,6 +263,8 @@ describe('sharing', () => {
       slug: 'abc123',
       author: 'Ada',
       copyCount: 2,
+      favoriteCount: 5,
+      favorited: true,
       resources: [{ id: 'r1', phaseId: 'p1', minutes: 30 }],
     });
     const missing = createSupabaseSharing(fakeClient(() => ({ data: null })).client);
@@ -281,6 +285,8 @@ describe('sharing', () => {
     await sharing.setDisplayName('Ada');
     await sharing.recordCopy('s');
     await sharing.report('s', 'spam');
+    await sharing.listFavorites({ limit: 5 });
+    await sharing.setFavorite('s', true);
     expect(calls.map((c) => c.call)).toEqual([
       'rpc:list_public_plans',
       'rpc:list_popular_tags',
@@ -289,7 +295,11 @@ describe('sharing', () => {
       'rpc:set_display_name',
       'rpc:record_plan_copy',
       'rpc:report_plan',
+      'rpc:list_my_favorites',
+      'rpc:set_plan_favorite',
     ]);
+    expect(calls[7]!.args).toEqual({ p_limit: 5, p_offset: 0 });
+    expect(calls[8]!.args).toEqual({ p_slug: 's', p_on: true });
     expect(calls[0]!.args).toMatchObject({
       p_query: 'swift',
       p_limit: 10,

@@ -145,3 +145,14 @@ button.badge {
   color: var(--accent);
   font-weight: 600;
 }
+
+/* Favorite star: filled and accent-colored once the plan is starred. */
+.fav-btn.on {
+  color: var(--accent);
+  font-weight: 600;
+}
+.plan-foot > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}

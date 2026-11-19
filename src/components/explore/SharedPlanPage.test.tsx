@@ -1,4 +1,5 @@
 import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createEmptyAppData } from '../../domain/backup';
 import { useStore } from '../../state/store';
@@ -64,5 +65,38 @@ describe('SharedPlanPage', () => {
     const link = await screen.findByRole('link', { name: 'My plan' });
     expect(link).toHaveAttribute('href', `/explore/${original.slug}`);
     expect(screen.getByText(/Forked from/)).toBeVisible();
+  });
+
+  it('hides the star on your own plan but shows both counts', async () => {
+    const s = () => useStore.getState();
+    await waitFor(() => expect(s().sharing.status).toBe('ready'));
+    await s().setPlanSharing('g1', 'public', []);
+    const slug = s().sharing.plans['g1']!.slug!;
+    renderApp(`/explore/${slug}`);
+    expect(await screen.findByText(/0 forks · 0 favorites/)).toBeVisible();
+    expect(screen.queryByRole('button', { name: /Favorite/ })).toBeNull();
+  });
+
+  it('stars a plan for someone else, counts it, and lists it under Favorites', async () => {
+    const s = () => useStore.getState();
+    const user = userEvent.setup();
+    await waitFor(() => expect(s().sharing.status).toBe('ready'));
+    await s().setPlanSharing('g1', 'public', []);
+    const slug = s().sharing.plans['g1']!.slug!;
+    await s().signOut();
+    await s().signUpWithPassword('d@example.test', 'password1');
+    await waitFor(() => expect(s().load.status).toBe('ready'));
+
+    renderApp(`/explore/${slug}`);
+    const star = await screen.findByRole('button', { name: 'Favorite' });
+    expect(star).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByText(/0 forks · 0 favorites/)).toBeVisible();
+    await user.click(star);
+    expect(await screen.findByRole('button', { name: 'Favorited' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(screen.getByText(/0 forks · 1 favorite$/)).toBeVisible();
+    await waitFor(async () => expect((await s().fetchShared(slug))?.favoriteCount).toBe(1));
   });
 });

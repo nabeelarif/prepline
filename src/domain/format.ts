@@ -2,6 +2,11 @@ export function uid(): string {
   return Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
 }
 
+/** "2 forks · 5 favorites", shown on every shared plan, zero included. */
+export function shareCounts(copyCount: number, favoriteCount: number): string {
+  return `${pl(copyCount, 'fork')} · ${pl(favoriteCount, 'favorite')}`;
+}
+
 /** "1 day", "3 days". */
 export function pl(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? '' : 's'}`;

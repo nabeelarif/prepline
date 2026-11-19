@@ -39,6 +39,15 @@ export function createSupabaseSharing(client: SupabaseClient): PlanSharingReposi
       const list = await call(client.rpc('similar_plans', { p_slug: slug, p_limit: limit }));
       return ((list ?? []) as SummaryJson[]).map(toSummary);
     },
+    async listFavorites(q = {}) {
+      const list = await call(
+        client.rpc('list_my_favorites', { p_limit: q.limit ?? 24, p_offset: q.offset ?? 0 }),
+      );
+      return ((list ?? []) as SummaryJson[]).map(toSummary);
+    },
+    async setFavorite(slug, on) {
+      await call(client.rpc('set_plan_favorite', { p_slug: slug, p_on: on }));
+    },
     async loadSharing() {
       const [rows, profile] = await Promise.all([
         call(

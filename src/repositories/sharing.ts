@@ -11,7 +11,7 @@ export interface PublicListQuery {
   /** Matches the title, description or a tag. */
   query?: string;
   tag?: string;
-  /** `new` (default) is newest first; `popular` is most copied first. */
+  /** `new` (default) is newest first; `popular` is most copied first; `favorites` is most favorited first. */
   sort?: PublicSort;
   limit?: number;
   offset?: number;
@@ -31,6 +31,10 @@ export interface PlanSharingRepository {
   listPublic(q?: PublicListQuery): Promise<PlanSummary[]>;
   /** Tags used by public plans, most used first. */
   listPopularTags(limit?: number): Promise<PublicTag[]>;
+  /** The plans the signed-in user starred, newest star first. Needs an account. */
+  listFavorites(q?: { limit?: number; offset?: number }): Promise<PlanSummary[]>;
+  /** Stars or un-stars a plan for the signed-in user. Idempotent; your own plan is ignored. */
+  setFavorite(slug: string, on: boolean): Promise<void>;
   /** Public plans sharing tags with the plan at `slug`, best match first. Never includes it. */
   listSimilar(slug: string, limit?: number): Promise<PlanSummary[]>;
 

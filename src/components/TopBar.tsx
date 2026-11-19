@@ -5,6 +5,7 @@ import {
   House,
   LayoutList,
   LoaderCircle,
+  Star,
   TriangleAlert,
 } from 'lucide-react';
 import { Link, NavLink } from 'react-router-dom';
@@ -19,6 +20,7 @@ const NAV: [string, string, typeof House][] = [
   [paths.today, 'Today', CalendarCheck],
   [paths.plans, 'My Plans', LayoutList],
   [paths.explore, 'Explore', Compass],
+  [paths.favorites, 'Favorites', Star],
 ];
 
 const STATUS = {

@@ -37,6 +37,10 @@ export interface SharedPlan {
   tags: string[];
   publishedAt: string;
   copyCount: number;
+  /** How many people starred it. */
+  favoriteCount: number;
+  /** Whether the signed-in viewer starred it; false when signed out. */
+  favorited: boolean;
   phases: Phase[];
   resources: SharedResource[];
 }
@@ -51,13 +55,15 @@ export interface PlanSummary {
   tags: string[];
   publishedAt: string;
   copyCount: number;
+  favoriteCount: number;
+  favorited: boolean;
   phaseCount: number;
   resourceCount: number;
   totalMinutes: number;
 }
 
-/** How Explore orders plans: newest first, or most copied first. */
-export type PublicSort = 'new' | 'popular';
+/** How Explore orders plans: newest first, most copied first, or most favorited first. */
+export type PublicSort = 'new' | 'popular' | 'favorites';
 
 /** A tag used by public plans and how many use it. */
 export interface PublicTag {

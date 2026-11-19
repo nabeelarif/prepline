@@ -148,6 +148,8 @@ export interface SharedPlanJson {
   tags: string[];
   published_at: string;
   copy_count: number;
+  favorite_count: number;
+  favorited: boolean;
   phases: Phase[];
   resources: {
     id: string;
@@ -168,6 +170,8 @@ export interface SummaryJson {
   tags: string[];
   published_at: string;
   copy_count: number;
+  favorite_count: number;
+  favorited: boolean;
   phase_count: number;
   resource_count: number;
   total_minutes: number;
@@ -199,6 +203,8 @@ export const toShared = (j: SharedPlanJson): SharedPlan => ({
   tags: j.tags ?? [],
   publishedAt: j.published_at,
   copyCount: j.copy_count,
+  favoriteCount: Number(j.favorite_count) || 0,
+  favorited: !!j.favorited,
   phases: j.phases,
   resources: j.resources.map((r) => ({
     id: r.id,
@@ -220,6 +226,8 @@ export const toSummary = (j: SummaryJson): PlanSummary => ({
   tags: j.tags ?? [],
   publishedAt: j.published_at,
   copyCount: j.copy_count,
+  favoriteCount: Number(j.favorite_count) || 0,
+  favorited: !!j.favorited,
   phaseCount: j.phase_count,
   resourceCount: j.resource_count,
   totalMinutes: j.total_minutes,

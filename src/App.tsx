@@ -32,6 +32,9 @@ import { backendConfigError, useActiveGoal, useStore } from './state/store';
 const ExplorePage = lazy(() =>
   import('./components/explore/ExplorePage').then((m) => ({ default: m.ExplorePage })),
 );
+const FavoritesPage = lazy(() =>
+  import('./components/explore/FavoritesPage').then((m) => ({ default: m.FavoritesPage })),
+);
 const SharedPlanPage = lazy(() =>
   import('./components/explore/SharedPlanPage').then((m) => ({ default: m.SharedPlanPage })),
 );
@@ -216,6 +219,14 @@ function Shell() {
             <Route path={paths.plans} element={<MyPlans />} />
             <Route path={`${paths.plans}/:planId`} element={<PlanPage />} />
             {exploreRoutes}
+            <Route
+              path={paths.favorites}
+              element={
+                <LazyPage>
+                  <FavoritesPage />
+                </LazyPage>
+              }
+            />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>

@@ -2,7 +2,7 @@ import { useState, type CSSProperties } from 'react';
 import { ExternalLink, Flag, Plus } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { TYPES } from '../../domain/constants';
-import { fmtHours, pl } from '../../domain/format';
+import { fmtHours, pl, shareCounts } from '../../domain/format';
 import type { PlanSummary, SharedPlan, SharedResource } from '../../domain/share';
 import { hostOf, safeUrl } from '../../domain/urls';
 import { paths } from '../../routes';
@@ -14,6 +14,8 @@ import { useAsync } from './useAsync';
 import { useRequestSignIn } from './useRequestSignIn';
 import { ForkedFrom } from './ForkedFrom';
 import { Byline } from './Byline';
+import { FavoriteButton } from './FavoriteButton';
+import { useFavorite } from './useFavorite';
 import { useOwnPlanId } from './useOwnPlanId';
 
 function Item({ r }: { r: SharedResource }) {
@@ -62,6 +64,7 @@ export function SharedPlanPage() {
   const [reason, setReason] = useState('');
   const requestSignIn = useRequestSignIn();
   const ownPlanId = useOwnPlanId(slug);
+  const fav = useFavorite(result.status === 'ready' ? result.data : null);
 
   if (result.status === 'loading') return <p role="status">Loading plan…</p>;
   if (result.status === 'error') {
@@ -142,7 +145,7 @@ export function SharedPlanPage() {
         <p className="muted">
           {pl(plan.resources.length, 'resource')} · {fmtHours(total)}
           {plan.phases.length > 0 && ` · ${pl(plan.phases.length, 'phase')}`}
-          {plan.copyCount > 0 && ` · copied ${pl(plan.copyCount, 'time')}`}
+          {` · ${shareCounts(plan.copyCount, fav.count)}`}
         </p>
         <div className="btn-row">
           {ownPlanId ? (
@@ -154,6 +157,7 @@ export function SharedPlanPage() {
               <Plus size={18} aria-hidden="true" /> Add to My Plans
             </button>
           )}
+          {!ownPlanId && <FavoriteButton state={fav} size="md" />}
           {signedIn && !reporting && (
             <button className="btn ghost" onClick={() => setReporting(true)}>
               <Flag size={16} aria-hidden="true" /> Report

@@ -1,7 +1,7 @@
 -- pgTAP tests. Run with: supabase test db   (needs the local stack: supabase start)
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(98);
+select plan(112);
 
 -- Two users and some data for each, created as the table owner.
 insert into auth.users (id, instance_id, aud, role, email)
@@ -171,6 +171,27 @@ select is(jsonb_array_length(public.list_public_plans('swi', null, 24, 0)), 1, '
 select is(jsonb_array_length(public.list_public_plans(null, null, 24, 0, 'popular')), 1, 'a plan can be listed most copied first');
 select is(public.list_popular_tags(10) -> 0 ->> 'tag', 'ios', 'popular tags are listed for anyone');
 select is(public.similar_plans((select slug from shared_slug)), '[]'::jsonb, 'a plan is never similar to itself');
+
+-- Favorites: signed-in only, once per person, not your own plan, and they can be undone.
+select throws_ok($$ select public.set_plan_favorite((select slug from shared_slug), true) $$, '42501', null, 'anon cannot favorite a plan');
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000b');
+select lives_ok($$ select public.set_plan_favorite((select slug from shared_slug), true) $$, 'B favorites the plan');
+select lives_ok($$ select public.set_plan_favorite((select slug from shared_slug), true) $$, 'favoriting twice is harmless');
+select is((public.get_shared_plan((select slug from shared_slug)) ->> 'favorite_count')::int, 1, 'each person counts once');
+select is(public.get_shared_plan((select slug from shared_slug)) -> 'favorited', 'true'::jsonb, 'and B sees it as favorited');
+select is(jsonb_array_length(public.list_my_favorites(24, 0)), 1, 'B lists their favorites');
+reset role;
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
+select lives_ok($$ select public.set_plan_favorite((select slug from shared_slug), true) $$, 'the owner favoriting their own plan is ignored');
+reset role;
+select is((select count(*)::int from public.plan_favorites), 1, 'and is not counted');
+set local role anon;
+select is(public.get_shared_plan((select slug from shared_slug)) -> 'favorited', 'false'::jsonb, 'anyone else sees it as not favorited');
+select is((public.list_public_plans(null, null, 24, 0, 'favorites') -> 0 ->> 'favorite_count')::int, 1, 'a plan can be listed most favorited first');
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000b');
+select lives_ok($$ select public.set_plan_favorite((select slug from shared_slug), false) $$, 'B un-favorites the plan');
+select is(jsonb_array_length(public.list_my_favorites(24, 0)), 0, 'and it leaves their list');
+select lives_ok($$ select public.set_plan_favorite((select slug from shared_slug), true) $$, 'favorite it again');
 reset role;
 update public.plan_shares set hidden = true where goal_id = 'g1';
 set local role anon;
@@ -184,6 +205,8 @@ reset role;
 update public.plan_shares set hidden = false where goal_id = 'g1';
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
 select lives_ok($$ select public.set_plan_sharing('g1', 'private', '{}') $$, 'stop sharing');
+reset role;
+select is((select count(*)::int from public.plan_favorites), 0, 'and stopping sharing removes its favorites');
 set local role anon;
 select is(public.get_shared_plan((select slug from shared_slug)), null, 'a private plan has no link');
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');

@@ -1,18 +1,14 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Compass, Search } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
-import type { PlanSummary, PublicSort, PublicTag } from '../../domain/share';
+import type { PublicSort, PublicTag } from '../../domain/share';
 import { useStore } from '../../state/store';
 import { EmptyState } from '../EmptyState';
 import { PlanCard } from './PlanCard';
 import { useAsync } from './useAsync';
+import { usePagedList } from './usePagedList';
 
 const PAGE = 24;
-
-interface Listing {
-  plans: PlanSummary[];
-  more: boolean;
-}
 
 /** Public plans anyone can look through. Content only: nothing about the author's progress. */
 export function ExplorePage() {
@@ -22,7 +18,8 @@ export function ExplorePage() {
   const [params, setParams] = useSearchParams();
   const query = params.get('q') ?? '';
   const tag = params.get('tag') ?? '';
-  const sort: PublicSort = params.get('sort') === 'popular' ? 'popular' : 'new';
+  const sortParam = params.get('sort');
+  const sort: PublicSort = sortParam === 'popular' || sortParam === 'favorites' ? sortParam : 'new';
   const [draft, setDraft] = useState(query);
   // Back/forward or Clear changes the address; keep the box in step with it.
   useEffect(() => setDraft(query), [query]);
@@ -40,38 +37,11 @@ export function ExplorePage() {
     () => fetchPopularTags().catch(() => []),
     [fetchPopularTags],
   );
-  const [result, setResult] = useAsync<Listing>(
-    () =>
-      fetchPublic({ query, tag, sort, limit: PAGE }).then((plans) => ({
-        plans,
-        more: plans.length === PAGE,
-      })),
+  const { result, loadMore, loadingMore } = usePagedList(
+    (offset) => fetchPublic({ query, tag, sort, limit: PAGE, offset }),
+    PAGE,
     [fetchPublic, query, tag, sort],
   );
-  const [loadingMore, setLoadingMore] = useState(false);
-
-  // What is being searched now, so a slow "Load more" for an older search is dropped.
-  const searchKey = useRef('');
-  searchKey.current = `${query}\u0000${tag}\u0000${sort}`;
-
-  const loadMore = async () => {
-    if (result.status !== 'ready') return;
-    const { plans } = result.data;
-    const key = searchKey.current;
-    setLoadingMore(true);
-    try {
-      const next = await fetchPublic({ query, tag, sort, limit: PAGE, offset: plans.length });
-      if (key !== searchKey.current) return;
-      setResult({
-        status: 'ready',
-        data: { plans: [...plans, ...next], more: next.length === PAGE },
-      });
-    } catch (e) {
-      if (key === searchKey.current) setResult({ status: 'error', message: (e as Error).message });
-    } finally {
-      setLoadingMore(false);
-    }
-  };
 
   const search = (e: FormEvent) => {
     e.preventDefault();
@@ -110,6 +80,7 @@ export function ExplorePage() {
           >
             <option value="new">Newest</option>
             <option value="popular">Most copied</option>
+            <option value="favorites">Most favorited</option>
           </select>
         </label>
       </div>
@@ -142,17 +113,17 @@ export function ExplorePage() {
           {result.message}
         </p>
       )}
-      {result.status === 'ready' && result.data.plans.length === 0 && (
+      {result.status === 'ready' && result.data.items.length === 0 && (
         <section className="card">
           <EmptyState icon={<Compass />} title="No plans found">
             {query || tag ? 'Try a different search.' : 'Nobody has shared a plan yet.'}
           </EmptyState>
         </section>
       )}
-      {result.status === 'ready' && result.data.plans.length > 0 && (
+      {result.status === 'ready' && result.data.items.length > 0 && (
         <>
           <ul className="plan-grid">
-            {result.data.plans.map((p) => (
+            {result.data.items.map((p) => (
               <PlanCard key={p.slug} plan={p} onTag={(t) => update('tag', t)} />
             ))}
           </ul>

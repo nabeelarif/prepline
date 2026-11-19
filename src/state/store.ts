@@ -121,6 +121,10 @@ export interface Store {
   fetchPublic(q?: PublicListQuery): Promise<PlanSummary[]>;
   fetchPopularTags(limit?: number): Promise<PublicTag[]>;
   fetchSimilar(slug: string, limit?: number): Promise<PlanSummary[]>;
+  /** The signed-in user's starred plans, newest star first. */
+  fetchFavorites(q?: { limit?: number; offset?: number }): Promise<PlanSummary[]>;
+  /** Stars or un-stars a plan. Returns an error message to show, or null on success. */
+  setFavorite(slug: string, on: boolean): Promise<string | null>;
   /** Title and length of a link, looked up by the server. Null when nothing could be read. */
   fetchUrlInfo(url: string): Promise<UrlInfo | null>;
   /**
@@ -455,6 +459,15 @@ export function createAppStore({ repo, auth, sharing, enricher }: Backend) {
       fetchPublic: (q) => sharing.listPublic(q).catch(rethrowShown),
       fetchPopularTags: (limit) => sharing.listPopularTags(limit).catch(rethrowShown),
       fetchSimilar: (slug, limit) => sharing.listSimilar(slug, limit).catch(rethrowShown),
+      fetchFavorites: (q) => sharing.listFavorites(q).catch(rethrowShown),
+      setFavorite: async (slug, on) => {
+        try {
+          await sharing.setFavorite(slug, on);
+          return null;
+        } catch (e) {
+          return describeError(e);
+        }
+      },
       fetchUrlInfo: (url) => enricher.enrich(url),
 
       setPlanSharing: async (goalId, visibility, tags) => {

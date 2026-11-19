@@ -365,6 +365,42 @@ export function describeSharingContract(name: string, make: () => Promise<Contra
       expect((await sharing.loadSharing()).plans['g1']!.copyCount).toBe(1);
     });
 
+    it('favorites a plan once per person, lists it newest first, and lets it be undone', async () => {
+      const { slug } = await share('g1', 'public');
+      await subject.signOut();
+      await expect(sharing.setFavorite(slug!, true)).rejects.toMatchObject({
+        code: 'unauthorized',
+      });
+      expect((await sharing.getShared(slug!))?.favorited).toBe(false);
+      await subject.switchUser('b');
+      await sharing.setFavorite(slug!, true);
+      await sharing.setFavorite(slug!, true);
+      const plan = await sharing.getShared(slug!);
+      expect(plan?.favoriteCount).toBe(1);
+      expect(plan?.favorited).toBe(true);
+      expect((await sharing.listPublic())[0]).toMatchObject({ favoriteCount: 1, favorited: true });
+      expect((await sharing.listFavorites()).map((p) => p.slug)).toEqual([slug]);
+      expect((await sharing.listPublic({ sort: 'favorites' }))[0]?.slug).toBe(slug);
+      await subject.switchUser('a');
+      expect((await sharing.getShared(slug!))?.favorited).toBe(false);
+      await sharing.setFavorite(slug!, true);
+      expect(await sharing.getShared(slug!)).toMatchObject({ favoriteCount: 1, favorited: false });
+      await subject.switchUser('b');
+      await sharing.setFavorite(slug!, false);
+      expect(await sharing.listFavorites()).toEqual([]);
+      expect((await sharing.getShared(slug!))?.favoriteCount).toBe(0);
+    });
+
+    it('drops favorites when the owner stops sharing', async () => {
+      const { slug } = await share('g1', 'public');
+      await subject.switchUser('b');
+      await sharing.setFavorite(slug!, true);
+      await subject.switchUser('a');
+      await sharing.setSharing('g1', 'private', []);
+      await subject.switchUser('b');
+      expect(await sharing.listFavorites()).toEqual([]);
+    });
+
     it('takes reports from signed-in people only', async () => {
       const { slug } = await share('g1', 'public');
       await subject.signOut();

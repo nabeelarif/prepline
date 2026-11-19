@@ -614,6 +614,50 @@ test('a shared plan shows content only, signed out, and can be copied into anoth
   await expect(summary(page)).toContainText('0%');
 });
 
+test('a signed-out visitor stars a shared plan and finds it under Favorites later', async ({
+  page,
+}) => {
+  await createPlan(page, 'Starred plan');
+  await addResource(page, 'Swift basics', '2', 'https://example.com/swift');
+  await summary(page).getByRole('button', { name: 'Share plan' }).click();
+  const dialog = page.getByRole('dialog', { name: /Share/ });
+  await dialog.getByRole('radio', { name: /Anyone with the link/ }).check();
+  await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(dialog.getByText('Sharing settings saved.')).toBeVisible();
+  const link = await dialog.getByLabel('Link to this plan').inputValue();
+  await dialog.getByRole('button', { name: 'Done' }).click();
+  await page.getByRole('button', { name: 'Account menu' }).click();
+  await page.getByRole('menuitem', { name: 'Sign out' }).click();
+  await page.getByRole('menuitem', { name: 'Click again to sign out' }).click();
+
+  // Both counts show, even at zero. Starring signed out asks for an account first.
+  await page.goto(link);
+  await expect(page.getByText(/0 forks · 0 favorites/)).toBeVisible();
+  await page.getByRole('button', { name: 'Favorite', exact: true }).click();
+  await page.getByRole('button', { name: 'Create an account' }).click();
+  await page.getByLabel('Name').fill('Star Fan');
+  await page.getByLabel('Email').fill('fan@example.test');
+  await page.getByLabel('Password').fill('correct horse battery');
+  await page.getByRole('button', { name: 'Create account' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Starred plan' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Favorite', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Favorited' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(page.getByText(/0 forks · 1 favorite$/)).toBeVisible();
+
+  // Later, without copying it, the plan is still in Favorites.
+  await page.getByRole('link', { name: 'Favorites' }).click();
+  await expect(page.getByRole('heading', { name: 'Starred plan' })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Starred plan' })).toBeVisible();
+  await page.getByRole('button', { name: 'Favorited' }).click();
+  await page.reload();
+  await expect(page.getByText('No favorites yet')).toBeVisible();
+});
+
 test('exports a plan as JSON and imports that file back', async ({ page }) => {
   await createPlan(page, 'Take me along');
   await addResource(page, 'Intro video', '1.5', 'https://example.com/v');

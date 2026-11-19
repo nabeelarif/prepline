@@ -4,7 +4,7 @@ Collect the articles, videos, courses and practice you plan to get through, and 
 
 ## Features
 
-- **Plans:** several independent plans, each with optional daily study hours and a description. Plans start when you press Start, with or without a deadline. A plan can be shared by link or listed in Explore; viewers see the plan only, never your progress, and can add their own copy. Switch, edit, duplicate or delete them from **My Plans**.
+- **Plans:** several independent plans, each with optional daily study hours and a description. Plans start when you press Start, with or without a deadline. A plan can be shared by link or listed in Explore; viewers see the plan only, never your progress, and can add their own copy or star it to find it again under **Favorites**. Every plan shows its fork and favorite counts. Switch, edit, duplicate or delete them from **My Plans**.
 - **Resources by link:** type and title are guessed from the URL (YouTube → video, Udemy/Coursera → course, LeetCode/HackerRank → practice, everything else → article). The list order is your priority order.
 - **Statuses:** Not Started, In Progress or Completed. Several resources can be in progress at once. Starting one counts no hours, you record the hours you've done, and reopening restores earlier progress.
 - **Progress by hours, not item count:** an overall ring, hours done and remaining, days left, and an On Track / At Risk / Behind status when daily hours are set.

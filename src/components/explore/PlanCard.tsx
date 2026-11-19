@@ -1,12 +1,17 @@
 import { Link } from 'react-router-dom';
-import { fmtHours, pl } from '../../domain/format';
+import { fmtHours, pl, shareCounts } from '../../domain/format';
 import type { PlanSummary } from '../../domain/share';
 import { paths } from '../../routes';
 import { Byline } from './Byline';
+import { FavoriteButton } from './FavoriteButton';
 import { ForkedFrom } from './ForkedFrom';
+import { useFavorite } from './useFavorite';
+import { useOwnPlanId } from './useOwnPlanId';
 
 /** One shared plan in a list. Tags are buttons only when `onTag` is given. */
 export function PlanCard({ plan: p, onTag }: { plan: PlanSummary; onTag?: (tag: string) => void }) {
+  const fav = useFavorite(p);
+  const own = useOwnPlanId(p.slug) !== null;
   return (
     <li className="card plan-card">
       <div className="plan-title">
@@ -32,7 +37,7 @@ export function PlanCard({ plan: p, onTag }: { plan: PlanSummary; onTag?: (tag: 
         {pl(p.resourceCount, 'resource')} · {fmtHours(p.totalMinutes)}
         {p.phaseCount > 0 && ` · ${pl(p.phaseCount, 'phase')}`}
         <Byline slug={p.slug} author={p.author} lead=" · " />
-        {p.copyCount > 0 && ` · copied ${pl(p.copyCount, 'time')}`}
+        {` · ${shareCounts(p.copyCount, fav.count)}`}
       </p>
       {p.source && (
         <p className="muted">
@@ -40,7 +45,7 @@ export function PlanCard({ plan: p, onTag }: { plan: PlanSummary; onTag?: (tag: 
         </p>
       )}
       <div className="plan-foot">
-        <span />
+        <span>{!own && <FavoriteButton state={fav} />}</span>
         <Link className="btn sm primary" to={paths.shared(p.slug)}>
           View plan
         </Link>

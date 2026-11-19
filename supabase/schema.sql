@@ -417,6 +417,18 @@ create table public.plan_copies (
   foreign key (owner_id, goal_id) references public.plan_shares (user_id, goal_id) on delete cascade
 );
 
+-- One row per person who starred a plan, so the favorite count counts people. Unlike a
+-- copy, a favorite can be undone, so the count is derived (count(*)), not stored.
+create table public.plan_favorites (
+  user_id uuid not null references auth.users (id) on delete cascade,
+  owner_id uuid not null,
+  goal_id text not null,
+  created_at timestamptz not null default now(),
+  primary key (user_id, owner_id, goal_id),
+  foreign key (owner_id, goal_id) references public.plan_shares (user_id, goal_id) on delete cascade
+);
+create index plan_favorites_plan_idx on public.plan_favorites (owner_id, goal_id);
+
 create table public.plan_reports (
   id bigint generated always as identity primary key,
   slug text not null,
@@ -428,12 +440,14 @@ create table public.plan_reports (
 
 alter table public.plan_shares enable row level security;
 alter table public.plan_copies enable row level security;
+alter table public.plan_favorites enable row level security;
 alter table public.plan_reports enable row level security;
 create policy plan_shares_owner_read on public.plan_shares for select to authenticated
   using (user_id = (select auth.uid()));
--- plan_copies and plan_reports have no policy: nobody reads them through the API.
+-- plan_copies, plan_favorites and plan_reports have no policy: nobody reads them through the API.
 
-revoke all on public.plan_shares, public.plan_copies, public.plan_reports from anon, authenticated;
+revoke all on public.plan_shares, public.plan_copies, public.plan_favorites, public.plan_reports
+  from anon, authenticated;
 grant select on public.plan_shares to authenticated;
 
 -- Where a copy came from, as other people see it: null for an original, otherwise the
@@ -455,6 +469,10 @@ language sql stable security definer set search_path = '' as $$
   select jsonb_build_object(
     'slug', s.slug, 'visibility', s.visibility, 'tags', to_jsonb(s.tags),
     'published_at', s.published_at, 'copy_count', s.copy_count,
+    'favorite_count', (select count(*) from public.plan_favorites f
+      where f.owner_id = s.user_id and f.goal_id = s.goal_id),
+    'favorited', exists (select 1 from public.plan_favorites f
+      where f.owner_id = s.user_id and f.goal_id = s.goal_id and f.user_id = auth.uid()),
     'author', p.display_name,
     'source', public.plan_origin(g.source_slug, g.source_name),
     'name', g.name, 'description', g.description,
@@ -476,20 +494,23 @@ language sql stable security definer set search_path = '' as $$
   where s.slug = p_slug and not s.hidden
 $$;
 
--- Summaries of public plans: newest first, or (p_sort = 'popular') most copied first.
+-- Summaries of public plans: newest first, (p_sort = 'popular') most copied first, or
+-- (p_sort = 'favorites') most favorited first.
 -- A query matches the name, the description or a tag. Unlisted plans never appear.
 create function public.list_public_plans(
   p_query text, p_tag text, p_limit integer, p_offset integer, p_sort text default 'new')
 returns jsonb
 language sql stable security definer set search_path = '' as $$
   select coalesce(jsonb_agg(t.item order by
-    case when p_sort = 'popular' then t.copy_count end desc nulls last,
+    case when p_sort = 'popular' then t.copy_count
+         when p_sort = 'favorites' then t.favorite_count end desc nulls last,
     t.published_at desc, t.slug), '[]')
   from (
-    select s.copy_count, s.published_at, s.slug, jsonb_build_object(
+    select s.copy_count, fv.n as favorite_count, s.published_at, s.slug, jsonb_build_object(
       'slug', s.slug, 'name', g.name, 'description', g.description, 'author', p.display_name,
       'source', public.plan_origin(g.source_slug, g.source_name),
       'tags', to_jsonb(s.tags), 'published_at', s.published_at, 'copy_count', s.copy_count,
+      'favorite_count', fv.n, 'favorited', fv.mine,
       'phase_count', ph.n, 'resource_count', rs.n, 'total_minutes', rs.minutes
     ) as item
     from public.plan_shares s
@@ -502,6 +523,10 @@ language sql stable security definer set search_path = '' as $$
     cross join lateral (
       select count(*) as n from public.phases x where x.user_id = g.user_id and x.goal_id = g.id
     ) ph
+    cross join lateral (
+      select count(*) as n, coalesce(bool_or(f.user_id = auth.uid()), false) as mine
+      from public.plan_favorites f where f.owner_id = s.user_id and f.goal_id = s.goal_id
+    ) fv
     where s.visibility = 'public' and not s.hidden
       -- A plan that is still empty is shared but not listed until it has a resource.
       and rs.n > 0
@@ -515,8 +540,45 @@ language sql stable security definer set search_path = '' as $$
           where tg ilike '%' || replace(replace(replace(btrim(p_query), '\', '\\'), '%', '\%'), '_', '\_') || '%')
       )
     order by
-      case when p_sort = 'popular' then s.copy_count end desc nulls last,
+      case when p_sort = 'popular' then s.copy_count
+           when p_sort = 'favorites' then fv.n end desc nulls last,
       s.published_at desc, s.slug
+    limit least(greatest(coalesce(p_limit, 24), 1), 50) offset greatest(coalesce(p_offset, 0), 0)
+  ) t
+$$;
+
+-- The plans the signed-in user has starred, newest star first. Same item shape as
+-- list_public_plans. Unlisted plans appear (the user found them by link); taken-down plans
+-- do not, and a plan the owner makes private is gone (the favorite cascades with the share).
+create function public.list_my_favorites(p_limit integer default 24, p_offset integer default 0)
+returns jsonb
+language sql stable security definer set search_path = '' as $$
+  select coalesce(jsonb_agg(t.item order by t.starred_at desc, t.slug), '[]')
+  from (
+    select mine.created_at as starred_at, s.slug, jsonb_build_object(
+      'slug', s.slug, 'name', g.name, 'description', g.description, 'author', p.display_name,
+      'source', public.plan_origin(g.source_slug, g.source_name),
+      'tags', to_jsonb(s.tags), 'published_at', s.published_at, 'copy_count', s.copy_count,
+      'favorite_count', fv.n, 'favorited', true,
+      'phase_count', ph.n, 'resource_count', rs.n, 'total_minutes', rs.minutes
+    ) as item
+    from public.plan_favorites mine
+    join public.plan_shares s on s.user_id = mine.owner_id and s.goal_id = mine.goal_id
+    join public.goals g on g.user_id = s.user_id and g.id = s.goal_id
+    left join public.profiles p on p.user_id = s.user_id
+    cross join lateral (
+      select count(*) as n, coalesce(sum(r.minutes), 0) as minutes
+      from public.resources r where r.user_id = g.user_id and r.goal_id = g.id
+    ) rs
+    cross join lateral (
+      select count(*) as n from public.phases x where x.user_id = g.user_id and x.goal_id = g.id
+    ) ph
+    cross join lateral (
+      select count(*) as n from public.plan_favorites f
+      where f.owner_id = s.user_id and f.goal_id = s.goal_id
+    ) fv
+    where mine.user_id = auth.uid() and not s.hidden
+    order by mine.created_at desc, s.slug
     limit least(greatest(coalesce(p_limit, 24), 1), 50) offset greatest(coalesce(p_offset, 0), 0)
   ) t
 $$;
@@ -549,6 +611,7 @@ language sql stable security definer set search_path = '' as $$
       'slug', s.slug, 'name', g.name, 'description', g.description, 'author', p.display_name,
       'source', public.plan_origin(g.source_slug, g.source_name),
       'tags', to_jsonb(s.tags), 'published_at', s.published_at, 'copy_count', s.copy_count,
+      'favorite_count', fv.n, 'favorited', fv.mine,
       'phase_count', ph.n, 'resource_count', rs.n, 'total_minutes', rs.minutes
     ) as item
     from public.plan_shares me
@@ -562,6 +625,10 @@ language sql stable security definer set search_path = '' as $$
     cross join lateral (
       select count(*) as n from public.phases x where x.user_id = g.user_id and x.goal_id = g.id
     ) ph
+    cross join lateral (
+      select count(*) as n, coalesce(bool_or(f.user_id = auth.uid()), false) as mine
+      from public.plan_favorites f where f.owner_id = s.user_id and f.goal_id = s.goal_id
+    ) fv
     where me.slug = p_slug and not me.hidden
       and s.visibility = 'public' and not s.hidden and rs.n > 0
     order by 1 desc, s.copy_count desc, s.slug
@@ -698,6 +765,30 @@ begin
   end if;
 end $$;
 
+-- Stars (p_on true) or un-stars a plan for the signed-in user. Idempotent. Your own plan,
+-- a taken-down plan and an unknown link are ignored. Returns nothing; the app re-reads counts.
+create function public.set_plan_favorite(p_slug text, p_on boolean) returns void
+language plpgsql security definer set search_path = '' as $$
+declare
+  uid uuid := auth.uid();
+  share public.plan_shares;
+begin
+  if uid is null then
+    raise exception 'not signed in' using errcode = '42501';
+  end if;
+  select * into share from public.plan_shares where slug = p_slug and not hidden;
+  if not found or share.user_id = uid then
+    return;
+  end if;
+  if p_on then
+    insert into public.plan_favorites (user_id, owner_id, goal_id)
+    values (uid, share.user_id, share.goal_id) on conflict do nothing;
+  else
+    delete from public.plan_favorites
+    where user_id = uid and owner_id = share.user_id and goal_id = share.goal_id;
+  end if;
+end $$;
+
 create function public.report_plan(p_slug text, p_reason text) returns void
 language plpgsql security definer set search_path = '' as $$
 begin
@@ -716,7 +807,8 @@ revoke all on function
   public.get_shared_plan(text), public.list_public_plans(text, text, integer, integer, text),
   public.list_popular_tags(integer), public.similar_plans(text, integer),
   public.set_plan_sharing(text, text, text[]), public.set_display_name(text),
-  public.record_plan_copy(text), public.report_plan(text, text), public.plan_origin(text, text)
+  public.record_plan_copy(text), public.report_plan(text, text), public.plan_origin(text, text),
+  public.set_plan_favorite(text, boolean), public.list_my_favorites(integer, integer)
   from public, anon, authenticated;
 grant execute on function
   public.get_shared_plan(text), public.list_public_plans(text, text, integer, integer, text),
@@ -724,7 +816,8 @@ grant execute on function
   to anon, authenticated;
 grant execute on function
   public.set_plan_sharing(text, text, text[]), public.set_display_name(text),
-  public.record_plan_copy(text), public.report_plan(text, text)
+  public.record_plan_copy(text), public.report_plan(text, text),
+  public.set_plan_favorite(text, boolean), public.list_my_favorites(integer, integer)
   to authenticated;
 
 -- Permanently deletes the signed-in user's account. Every table references auth.users with

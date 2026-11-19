@@ -49,6 +49,8 @@ interface Share {
   publishedAt: string;
   /** Ids of the people who copied it, so each counts once. */
   copiedBy: string[];
+  /** Who starred it, by user id, with when, so each counts once and the newest sorts first. */
+  favoritedBy: Record<string, number>;
 }
 
 interface Snapshot {
@@ -97,6 +99,7 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
   let failCode: RepositoryErrorCode = 'network';
   let gate: Promise<void> | null = null;
   let seq = 0;
+  let lastStar = 0;
   let shares: Record<string, Record<string, Share>> = {};
   let names: Record<string, string> = {};
   let study: Record<string, StudyLog> = {};
@@ -110,6 +113,10 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
       data = snap.data;
       current = snap.current;
       shares = snap.shares ?? {};
+      // Snapshots saved before favorites existed have no `favoritedBy`.
+      for (const byGoal of Object.values(shares)) {
+        for (const share of Object.values(byGoal)) share.favoritedBy ??= {};
+      }
       names = snap.names ?? {};
       study = snap.study ?? {};
       reports = snap.reports ?? [];
@@ -315,6 +322,8 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
     hidden: s.hidden,
     copyCount: s.copiedBy.length,
   });
+  const favoriteCount = (s: Share) => Object.keys(s.favoritedBy).length;
+  const isFavorited = (s: Share) => !!current && current in s.favoritedBy;
   /** The original's link only while it is public and not taken down. */
   const origin = (src: { slug: string; name: string }): PlanOrigin => {
     const o = findShare(src.slug);
@@ -334,6 +343,8 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
       tags: f.share.tags,
       publishedAt: f.share.publishedAt,
       copyCount: f.share.copiedBy.length,
+      favoriteCount: favoriteCount(f.share),
+      favorited: isFavorited(f.share),
       phases: g.phases,
       resources: g.resources.map((r) => ({
         id: r.id,
@@ -355,6 +366,8 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
     tags: p.tags,
     publishedAt: p.publishedAt,
     copyCount: p.copyCount,
+    favoriteCount: p.favoriteCount,
+    favorited: p.favorited,
     phaseCount: p.phases.length,
     resourceCount: p.resources.length,
     totalMinutes: p.resources.reduce((n, r) => n + r.minutes, 0),
@@ -387,7 +400,11 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
           )
           .sort(
             (a, b) =>
-              (q.sort === 'popular' ? b.copyCount - a.copyCount : 0) ||
+              (q.sort === 'popular'
+                ? b.copyCount - a.copyCount
+                : q.sort === 'favorites'
+                  ? b.favoriteCount - a.favoriteCount
+                  : 0) ||
               b.publishedAt.localeCompare(a.publishedAt) ||
               a.slug.localeCompare(b.slug),
           )
@@ -420,6 +437,26 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
           )
           .slice(0, Math.min(24, Math.max(1, limit)))
           .map((x) => toSummary(x.p));
+      }),
+    listFavorites: (q = {}) =>
+      shared('listFavorites', true, (me) =>
+        allShares()
+          .filter((f) => !f.share.hidden && me in f.share.favoritedBy)
+          .sort(
+            (a, b) =>
+              b.share.favoritedBy[me]! - a.share.favoritedBy[me]! ||
+              a.share.slug.localeCompare(b.share.slug),
+          )
+          .slice(q.offset ?? 0, (q.offset ?? 0) + Math.min(50, Math.max(1, q.limit ?? 24)))
+          .map((f) => toSummary(toShared(f))),
+      ),
+    setFavorite: (slug, on) =>
+      shared('setFavorite', true, (me) => {
+        const f = findShare(slug);
+        if (!f || f.owner === me) return;
+        const by = f.share.favoritedBy;
+        if (!on) delete by[me];
+        else if (!(me in by)) by[me] = lastStar = Math.max(Date.now(), lastStar + 1);
       }),
     loadSharing: () =>
       shared('loadSharing', true, (me) => ({
@@ -458,6 +495,7 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
           slug: existing?.slug ?? `s${++seq}${Math.random().toString(36).slice(2, 10)}`,
           publishedAt: existing?.publishedAt ?? new Date().toISOString(),
           copiedBy: existing?.copiedBy ?? [],
+          favoritedBy: existing?.favoritedBy ?? {},
         };
         mine[goalId] = next;
         return toSettings(next);
@@ -576,6 +614,9 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
       accounts = accounts.filter((a) => a.id !== me.id);
       delete data[me.id];
       delete shares[me.id];
+      for (const byGoal of Object.values(shares)) {
+        for (const share of Object.values(byGoal)) delete share.favoritedBy[me.id];
+      }
       delete names[me.id];
       delete study[me.id];
       reports = reports.filter((r) => r.by !== me.id);

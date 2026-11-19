@@ -11,6 +11,8 @@ export const paths = {
   /** Public gallery, and one shared plan by its link. Both work without an account. */
   explore: '/explore',
   shared: (slug: string) => `/explore/${encodeURIComponent(slug)}`,
+  /** The plans the signed-in user starred in Explore. */
+  favorites: '/favorites',
   /** Explore filtered to one tag. */
   exploreTag: (tag: string) => `/explore?tag=${encodeURIComponent(tag)}`,
 };

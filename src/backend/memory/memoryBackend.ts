@@ -22,6 +22,7 @@ import {
   type PlanSummary,
   type SharedPlan,
 } from '../../domain/share';
+import type { UrlEnricher, UrlInfo } from '../../repositories/enrich';
 import type { PlanSharingRepository } from '../../repositories/sharing';
 import type { AppRepository } from '../../repositories/types';
 import type { Backend } from '../types';
@@ -78,6 +79,8 @@ export interface MemoryBackend extends Backend {
   hold(): () => void;
   dataOf(userId: string): AppData;
   userId(): string | null;
+  /** Registers what a link lookup returns (tests and the e2e build have no network). */
+  setUrlInfo(url: string, info: UrlInfo): void;
 }
 
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
@@ -573,10 +576,16 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
     },
   };
 
+  // Link lookups: only what a test or the e2e page registered; there is no network here.
+  const urlInfo = new Map<string, UrlInfo>();
+  const enricher: UrlEnricher = { enrich: async (url) => urlInfo.get(url) ?? null };
+
   return {
     repo,
     sharing,
     auth,
+    enricher,
+    setUrlInfo: (url: string, info: UrlInfo) => void urlInfo.set(url, info),
     calls,
     failNext(count = 1, code = 'network') {
       failures = count;

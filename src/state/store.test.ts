@@ -589,6 +589,7 @@ describe('store', () => {
       const store = createAppStore({
         repo: backend.repo,
         sharing: backend.sharing,
+        enricher: backend.enricher,
         auth: {
           ...backend.auth,
           onPasswordRecovery: (cb) => ((fire = cb), () => {}),

@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Backend } from '../types';
 import { createSupabaseAuth } from './auth';
+import { createSupabaseEnricher } from './enrich';
 import { createSupabaseRepository } from './repository';
 import { createSupabaseSharing } from './sharing';
 
@@ -14,5 +15,6 @@ export function createSupabaseBackend(url: string, anonKey: string): Backend {
     repo: createSupabaseRepository(client),
     sharing: createSupabaseSharing(client),
     auth: createSupabaseAuth(client),
+    enricher: createSupabaseEnricher(client),
   };
 }

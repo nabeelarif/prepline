@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { DEFAULT_MINUTES, RESOURCE_TYPES, TYPES } from '../../domain/constants';
 import type { Phase, Resource, ResourceType } from '../../domain/types';
 import { detectType, normUrl, safeUrl, titleFromUrl } from '../../domain/urls';
@@ -27,11 +27,13 @@ export function ResourceForm({ resource, phases, presetPhase }: Props) {
   const [phaseId, setPhaseId] = useState(resource?.phaseId ?? presetPhase ?? '');
   const [notes, setNotes] = useState(resource?.notes ?? '');
   const [error, setError] = useState('');
+  const [looking, setLooking] = useState(false);
   // Fields the user has set by hand stop being auto-filled from the URL.
-  const touched = useRef({ type: !isNew, time: !isNew });
-  const autoTitle = useRef('');
+  const touched = useRef({ type: !isNew, time: !isNew, title: !isNew });
+  const typeRef = useRef(type); // the lookup effect reads the current type without re-running
 
   const applyType = (t: ResourceType) => {
+    typeRef.current = t;
     setType(t);
     if (!touched.current.time) setHours(hoursOf(DEFAULT_MINUTES[t]));
   };
@@ -41,11 +43,35 @@ export function ResourceForm({ resource, phases, presetPhase }: Props) {
     const u = normUrl(v);
     if (!safeUrl(u)) return;
     if (!touched.current.type) applyType(detectType(u));
-    if (!title.trim() || title === autoTitle.current) {
-      autoTitle.current = titleFromUrl(u);
-      setTitle(autoTitle.current);
-    }
+    if (!touched.current.title) setTitle(titleFromUrl(u));
   };
+
+  // Ask the server about the link once typing pauses. Only fields the user hasn't set are
+  // filled, and an answer for an older link is dropped.
+  useEffect(() => {
+    const u = safeUrl(normUrl(url));
+    if (!u || u === resource?.url) return;
+    let stale = false;
+    const timer = setTimeout(() => {
+      setLooking(true);
+      void useStore
+        .getState()
+        .fetchUrlInfo(u)
+        .then((info) => {
+          if (stale || !info) return;
+          if (info.title && !touched.current.title) setTitle(info.title);
+          // A video's length is exact; reading time only makes sense for an article.
+          const minutes = info.minutes ?? (typeRef.current === 'article' ? info.readMinutes : 0);
+          if (minutes && !touched.current.time) setHours(hoursOf(minutes));
+        })
+        .finally(() => !stale && setLooking(false));
+    }, 600);
+    return () => {
+      stale = true;
+      clearTimeout(timer);
+      setLooking(false);
+    };
+  }, [url, resource?.url]);
 
   const submit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -89,7 +115,11 @@ export function ResourceForm({ resource, phases, presetPhase }: Props) {
           value={url}
           onChange={(e) => onUrl(e.target.value)}
         />
-        <small>Optional. We'll try to detect the title and type from the link.</small>
+        <small aria-live="polite">
+          {looking
+            ? 'Looking up the title and length…'
+            : "Optional. We'll try to detect the title, type and length from the link."}
+        </small>
       </label>
       <label className="field">
         <span>Title</span>
@@ -99,7 +129,10 @@ export function ResourceForm({ resource, phases, presetPhase }: Props) {
           maxLength={160}
           value={title}
           placeholder="e.g. SwiftUI Crash Course for Beginners"
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={(e) => {
+            touched.current.title = true;
+            setTitle(e.target.value);
+          }}
         />
       </label>
       <fieldset className="field">

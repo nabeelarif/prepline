@@ -58,6 +58,20 @@ npm run dev              # http://localhost:5173/
 
 In the repository: Settings → Secrets and variables → Actions → **Variables**, add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. `deploy.yml` passes them to the build. They end up in the public JavaScript, which is expected.
 
+## 5. Link auto-fill (Edge Function)
+
+Pasting a link in Add Resource fills the title and length through the `enrich-url` function (`supabase/functions/enrich-url`). The browser cannot fetch other sites itself (CORS). It works without any setup beyond deploying; without the function the form simply keeps what you typed.
+
+```bash
+supabase functions deploy enrich-url
+supabase secrets set YOUTUBE_API_KEY=...   # optional
+```
+
+- `YOUTUBE_API_KEY` (YouTube Data API v3, free quota) adds the video length. Without it YouTube links still get a title (from oEmbed) but not a length.
+- Vimeo links use Vimeo's oEmbed (title and length). Other links use the page's Open Graph / `<title>` tags and an estimated reading time.
+- Only signed-in users can call it. It refuses non-http(s) links, other ports, and addresses that are local or private (SSRF guard), limits each fetch to 5 s and 512 KB, and re-checks every redirect (a host that changes its DNS answer between the check and the fetch is not caught).
+- Locally: `supabase functions serve enrich-url`.
+
 ## Tests
 
 - `npm test` and `npm run test:e2e` use an in-memory backend and need no project.

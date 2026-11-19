@@ -21,6 +21,7 @@ import type { AuthProviderId, AuthResult, AuthUser, LinkedMethod } from '../auth
 import { createBackend } from '../backend';
 import type { Backend } from '../backend/types';
 import { describeError, RepositoryError } from '../repositories/errors';
+import type { UrlInfo } from '../repositories/enrich';
 import type { PublicListQuery } from '../repositories/sharing';
 import {
   copyOfSharedPlan,
@@ -120,6 +121,8 @@ export interface Store {
   fetchPublic(q?: PublicListQuery): Promise<PlanSummary[]>;
   fetchPopularTags(limit?: number): Promise<PublicTag[]>;
   fetchSimilar(slug: string, limit?: number): Promise<PlanSummary[]>;
+  /** Title and length of a link, looked up by the server. Null when nothing could be read. */
+  fetchUrlInfo(url: string): Promise<UrlInfo | null>;
   /**
    * Changes who can open a plan. Returns an error text to show, or null on success.
    * Other people see the account's display name as the author.
@@ -270,7 +273,7 @@ const rethrowShown = (e: unknown): never => {
   throw new Error(describeError(e));
 };
 
-export function createAppStore({ repo, auth, sharing }: Backend) {
+export function createAppStore({ repo, auth, sharing, enricher }: Backend) {
   return create<Store>()((set, get) => {
     const queue = new WriteQueue((sync) => set({ sync }));
     let userId: string | null = null;
@@ -452,6 +455,7 @@ export function createAppStore({ repo, auth, sharing }: Backend) {
       fetchPublic: (q) => sharing.listPublic(q).catch(rethrowShown),
       fetchPopularTags: (limit) => sharing.listPopularTags(limit).catch(rethrowShown),
       fetchSimilar: (slug, limit) => sharing.listSimilar(slug, limit).catch(rethrowShown),
+      fetchUrlInfo: (url) => enricher.enrich(url),
 
       setPlanSharing: async (goalId, visibility, tags) => {
         const startedFor = userId;
@@ -842,6 +846,7 @@ export const useStore = createAppStore(
         repo: unavailableOf<Backend['repo']>(),
         sharing: unavailableOf<Backend['sharing']>(),
         auth: unavailableOf<Backend['auth']>(),
+        enricher: unavailableOf<Backend['enricher']>(),
       },
 );
 

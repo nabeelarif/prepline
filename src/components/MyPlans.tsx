@@ -17,6 +17,7 @@ import { Link } from 'react-router-dom';
 import { paths } from '../routes';
 import { useStore } from '../state/store';
 import { EmptyState } from './EmptyState';
+import { exportMenuItems } from './exportMenu';
 import { Menu } from './Menu';
 import { daysLeftText, paceText } from './paceText';
 import { ProgressRing } from './ProgressRing';
@@ -100,6 +101,8 @@ export function MyPlans() {
                         icon: <Copy size={16} />,
                         onSelect: () => duplicateGoal(g.id),
                       },
+                      'divider',
+                      ...exportMenuItems(g, shared[g.id]),
                       'divider',
                       {
                         label: 'Delete plan',

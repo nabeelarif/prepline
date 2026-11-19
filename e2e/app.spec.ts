@@ -613,3 +613,25 @@ test('a shared plan shows content only, signed out, and can be copied into anoth
   await expect(summary(page)).toContainText('Not started yet');
   await expect(summary(page)).toContainText('0%');
 });
+
+test('exports a plan as JSON and imports that file back', async ({ page }) => {
+  await createPlan(page, 'Take me along');
+  await addResource(page, 'Intro video', '1.5', 'https://example.com/v');
+  await page.getByRole('button', { name: 'Export plan' }).click();
+  const download = page.waitForEvent('download');
+  await page.getByRole('menuitem', { name: /^JSON/ }).click();
+  const file = await download;
+  expect(file.suggestedFilename()).toBe('take-me-along.json');
+  const text = readFileSync((await file.path())!, 'utf8');
+  expect(JSON.parse(text).goals[0].resources[0].title).toBe('Intro video');
+
+  await page.getByRole('link', { name: 'My Plans' }).click();
+  await openImport(page);
+  await chooseFile(page, text, 'take-me-along.json');
+  await expect(page.getByRole('region', { name: 'File contents' })).toBeVisible();
+  await page.getByRole('button', { name: 'Add to My Plans' }).click();
+  await expect(page.getByText('Plans added successfully')).toBeVisible();
+  await page.getByRole('button', { name: 'Continue to Dashboard' }).click();
+  await page.getByRole('link', { name: 'My Plans' }).click();
+  await expect(page.locator('.plan-card')).toHaveCount(2);
+});

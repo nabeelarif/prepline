@@ -4,6 +4,7 @@ import {
   Check,
   ChevronDown,
   Clock,
+  Download,
   FileText,
   Hourglass,
   ListPlus,
@@ -21,6 +22,7 @@ import { estimatedFinish, type Pace } from '../domain/pace';
 import type { Goal, ISODate } from '../domain/types';
 import { paths } from '../routes';
 import { useStore } from '../state/store';
+import { exportMenuItems } from './exportMenu';
 import { Menu } from './Menu';
 import { daysLeftTile, paceText, untilText } from './paceText';
 import { ProgressRing } from './ProgressRing';
@@ -64,6 +66,7 @@ export function PlanBox({
   today: ISODate;
 }) {
   const goals = useStore((s) => s.data.goals);
+  const sharing = useStore((s) => s.sharing.plans[goal.id]);
   const { selectGoal, openOverlay } = useStore.getState();
   const navigate = useNavigate();
   // On a plan's own page the address names the plan, so switching changes the address too.
@@ -151,6 +154,12 @@ export function PlanBox({
           >
             <Share2 size={16} />
           </button>
+          <Menu
+            label="Export plan"
+            triggerClass="icon-btn"
+            trigger={<Download size={16} />}
+            items={exportMenuItems(goal, sharing)}
+          />
           <button
             className="icon-btn"
             aria-label="Edit plan"

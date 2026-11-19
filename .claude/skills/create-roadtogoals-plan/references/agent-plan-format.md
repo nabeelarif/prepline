@@ -73,6 +73,8 @@ Optional. Road to Goals shows these on the import review and does not store them
 
 Report only what you know. Leave a key out when you are unsure; never guess a model name.
 
+The app's own Export JSON writes this same format (with `generatedBy.tool` set to `Road to Goals`), so an exported plan is a valid plan file.
+
 ### Plan (`goals[]`)
 
 | Field         | Required | Type             | Meaning and limits                                                                                                                                                                                                                                              |

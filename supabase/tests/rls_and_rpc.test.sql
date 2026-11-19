@@ -1,13 +1,26 @@
 -- pgTAP tests. Run with: supabase test db   (needs the local stack: supabase start)
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(112);
+select plan(116);
 
 -- Two users and some data for each, created as the table owner.
 insert into auth.users (id, instance_id, aud, role, email)
 values
   ('00000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'a@example.test'),
   ('00000000-0000-0000-0000-00000000000b', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'b@example.test');
+
+-- A provider name (Google gives full_name, others name) becomes the display name; the sign-up
+-- name wins over it, and a blank one falls through to the random name.
+insert into auth.users (id, instance_id, aud, role, email, raw_user_meta_data)
+values
+  ('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'c1@example.test', '{"full_name": "  Grace Hopper ", "name": "Other"}'),
+  ('00000000-0000-0000-0000-0000000000c2', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'c2@example.test', '{"name": "Alan Turing"}'),
+  ('00000000-0000-0000-0000-0000000000c3', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'c3@example.test', '{"display_name": "Ada", "full_name": "Grace Hopper"}'),
+  ('00000000-0000-0000-0000-0000000000c4', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'c4@example.test', '{"full_name": "   "}');
+select is((select display_name from public.profiles where user_id = '00000000-0000-0000-0000-0000000000c1'), 'Grace Hopper', 'a Google full name is used, trimmed');
+select is((select display_name from public.profiles where user_id = '00000000-0000-0000-0000-0000000000c2'), 'Alan Turing', 'a provider name is used when there is no full name');
+select is((select display_name from public.profiles where user_id = '00000000-0000-0000-0000-0000000000c3'), 'Ada', 'the sign-up name wins');
+select is((select display_name ~ '^[A-Z][a-z]+ [A-Z][a-z]+ [0-9]{2}$' from public.profiles where user_id = '00000000-0000-0000-0000-0000000000c4'), true, 'a blank provider name gets a random one');
 
 -- Acts as user A for the following statements.
 create function pg_temp.as_user(uid text) returns void language plpgsql as $$

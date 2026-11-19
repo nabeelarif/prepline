@@ -711,14 +711,17 @@ language sql volatile set search_path = '' as $$
 $$;
 
 -- Sign-up can pass a name as user metadata ({ display_name }); this makes it the profile's
--- display_name, so it is set even before the email is confirmed. Without one (a blank
--- name, Google or X), the account gets a random name. It can be changed at any time.
+-- display_name, so it is set even before the email is confirmed. Sign-in providers give
+-- full_name (Google) or name instead, used next. Without any, the account gets a random
+-- name. It can be changed at any time.
 create function public.handle_new_user() returns trigger
 language plpgsql security definer set search_path = '' as $$
 begin
   insert into public.profiles (user_id, display_name)
   values (new.id, coalesce(
-    nullif(left(btrim(coalesce(new.raw_user_meta_data ->> 'display_name', '')), 40), ''),
+    nullif(left(btrim(new.raw_user_meta_data ->> 'display_name'), 40), ''),
+    nullif(left(btrim(new.raw_user_meta_data ->> 'full_name'), 40), ''),
+    nullif(left(btrim(new.raw_user_meta_data ->> 'name'), 40), ''),
     public.random_display_name()))
   on conflict (user_id) do nothing;
   return new;

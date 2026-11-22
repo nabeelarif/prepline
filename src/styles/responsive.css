@@ -75,6 +75,14 @@
     padding: 16px;
   }
 
+  .done-tick {
+    width: 32px;
+    height: 32px;
+  }
+  .done-tick::before {
+    inset: -6px;
+  }
+
   /* The status pill and actions drop under the text of each card. */
   .res-card {
     flex-wrap: wrap;

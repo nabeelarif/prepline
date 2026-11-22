@@ -28,10 +28,25 @@ export function statusLosesProgress(r: Resource, to: ResourceStatus): boolean {
   return to === 'not_started' && (r.done || resDone(r) > 0);
 }
 
-type Progress = Pick<
-  Resource,
-  'done' | 'doneAt' | 'doneMinutes' | 'startedAt' | 'loggedOn' | 'loggedMinutes'
->;
+const PROGRESS_KEYS = [
+  'done',
+  'doneAt',
+  'doneMinutes',
+  'startedAt',
+  'loggedOn',
+  'loggedMinutes',
+] as const;
+
+export type Progress = Pick<Resource, (typeof PROGRESS_KEYS)[number]>;
+
+/** A copy of the fields a status move can change, for restoring them later. */
+export function progressOf(r: Resource): Progress {
+  return Object.fromEntries(PROGRESS_KEYS.map((k) => [k, r[k]])) as Progress;
+}
+
+export function sameProgress(a: Progress, b: Progress): boolean {
+  return PROGRESS_KEYS.every((k) => a[k] === b[k]);
+}
 
 /** Minutes of this resource credited today. */
 export function studiedToday(r: Resource, today: ISODate): number {

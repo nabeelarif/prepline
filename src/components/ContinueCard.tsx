@@ -4,6 +4,7 @@ import { focusResource, resDone, resStatus } from '../domain/resources';
 import type { Goal } from '../domain/types';
 import { useStore } from '../state/store';
 import { safeUrl } from '../domain/urls';
+import { DoneTick } from './DoneTick';
 import { TypeIcon } from './icons';
 import { ResourceLink } from './ResourceLink';
 import { TimerButton } from './TimerButton';
@@ -37,6 +38,7 @@ export function ContinueCard({ goal }: { goal: Goal }) {
       </div>
       <div className="btn-row">
         <TimerButton goalId={goal.id} r={r} />
+        <DoneTick r={r} />
         {active && (
           <button
             className="btn sm"

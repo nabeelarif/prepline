@@ -9,7 +9,7 @@ export function Toast() {
 
   useEffect(() => {
     if (!toast) return;
-    const t = setTimeout(dismiss, 2600);
+    const t = setTimeout(dismiss, toast.undo ? 5000 : 2600);
     return () => clearTimeout(t);
   }, [toast, dismiss]);
 
@@ -19,6 +19,18 @@ export function Toast() {
         <div className="toast" key={toast.id}>
           <CircleCheck size={18} aria-hidden="true" />
           {toast.text}
+          {toast.undo && (
+            <button
+              type="button"
+              className="toast-undo"
+              onClick={() => {
+                toast.undo?.();
+                dismiss();
+              }}
+            >
+              Undo
+            </button>
+          )}
         </div>
       )}
     </div>

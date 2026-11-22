@@ -387,6 +387,7 @@ textarea {
   box-shadow: var(--shadow-lg);
   font-weight: 500;
   animation: pop 200ms ease-out;
+  pointer-events: auto;
 }
 .toast svg {
   color: var(--good);
@@ -401,4 +402,16 @@ textarea {
     opacity: 1;
     transform: none;
   }
+}
+
+.toast-undo {
+  margin-left: 10px;
+  padding: 2px 6px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
 }

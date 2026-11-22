@@ -1,5 +1,6 @@
 import { ExternalLink, Flame, Gauge, Play } from 'lucide-react';
-import { useState } from 'react';
+import { useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { fmtDate, relDay, todayISO } from '../domain/dates';
 import { fmtHours, pl } from '../domain/format';
 import { metrics } from '../domain/metrics';
@@ -9,6 +10,8 @@ import { currentStreak } from '../domain/studyLog';
 import type { Goal } from '../domain/types';
 import { useStore } from '../state/store';
 import { useTimer } from '../state/timer';
+import { DoneTick } from './DoneTick';
+import { ProgressRing } from './ProgressRing';
 import { TypeIcon } from './icons';
 import { ResourceLink } from './ResourceLink';
 import { TimerButton } from './TimerButton';
@@ -17,13 +20,27 @@ type Range = 'today' | 'week';
 
 /** The study list for today, or the next seven days, filled from the plan's priority order. */
 export function TodayView({ goal }: { goal: Goal }) {
-  const [range, setRange] = useState<Range>('today');
+  // The range lives in the address, so a reload or a shared link keeps it.
+  const [params, setParams] = useSearchParams();
+  const range: Range = params.get('range') === 'week' ? 'week' : 'today';
+  const setRange = (r: Range) =>
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (r === 'week') next.set('range', 'week');
+        else next.delete('range');
+        return next;
+      },
+      { replace: true },
+    );
   const today = todayISO();
   const days = studyPlan(goal, range === 'today' ? 1 : 7, today);
   const budget = days[0]?.budget ?? null;
   const finished = metrics(goal.resources).remaining === 0;
   const log = useStore((s) => s.studyLog);
   const timing = useTimer((s) => s.timer !== null);
+  const studied = days[0]?.studied ?? 0;
+  const dayPct = budget ? Math.round(Math.min(100, (studied / budget) * 100)) : 0;
   const streak = log.ready ? currentStreak(log.days, today) : 0;
 
   return (
@@ -43,18 +60,30 @@ export function TodayView({ goal }: { goal: Goal }) {
             </p>
           )}
         </div>
-        <div className="seg" role="group" aria-label="Range">
-          {(['today', 'week'] as const).map((r) => (
-            <button
-              key={r}
-              type="button"
-              className={`btn sm${range === r ? ' primary' : ''}`}
-              aria-pressed={range === r}
-              onClick={() => setRange(r)}
+        <div className="today-head-side">
+          {range === 'today' && budget != null && goal.startDate && (
+            <ProgressRing
+              pct={dayPct}
+              size={64}
+              stroke={7}
+              label={`${fmtHours(studied)} of ${fmtHours(budget)} studied today`}
             >
-              {r === 'today' ? 'Today' : 'This week'}
-            </button>
-          ))}
+              <strong>{dayPct}%</strong>
+            </ProgressRing>
+          )}
+          <div className="seg" role="group" aria-label="Range">
+            {(['today', 'week'] as const).map((r) => (
+              <button
+                key={r}
+                type="button"
+                className={`btn sm${range === r ? ' primary' : ''}`}
+                aria-pressed={range === r}
+                onClick={() => setRange(r)}
+              >
+                {r === 'today' ? 'Today' : 'This week'}
+              </button>
+            ))}
+          </div>
         </div>
       </header>
       {!goal.startDate ? (
@@ -116,6 +145,8 @@ function DaySection({
   showHeading: boolean;
   finished: boolean;
 }) {
+  // Only items that appear after the page opened slide in, not ones already there.
+  const seen = useRef(new Set(day.studiedItems.map((x) => x.resource.id)));
   return (
     <section className="card today-day" aria-label={relDay(day.date, today)}>
       {showHeading && (
@@ -157,7 +188,11 @@ function DaySection({
           <h3 className="today-sub-h">Done today</h3>
           <ul className="today-list">
             {day.studiedItems.map(({ resource: r, minutes }) => (
-              <li key={r.id} className="today-item">
+              <li
+                key={r.id}
+                className={`today-item${seen.current.has(r.id) ? '' : ' arrive'}${r.done ? ' is-done' : ''}`}
+              >
+                <DoneTick r={r} />
                 <TypeIcon type={r.type} size={20} />
                 <div className="today-main">
                   <strong>{r.title}</strong>
@@ -199,6 +234,7 @@ function SliceRow({
 
   return (
     <li className="today-item">
+      {actions && <DoneTick r={r} />}
       <TypeIcon type={r.type} size={20} />
       <div className="today-main">
         <strong>{r.title}</strong>

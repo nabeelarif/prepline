@@ -210,6 +210,37 @@ describe('Today', () => {
     expect(screen.getAllByText('Deep dive')).toHaveLength(2);
   });
 
+  it('opens on the week from the address, and shows the day ring and a tick on each item', async () => {
+    await resetApp({
+      version: 1,
+      activeGoalId: 'a',
+      goals: [
+        goal([res({ id: 'a', title: 'Intro', minutes: 120 })], {
+          id: 'a',
+          hoursPerDay: 1,
+          targetDate: null,
+        }),
+      ],
+    });
+    renderApp('/today');
+    expect(await screen.findByText('Intro')).toBeVisible();
+    expect(screen.getByRole('img', { name: '0h of 1h studied today' })).toBeVisible();
+    act(() => useStore.getState().setProgress('a', 30));
+    expect(await screen.findByRole('img', { name: '30m of 1h studied today' })).toBeVisible();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Mark Intro done' })[0]!);
+    expect(await screen.findByRole('button', { name: 'Reopen Intro' })).toBeVisible();
+  });
+
+  it('keeps the week range in the address', async () => {
+    await resetApp({
+      version: 1,
+      activeGoalId: 'a',
+      goals: [goal([res({ id: 'a', title: 'Intro', minutes: 60 })], { id: 'a', hoursPerDay: 1 })],
+    });
+    renderApp('/today?range=week');
+    expect(await screen.findByRole('heading', { level: 1, name: 'This week' })).toBeVisible();
+  });
+
   it('counts progress recorded today and stops filling the day once the goal is met', async () => {
     await resetApp({
       version: 1,

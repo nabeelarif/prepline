@@ -257,3 +257,46 @@ describe('Resource groups', () => {
     expect(within(resources()).queryByText('Done one')).toBeNull();
   });
 });
+
+describe('Done tick', () => {
+  it('marks a resource done in one click and reopens it with the same button', async () => {
+    await show({ Chapter: '', Other: '' });
+    fireEvent.click(within(resources()).getByRole('button', { name: 'Mark Chapter done' }));
+    const reopen = await within(resources()).findByRole('button', { name: 'Reopen Chapter' });
+    expect(reopen).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(reopen);
+    expect(
+      await within(resources()).findByRole('button', { name: 'Mark Chapter done' }),
+    ).toHaveAttribute('aria-pressed', 'false');
+  });
+});
+
+describe('Done tick undo', () => {
+  it('undoes a tick from the toast', async () => {
+    await show({ Chapter: '', Other: '' });
+    fireEvent.click(within(resources()).getByRole('button', { name: 'Mark Chapter done' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Undo' }));
+    expect(
+      await within(resources()).findByRole('button', { name: 'Mark Chapter done' }),
+    ).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull();
+  });
+});
+
+describe('Done tick undo keeps newer edits', () => {
+  it('restores the earlier progress, but not over a later change', async () => {
+    await show({ Chapter: '', Other: '' });
+    act(() => useStore.getState().setProgress('Chapter', 10));
+    fireEvent.click(within(resources()).getByRole('button', { name: 'Mark Chapter done' }));
+    act(() => useStore.getState().setProgress('Chapter', 20));
+    fireEvent.click(await screen.findByRole('button', { name: 'Undo' }));
+    const r = () => useStore.getState().data.goals[0]!.resources.find((x) => x.id === 'Chapter')!;
+    expect(r().doneMinutes).toBe(20);
+
+    fireEvent.click(
+      within(resources()).getAllByRole('button', { name: /Mark Chapter done|Reopen Chapter/ })[0]!,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Undo' }));
+    expect(r().done).toBe(false);
+  });
+});

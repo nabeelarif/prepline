@@ -4,7 +4,14 @@ import { createEmptyAppData, mergePlans } from '../domain/backup';
 import { todayISO } from '../domain/dates';
 import { uid } from '../domain/format';
 import type { RoadmapView } from '../domain/roadmap';
-import { findResource, progressPatch, resDone, statusPatch } from '../domain/resources';
+import {
+  findResource,
+  progressPatch,
+  resDone,
+  sameProgress,
+  statusPatch,
+  type Progress,
+} from '../domain/resources';
 import { parseAppData } from '../domain/schema';
 import { addStudy, STUDY_LOG_DAYS, studyDelta, type StudyLog } from '../domain/studyLog';
 import type {
@@ -67,7 +74,7 @@ export interface UiState {
   selectedResourceId: string | null;
   showFullJourney: boolean;
   overlay: Overlay | null;
-  toast: { id: number; text: string } | null;
+  toast: { id: number; text: string; undo?: () => void } | null;
 }
 
 export type AuthState =
@@ -177,6 +184,11 @@ export interface Store {
   toggleResource(id: string): void;
   /** Moves a resource to a status; see `statusPatch()` for what each move changes. */
   setStatus(id: string, status: ResourceStatus): void;
+  /**
+   * Puts `previous` back, but only while the resource still has the `expected` progress,
+   * so an undo never overwrites an edit made after the change it reverts.
+   */
+  restoreProgress(id: string, expected: Progress, previous: Progress): void;
   /** Records completed minutes; the full estimate completes the resource. */
   setProgress(id: string, minutes: number): void;
   /**
@@ -201,7 +213,8 @@ export interface Store {
   toggleFullJourney(): void;
   openOverlay(o: Overlay): void;
   closeOverlay(): void;
-  showToast(text: string): void;
+  /** `undo`, when given, adds an Undo button to the toast. */
+  showToast(text: string, undo?: () => void): void;
   dismissToast(): void;
 
   /**
@@ -439,7 +452,7 @@ export function createAppStore({ repo, auth, sharing, enricher }: Backend) {
     };
 
     const setUi = (ui: Partial<UiState>) => set((s) => ({ ui: { ...s.ui, ...ui } }));
-    const toast = (text: string) => ({ toast: { id: ++toastSeq, text } });
+    const toast = (text: string, undo?: () => void) => ({ toast: { id: ++toastSeq, text, undo } });
     const resource = (d: Draft<AppData>, id: string) =>
       activeOf(d)?.resources.find((x) => x.id === id);
 
@@ -713,6 +726,12 @@ export function createAppStore({ repo, auth, sharing, enricher }: Backend) {
           if (r) Object.assign(r, statusPatch(r, status, todayISO()));
         }),
 
+      restoreProgress: (id, expected, previous) =>
+        commit((d) => {
+          const r = resource(d, id);
+          if (r && sameProgress(r, expected)) Object.assign(r, previous);
+        }),
+
       setProgress: (id, minutes) =>
         commit((d) => {
           const r = resource(d, id);
@@ -796,7 +815,7 @@ export function createAppStore({ repo, auth, sharing, enricher }: Backend) {
       toggleFullJourney: () => setUi({ showFullJourney: !get().ui.showFullJourney }),
       openOverlay: (overlay) => setUi({ overlay }),
       closeOverlay: () => setUi({ overlay: null }),
-      showToast: (text) => setUi(toast(text)),
+      showToast: (text, undo) => setUi(toast(text, undo)),
       dismissToast: () => setUi({ toast: null }),
 
       // Appends only the new plans, so plans another device saved meanwhile stay untouched.

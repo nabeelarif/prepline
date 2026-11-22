@@ -35,6 +35,7 @@ import { useStore } from '../state/store';
 import { scrollToEl } from './scrollToEl';
 import { TypeIcon } from './icons';
 import { Menu, type MenuEntry } from './Menu';
+import { DoneTick } from './DoneTick';
 import { StatusMenu } from './StatusMenu';
 import { changeStatus } from './statusActions';
 
@@ -162,13 +163,7 @@ export function ResourceCard({ r, prevId, nextId, phases, selected, focus, handl
 
   const pct = status === 'in_progress' ? metrics([r]).pct : 0;
   const statusIcon =
-    status === 'completed' ? (
-      <Check size={18} aria-hidden="true" />
-    ) : status === 'in_progress' ? (
-      <Play size={16} aria-hidden="true" />
-    ) : (
-      <TypeIcon type={r.type} />
-    );
+    status === 'in_progress' ? <Play size={16} aria-hidden="true" /> : <TypeIcon type={r.type} />;
 
   return (
     <li
@@ -189,6 +184,7 @@ export function ResourceCard({ r, prevId, nextId, phases, selected, focus, handl
       >
         <GripVertical size={16} aria-hidden="true" />
       </button>
+      <DoneTick r={r} />
       <span className={`res-badge t-${r.type}`}>{statusIcon}</span>
       <div className="res-body">
         <p className="res-meta">
@@ -295,17 +291,6 @@ export function ResourceCard({ r, prevId, nextId, phases, selected, focus, handl
             onClick={() => a.openOverlay({ kind: 'details', resourceId: r.id })}
           >
             <Gauge size={14} aria-hidden="true" /> Update progress
-          </button>
-        )}
-        {status === 'completed' && (
-          <button
-            type="button"
-            className="icon-btn"
-            aria-label={`Reopen ${r.title}`}
-            title="Reopen"
-            onClick={() => changeStatus(r, 'in_progress')}
-          >
-            <RotateCcw size={16} aria-hidden="true" />
           </button>
         )}
         {!phase && phases.length > 0 && (

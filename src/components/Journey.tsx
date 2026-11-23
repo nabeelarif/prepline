@@ -1,7 +1,8 @@
-import { Flag, Plus, Route } from 'lucide-react';
+import { ChevronDown, ChevronRight, Flag, Plus, Route } from 'lucide-react';
 import { JOURNEY_LIMIT } from '../domain/constants';
 import type { RoadmapNode, RoadmapView } from '../domain/roadmap';
 import type { Goal } from '../domain/types';
+import { useLayout } from '../state/layout';
 import { useStore } from '../state/store';
 import { EmptyState } from './EmptyState';
 import { SnakeRoadmap } from './SnakeRoadmap';
@@ -14,6 +15,7 @@ interface Props {
 /** The plan as a winding path: resources in simple view, phases in phases view. */
 export function Journey({ goal, nodes }: Props) {
   const view = useStore((s) => s.ui.view);
+  const folded = useLayout((l) => l.collapsed.journey);
   const showAll = useStore((s) => s.ui.showFullJourney);
   const selectedRes = useStore((s) => s.ui.selectedResourceId);
   const phaseJump = useStore((s) => s.ui.phaseJump);
@@ -104,15 +106,27 @@ export function Journey({ goal, nodes }: Props) {
               : 'Each stop is a phase. Select one to see its resources.'}
           </p>
         </div>
-        <div className="seg" role="group" aria-label="Journey view">
-          {views.map(([v, label]) => (
-            <button key={v} aria-pressed={view === v} onClick={() => setView(v)}>
-              {label}
-            </button>
-          ))}
-        </div>
+        {!folded && (
+          <div className="seg" role="group" aria-label="Journey view">
+            {views.map(([v, label]) => (
+              <button key={v} aria-pressed={view === v} onClick={() => setView(v)}>
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+        <button
+          className="icon-btn fold-btn"
+          aria-expanded={!folded}
+          aria-controls="jBody"
+          aria-label={folded ? 'Show journey' : 'Hide journey'}
+          title={folded ? 'Show journey' : 'Hide journey'}
+          onClick={() => useLayout.getState().toggle('journey')}
+        >
+          {folded ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+        </button>
       </div>
-      {body}
+      {!folded && <div id="jBody">{body}</div>}
     </section>
   );
 }

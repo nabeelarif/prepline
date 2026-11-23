@@ -23,6 +23,7 @@ export function ContinueCard({ goal }: { goal: Goal }) {
 
   return (
     <section className="card focus" aria-labelledby="focusH">
+      <DoneTick r={r} />
       <TypeIcon type={r.type} size={22} />
       <div className="focus-main">
         <h2 id="focusH">{active ? 'Continue Learning' : 'Up Next'}</h2>
@@ -38,7 +39,6 @@ export function ContinueCard({ goal }: { goal: Goal }) {
       </div>
       <div className="btn-row">
         <TimerButton goalId={goal.id} r={r} />
-        <DoneTick r={r} />
         {active && (
           <button
             className="btn sm"

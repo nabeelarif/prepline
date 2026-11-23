@@ -14,7 +14,7 @@ import {
   Plus,
   Share2,
 } from 'lucide-react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { diffDays, fmtDate } from '../domain/dates';
 import { fmtHours, pl } from '../domain/format';
 import type { Metrics } from '../domain/metrics';
@@ -67,10 +67,8 @@ export function PlanBox({
 }) {
   const goals = useStore((s) => s.data.goals);
   const sharing = useStore((s) => s.sharing.plans[goal.id]);
-  const { selectGoal, openOverlay } = useStore.getState();
+  const { openOverlay } = useStore.getState();
   const navigate = useNavigate();
-  // On a plan's own page the address names the plan, so switching changes the address too.
-  const onPlanPage = useParams().planId !== undefined;
 
   const pt = paceText(pace, goal);
   // Schema and `startPlan` keep a deadline from existing without a start.
@@ -136,7 +134,7 @@ export function PlanBox({
                 label: g.name,
                 checked: g.id === goal.id,
                 icon: g.id === goal.id ? <Check size={16} /> : <span className="menu-gap" />,
-                onSelect: () => (onPlanPage ? navigate(paths.plan(g.id)) : selectGoal(g.id)),
+                onSelect: () => navigate(paths.plan(g.id)),
               })),
               'divider',
               {

@@ -31,13 +31,19 @@ describe('architecture', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('stores no app data in the browser: only the theme and the running timer use localStorage', () => {
+  it('stores no app data in the browser: only the theme, the layout and the running timer use localStorage', () => {
     const users = sources().filter(
       (f) => /localStorage|sessionStorage|indexedDB/.test(read(f)) && !f.startsWith('test/'),
     );
-    // theme.ts: the UI preference. state/timer.ts: the start time of a running study timer. routes.ts: the page to return to after an OAuth redirect,
+    // theme.ts: the UI preference. state/layout.ts: which dashboard sections are folded. state/timer.ts: the start time of a running study timer. routes.ts: the page to return to after an OAuth redirect,
     // in sessionStorage. The backend factory: sessionStorage for the e2e build only.
-    expect(users.sort()).toEqual(['backend/index.ts', 'routes.ts', 'state/timer.ts', 'theme.ts']);
+    expect(users.sort()).toEqual([
+      'backend/index.ts',
+      'routes.ts',
+      'state/layout.ts',
+      'state/timer.ts',
+      'theme.ts',
+    ]);
     expect(read('backend/index.ts')).toMatch(/MODE === 'e2e'/);
   });
 

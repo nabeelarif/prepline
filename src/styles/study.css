@@ -81,3 +81,26 @@
     margin-left: 0;
   }
 }
+
+.study-log {
+  position: relative;
+}
+.study-log {
+  padding-right: 48px;
+}
+.study-log.folded {
+  padding-block: 8px;
+}
+
+/* The collapse chevron sits in the same top-right corner on every foldable card. */
+.fold-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+.journey {
+  position: relative;
+}
+.journey .card-head {
+  padding-right: 32px;
+}

@@ -1,8 +1,9 @@
-import { Flame } from 'lucide-react';
+import { ChevronDown, ChevronRight, Flame } from 'lucide-react';
 import { useMemo } from 'react';
 import { fmtDate, todayISO } from '../domain/dates';
 import { fmtMin, pl } from '../domain/format';
 import { currentStreak, heatmapWeeks, longestStreak } from '../domain/studyLog';
+import { useLayout } from '../state/layout';
 import { useStore } from '../state/store';
 
 const WEEKS = 20;
@@ -10,6 +11,7 @@ const WEEKS = 20;
 /** Streak count and a heatmap of the last 20 weeks of study, across all plans. */
 export function StudyLogCard() {
   const log = useStore((s) => s.studyLog);
+  const folded = useLayout((l) => l.collapsed.streak);
   const today = todayISO();
   const stats = useMemo(() => {
     const weeks = heatmapWeeks(log.days, today, WEEKS);
@@ -26,7 +28,7 @@ export function StudyLogCard() {
   const studiedToday = log.days[today] ?? 0;
 
   return (
-    <section className="study-log" aria-label="Study log">
+    <section className={`study-log${folded ? ' folded' : ''}`} aria-label="Study log">
       <div className="study-streak">
         <Flame aria-hidden="true" className={streak > 0 ? 'lit' : ''} />
         <div>
@@ -40,29 +42,40 @@ export function StudyLogCard() {
           </span>
         </div>
       </div>
-      <div className="study-heat-wrap">
-        <div
-          className="study-heat"
-          role="img"
-          aria-label={`Study heatmap, last ${WEEKS} weeks: ${pl(studiedDays, 'day')} studied`}
-        >
-          {weeks.map((week, w) => (
-            <div className="study-week" key={w}>
-              {week.map((c, d) => (
-                <span
-                  key={d}
-                  className={c ? `study-cell lvl-${c.level}` : 'study-cell none'}
-                  title={
-                    c
-                      ? `${fmtDate(c.day)}: ${c.minutes > 0 ? fmtMin(c.minutes) : 'no study'}`
-                      : undefined
-                  }
-                />
-              ))}
-            </div>
-          ))}
+      {!folded && (
+        <div className="study-heat-wrap">
+          <div
+            className="study-heat"
+            role="img"
+            aria-label={`Study heatmap, last ${WEEKS} weeks: ${pl(studiedDays, 'day')} studied`}
+          >
+            {weeks.map((week, w) => (
+              <div className="study-week" key={w}>
+                {week.map((c, d) => (
+                  <span
+                    key={d}
+                    className={c ? `study-cell lvl-${c.level}` : 'study-cell none'}
+                    title={
+                      c
+                        ? `${fmtDate(c.day)}: ${c.minutes > 0 ? fmtMin(c.minutes) : 'no study'}`
+                        : undefined
+                    }
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
+      <button
+        className="icon-btn fold-btn"
+        aria-expanded={!folded}
+        aria-label={folded ? 'Show study heatmap' : 'Hide study heatmap'}
+        title={folded ? 'Show heatmap' : 'Hide heatmap'}
+        onClick={() => useLayout.getState().toggle('streak')}
+      >
+        {folded ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+      </button>
     </section>
   );
 }

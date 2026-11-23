@@ -8,7 +8,16 @@ import { useTimer } from '../state/timer';
 const POMODORO_HINT = `Study in ${FOCUS_MS / 60_000}-minute focus rounds with a ${BREAK_MS / 60_000}-minute break after each. Only focus time is logged.`;
 
 /** Start and stop the study timer on one resource; stopping credits the minutes. */
-export function TimerButton({ goalId, r }: { goalId: string; r: Resource }) {
+export function TimerButton({
+  goalId,
+  r,
+  compact = false,
+}: {
+  goalId: string;
+  r: Resource;
+  /** Icon-only start (free mode) and clock-only stop, for tight spaces. */
+  compact?: boolean;
+}) {
   const timer = useTimer((s) => s.timer);
   const [pomodoro, setPomodoro] = useState(false);
   const mine = timer?.resourceId === r.id && timer.goalId === goalId;
@@ -21,13 +30,26 @@ export function TimerButton({ goalId, r }: { goalId: string; r: Resource }) {
       <button
         className="btn sm"
         onClick={() => useTimer.getState().stop()}
-        aria-label="Stop timer and log time"
+        aria-label={compact ? `Stop timer on ${r.title} and log time` : 'Stop timer and log time'}
+        title={compact ? 'Stop timer' : undefined}
       >
-        <Pause size={15} aria-hidden="true" /> <span className="timer-clock">{clock}</span>{' '}
-        {phase ? (phase === 'focus' ? 'Focus' : 'Break') : 'Stop'}
+        <Pause size={15} aria-hidden="true" /> <span className="timer-clock">{clock}</span>
+        {!compact && ` ${phase ? (phase === 'focus' ? 'Focus' : 'Break') : 'Stop'}`}
       </button>
     );
   }
+
+  if (compact)
+    return (
+      <button
+        className="btn sm icon-only"
+        onClick={() => useTimer.getState().start(goalId, r.id, 'free')}
+        aria-label={`Start timer on ${r.title}`}
+        title="Start timer"
+      >
+        <Play size={15} aria-hidden="true" />
+      </button>
+    );
 
   return (
     <span className="timer-start">

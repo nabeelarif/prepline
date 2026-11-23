@@ -1,6 +1,7 @@
 import { ExternalLink, Flame, Gauge, Play } from 'lucide-react';
 import { useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { TYPES } from '../domain/constants';
 import { fmtDate, relDay, todayISO } from '../domain/dates';
 import { fmtHours, pl } from '../domain/format';
 import { metrics } from '../domain/metrics';
@@ -107,16 +108,18 @@ export function TodayView({ goal }: { goal: Goal }) {
               work on next.
             </p>
           )}
-          {days.map((d) => (
-            <DaySection
-              key={d.date}
-              day={d}
-              goalId={goal.id}
-              today={today}
-              showHeading={range === 'week'}
-              finished={finished}
-            />
-          ))}
+          <div className={range === 'week' ? 'today-days week' : 'today-days'}>
+            {days.map((d) => (
+              <DaySection
+                key={d.date}
+                day={d}
+                goalId={goal.id}
+                today={today}
+                showHeading={range === 'week'}
+                finished={finished}
+              />
+            ))}
+          </div>
         </>
       )}
     </>
@@ -148,13 +151,15 @@ function DaySection({
   // Only items that appear after the page opened slide in, not ones already there.
   const seen = useRef(new Set(day.studiedItems.map((x) => x.resource.id)));
   return (
-    <section className="card today-day" aria-label={relDay(day.date, today)}>
+    <section
+      className={`card today-day${showHeading && day.date === today ? ' is-today' : ''}`}
+      aria-label={relDay(day.date, today)}
+    >
       {showHeading && (
         <h2>
           {relDay(day.date, today)}
           <span className="muted">
-            {' '}
-            ·{' '}
+            <span className="sep"> · </span>
             {day.slices.length
               ? fmtHours(day.minutes)
               : day.studied > 0
@@ -173,17 +178,41 @@ function DaySection({
       {!day.slices.length && !showHeading && day.studied === 0 && !finished && (
         <p className="muted">Nothing planned.</p>
       )}
-      <ul className="today-list">
-        {day.slices.map((s) => (
-          <SliceRow
-            key={`${s.resource.id}:${s.from}`}
-            goalId={goalId}
-            slice={s}
-            actions={day.date === today}
-          />
-        ))}
+      <ul className={showHeading ? 'wk-list' : 'today-list'}>
+        {day.slices.map((s) =>
+          showHeading ? (
+            <WeekCell
+              key={`${s.resource.id}:${s.from}`}
+              goalId={goalId}
+              slice={s}
+              actions={day.date === today}
+            />
+          ) : (
+            <SliceRow
+              key={`${s.resource.id}:${s.from}`}
+              goalId={goalId}
+              slice={s}
+              actions={day.date === today}
+            />
+          ),
+        )}
       </ul>
-      {day.studiedItems.length > 0 && (
+      {showHeading && day.studiedItems.length > 0 && (
+        <ul className="wk-list wk-done">
+          {day.studiedItems.map(({ resource: r, minutes }) => (
+            <li key={r.id} className={`wk-cell wk-${r.type} is-done`}>
+              <strong className="wk-title">{r.title}</strong>
+              <span className="wk-meta">
+                {fmtHours(minutes)} done{r.done && ' · completed'}
+              </span>
+              <div className="wk-actions">
+                <DoneTick r={r} />
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      {!showHeading && day.studiedItems.length > 0 && (
         <>
           <h3 className="today-sub-h">Done today</h3>
           <ul className="today-list">
@@ -215,6 +244,72 @@ function DaySection({
         </p>
       )}
     </section>
+  );
+}
+
+/**
+ * One slice in the week grid. No icon column: the title takes the whole cell width, the type is a
+ * coloured edge and a word in the meta line, and today's actions are a row of small icon buttons.
+ */
+function WeekCell({
+  goalId,
+  slice,
+  actions,
+}: {
+  goalId: string;
+  slice: StudySlice;
+  actions: boolean;
+}) {
+  const { setStatus, openOverlay } = useStore.getState();
+  const r = slice.resource;
+  const active = resStatus(r) === 'in_progress';
+  const partial = slice.minutes < r.minutes;
+
+  return (
+    <li className={`wk-cell wk-${r.type}`}>
+      <strong className="wk-title">{r.title}</strong>
+      <span className="wk-meta">
+        <span className="wk-type">{TYPES[r.type]}</span> · {fmtHours(slice.minutes)}
+        {partial && ` of ${fmtHours(r.minutes)}`}
+        {slice.from > 0 && ` · ${fmtHours(slice.from)} done`}
+        {slice.finishes && partial && ' · finishes it'}
+      </span>
+      {actions && (
+        <div className="wk-actions">
+          <DoneTick r={r} />
+          <TimerButton goalId={goalId} r={r} compact />
+          {active ? (
+            <button
+              className="btn sm icon-only"
+              aria-label={`Update progress on ${r.title}`}
+              title="Update progress"
+              onClick={() => openOverlay({ kind: 'details', resourceId: r.id })}
+            >
+              <Gauge size={15} aria-hidden="true" />
+            </button>
+          ) : (
+            !r.url && (
+              <button
+                className="btn sm icon-only"
+                aria-label={`Start ${r.title}`}
+                title="Start"
+                onClick={() => setStatus(r.id, 'in_progress')}
+              >
+                <Play size={15} aria-hidden="true" />
+              </button>
+            )
+          )}
+          <ResourceLink
+            r={r}
+            className="btn sm primary icon-only"
+            onOpen={() => !active && setStatus(r.id, 'in_progress')}
+          >
+            <ExternalLink size={15} aria-hidden="true" />
+            <span className="sr-only">{active ? 'Continue' : 'Open'}</span>
+          </ResourceLink>
+        </div>
+      )}
+    </li>
   );
 }
 

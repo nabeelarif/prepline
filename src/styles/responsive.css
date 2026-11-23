@@ -136,3 +136,30 @@
     border-color: var(--accent);
   }
 }
+
+/* The week: seven columns, then four, then the stacked list. */
+@media (max-width: 1200px) {
+  .today-days.week {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+@media (max-width: 900px) {
+  .today-days.week {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .week .today-day {
+    margin-top: 16px;
+    padding: 16px;
+  }
+  .week .today-day h2 {
+    font-size: 16px;
+  }
+  .week .today-day h2 .sep {
+    display: inline;
+  }
+  .week .today-day h2 .muted {
+    display: inline;
+    font-size: inherit;
+  }
+}

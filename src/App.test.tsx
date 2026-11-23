@@ -184,6 +184,25 @@ describe('routes', () => {
 });
 
 describe('Today', () => {
+  it('lays the week out as seven day sections and marks today', async () => {
+    await resetApp({
+      version: 1,
+      activeGoalId: 'a',
+      goals: [
+        goal([res({ id: 'a', title: 'Intro', minutes: 90 })], {
+          id: 'a',
+          hoursPerDay: 1,
+          targetDate: null,
+        }),
+      ],
+    });
+    const { container } = renderApp('/today?range=week');
+    await screen.findByRole('heading', { level: 1, name: 'This week' });
+    const grid = container.querySelector('.today-days.week');
+    expect(grid?.querySelectorAll('section.today-day')).toHaveLength(7);
+    expect(grid?.querySelectorAll('.is-today')).toHaveLength(1);
+  });
+
   it('fills the day from the plan, and switches to the week', async () => {
     await resetApp({
       version: 1,

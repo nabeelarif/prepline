@@ -9,7 +9,7 @@ async function signIn(page: Page, email = 'e2e@example.test') {
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password').fill('correct horse battery');
   await page.getByRole('button', { name: 'Create account' }).click();
-  await expect(page.getByRole('link', { name: 'My Plans' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Account menu' })).toBeVisible();
 }
 
 async function createPlan(page: Page, name: string) {
@@ -373,9 +373,13 @@ test('on a phone the journey is a vertical stepper and the list is stacked cards
   await expect(resources(page).locator('.res-card').first()).toBeVisible();
   const width = await page.evaluate(() => document.documentElement.scrollWidth);
   expect(width).toBeLessThanOrEqual(390);
+  await expect(page.getByRole('link', { name: 'Dashboard' })).toBeHidden();
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
   await expect(page.getByRole('link', { name: 'Dashboard' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'My Plans' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Account menu' })).toBeVisible();
+  await page.getByRole('link', { name: 'My Plans' }).click();
+  await expect(page.getByRole('link', { name: 'My Plans' })).toBeHidden();
 });
 
 test('the theme switch overrides the system setting and is remembered', async ({ page }) => {

@@ -20,6 +20,25 @@
 .top-nav {
   margin-right: auto;
 }
+.nav-toggle {
+  display: none;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: 9px;
+  background: none;
+  color: var(--side-fg);
+  cursor: pointer;
+}
+.nav-toggle:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+.nav-toggle:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
 .top-tools {
   display: flex;
   align-items: center;

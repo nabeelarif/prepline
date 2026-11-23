@@ -143,6 +143,32 @@ describe('routes', () => {
     expect(screen.getByRole('link', { name: 'My Plans' })).not.toHaveAttribute('aria-current');
   });
 
+  it('toggles the menu button and closes it with Escape', async () => {
+    await two();
+    renderApp('/');
+    const toggle = await screen.findByRole('button', { name: /^Menu$/ });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('closes the menu on any nav link, even the current page, and on an outside press', async () => {
+    await two();
+    renderApp('/plans');
+    const toggle = await screen.findByRole('button', { name: /^Menu$/ });
+    fireEvent.click(toggle);
+    fireEvent.click(screen.getByRole('link', { name: 'My Plans' }));
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(toggle);
+    fireEvent.click(screen.getByRole('link', { name: 'Dashboard' }));
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(toggle);
+    fireEvent.pointerDown(document.body);
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  });
+
   it('takes you to the dashboard when you click the app name', async () => {
     await two();
     renderApp('/plans');

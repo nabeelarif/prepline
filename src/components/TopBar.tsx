@@ -6,10 +6,13 @@ import {
   House,
   LayoutList,
   LoaderCircle,
+  Menu as MenuIcon,
   Star,
   TriangleAlert,
+  X,
 } from 'lucide-react';
-import { Link, NavLink } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import { todayISO } from '../domain/dates';
 import { pl } from '../domain/format';
 import { currentStreak } from '../domain/studyLog';
@@ -41,13 +44,59 @@ export function TopBar() {
   const streak = log.ready ? currentStreak(log.days, todayISO()) : null;
   const streakText = streak === null ? 'Study streak' : `Study streak: ${pl(streak, 'day')}`;
 
+  // On phones the nav is a dropdown behind a hamburger button (CSS decides when).
+  const [open, setOpen] = useState(false);
+  const headerRef = useRef<HTMLElement>(null);
+  const toggleRef = useRef<HTMLButtonElement>(null);
+  const { pathname } = useLocation();
+
+  // Back/forward while the menu is open.
+  useEffect(() => setOpen(false), [pathname]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (!headerRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      setOpen(false);
+      toggleRef.current?.focus();
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
   return (
-    <header className="topbar">
+    <header className="topbar" ref={headerRef}>
+      <button
+        type="button"
+        ref={toggleRef}
+        className="nav-toggle"
+        aria-label="Menu"
+        aria-expanded={open}
+        aria-controls="top-nav"
+        onClick={() => setOpen((o) => !o)}
+      >
+        {open ? <X size={20} aria-hidden="true" /> : <MenuIcon size={20} aria-hidden="true" />}
+      </button>
       <Link to={paths.dashboard} className="brand" aria-label="Road to Goals home">
         <Logo />
         <span>Road to Goals</span>
       </Link>
-      <nav aria-label="Main" className="top-nav">
+      <nav
+        aria-label="Main"
+        id="top-nav"
+        className={`top-nav${open ? ' open' : ''}`}
+        onClick={(e) => {
+          // Also closes on the link for the page you are already on, which changes no route.
+          if ((e.target as HTMLElement).closest('a')) setOpen(false);
+        }}
+      >
         <ul className="nav">
           {NAV.map(([to, label, Icon]) => (
             <li key={to}>

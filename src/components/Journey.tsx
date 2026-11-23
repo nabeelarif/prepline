@@ -21,7 +21,7 @@ export function Journey({ goal, nodes }: Props) {
     useStore.getState();
 
   const views: [RoadmapView, string][] = [
-    ['simple', 'Resources'],
+    ['simple', goal.resources.length ? `Resources (${goal.resources.length})` : 'Resources'],
     ['phases', goal.phases.length ? `Phases (${goal.phases.length})` : 'Phases'],
   ];
   const clipped = !showAll && nodes.length > JOURNEY_LIMIT;

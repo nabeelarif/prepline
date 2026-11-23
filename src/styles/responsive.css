@@ -119,6 +119,14 @@
   .type-cards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .type-card:nth-child(5n) .type-tip {
+    left: 0;
+    right: auto;
+  }
+  .type-card:nth-child(2n) .type-tip {
+    left: auto;
+    right: 0;
+  }
   .plan-grid {
     grid-template-columns: minmax(0, 1fr);
   }

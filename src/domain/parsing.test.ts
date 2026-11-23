@@ -2,17 +2,17 @@ import { detectType, normUrl, safeUrl, titleFromUrl } from './urls';
 
 describe('detectType', () => {
   it.each([
-    ['https://www.youtube.com/watch?v=abc', 'video'],
-    ['https://youtu.be/abc', 'video'],
-    ['https://developer.apple.com/videos/play/wwdc2021/10132/', 'video'],
-    ['https://developer.apple.com/documentation/swift', 'article'],
+    ['https://www.youtube.com/watch?v=abc', 'watch'],
+    ['https://youtu.be/abc', 'watch'],
+    ['https://developer.apple.com/videos/play/wwdc2021/10132/', 'watch'],
+    ['https://developer.apple.com/documentation/swift', 'read'],
     ['https://www.udemy.com/course/swift/', 'course'],
     ['https://www.linkedin.com/learning/swift', 'course'],
     ['https://leetcode.com/studyplan/top-interview-150/', 'course'],
     ['https://leetcode.com/problems/two-sum/', 'practice'],
     ['https://www.hackerrank.com/challenges/x', 'practice'],
-    ['https://medium.com/@a/swift-actors', 'article'],
-    ['not a url', 'article'],
+    ['https://medium.com/@a/swift-actors', 'read'],
+    ['not a url', 'read'],
   ])('%s → %s', (url, type) => {
     expect(detectType(url)).toBe(type);
   });

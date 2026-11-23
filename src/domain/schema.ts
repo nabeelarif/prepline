@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { exportedAtOf, generatedByOf, type GeneratedBy } from './backup';
-import { PHASE_COLORS, TYPES } from './constants';
+import { LEGACY_TYPES, PHASE_COLORS, TYPES } from './constants';
 import { todayISO, validISO } from './dates';
 import { num, uid } from './format';
 import { readImportSharing, type ImportShare } from './share';
@@ -39,9 +39,13 @@ export const ResourceSchema: z.ZodType<Resource, unknown> = z
     id,
     title: text(() => 'Untitled'),
     url: text(() => ''),
-    type: field((v): ResourceType =>
-      typeof v === 'string' && v in TYPES ? (v as ResourceType) : 'article',
-    ),
+    type: field((v): ResourceType => {
+      // A missing type is a Read, like the form's default; only an unknown name is Other.
+      if (typeof v !== 'string' || !v) return 'read';
+      const key = v;
+      if (Object.hasOwn(TYPES, key)) return key as ResourceType;
+      return Object.hasOwn(LEGACY_TYPES, key) ? LEGACY_TYPES[key]! : 'other';
+    }),
     minutes: minutes(30),
     doneMinutes: field((v) => Math.max(0, Math.round(Number(v)) || 0)),
     notes: text(() => ''),

@@ -24,7 +24,7 @@ const plan = goal(
       id: 'b',
       title: 'Loose <b>one</b>',
       url: 'javascript:alert(1)',
-      type: 'video',
+      type: 'watch',
       minutes: 30,
     }),
     res({
@@ -86,7 +86,7 @@ describe('planToMarkdown', () => {
   it('groups by phase then unassigned, in priority order', () => {
     expect(md.indexOf('## Basics')).toBeLessThan(md.indexOf('## Unassigned'));
     expect(md.indexOf('Intro')).toBeLessThan(md.indexOf('Deep dive'));
-    expect(md).toContain('- [x] [Intro](https://example.com/a) (Article, 1.5h)');
+    expect(md).toContain('- [x] [Intro](https://example.com/a) (Read, 1.5h)');
     expect(md).toContain('- [ ] Deep dive (Course, 10h)');
     expect(md).toContain('  > line2');
     expect(md).toContain('3 resources');

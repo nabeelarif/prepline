@@ -72,7 +72,7 @@ create table public.resources (
   id text not null,
   title text not null,
   url text not null default '',
-  type text not null check (type in ('article', 'video', 'course', 'practice')),
+  type text not null check (type in ('read', 'watch', 'listen', 'course', 'practice', 'project', 'workout', 'habit', 'task', 'other')),
   minutes integer not null check (minutes between 1 and 100000),
   notes text not null default '',
   phase_id text,

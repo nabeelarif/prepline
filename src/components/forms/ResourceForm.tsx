@@ -1,9 +1,14 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { DEFAULT_MINUTES, RESOURCE_TYPES, TYPES } from '../../domain/constants';
+import {
+  DEFAULT_MINUTES,
+  RESOURCE_TYPES,
+  TYPES,
+  TYPE_INFO,
+  typeHint,
+} from '../../domain/constants';
 import type { Phase, Resource, ResourceType } from '../../domain/types';
 import { detectType, normUrl, safeUrl, titleFromUrl } from '../../domain/urls';
 import { useStore } from '../../state/store';
-import { TypeIcon } from '../icons';
 import { DIALOG_TITLE } from '../Overlay';
 
 const hoursOf = (min: number) => String(Math.round((min / 60) * 100) / 100);
@@ -22,8 +27,8 @@ export function ResourceForm({ resource, phases, presetPhase }: Props) {
 
   const [url, setUrl] = useState(resource?.url ?? '');
   const [title, setTitle] = useState(resource?.title ?? '');
-  const [type, setType] = useState<ResourceType>(resource?.type ?? 'article');
-  const [hours, setHours] = useState(hoursOf(resource?.minutes ?? DEFAULT_MINUTES.article));
+  const [type, setType] = useState<ResourceType>(resource?.type ?? 'read');
+  const [hours, setHours] = useState(hoursOf(resource?.minutes ?? DEFAULT_MINUTES.read));
   const [phaseId, setPhaseId] = useState(resource?.phaseId ?? presetPhase ?? '');
   const [notes, setNotes] = useState(resource?.notes ?? '');
   const [error, setError] = useState('');
@@ -60,8 +65,8 @@ export function ResourceForm({ resource, phases, presetPhase }: Props) {
         .then((info) => {
           if (stale || !info) return;
           if (info.title && !touched.current.title) setTitle(info.title);
-          // A video's length is exact; reading time only makes sense for an article.
-          const minutes = info.minutes ?? (typeRef.current === 'article' ? info.readMinutes : 0);
+          // A video's length is exact; reading time only makes sense for a Read.
+          const minutes = info.minutes ?? (typeRef.current === 'read' ? info.readMinutes : 0);
           if (minutes && !touched.current.time) setHours(hoursOf(minutes));
         })
         .finally(() => !stale && setLooking(false));
@@ -139,22 +144,27 @@ export function ResourceForm({ resource, phases, presetPhase }: Props) {
         <legend>Resource Type</legend>
         <div className="type-cards">
           {RESOURCE_TYPES.map((t) => (
-            <label key={t} className="type-card">
+            <label key={t} className={`type-card t-${t}`}>
               <input
                 type="radio"
                 name="rType"
                 value={t}
+                aria-describedby={`type-tip-${t}`}
                 checked={type === t}
                 onChange={() => {
                   touched.current.type = true;
                   applyType(t);
                 }}
               />
-              <TypeIcon type={t} size={24} />
               <span>{TYPES[t]}</span>
+              <span className="type-tip" role="tooltip" id={`type-tip-${t}`}>
+                <strong>{TYPE_INFO[t].covers}</strong>
+                <span>e.g. {TYPE_INFO[t].examples}</span>
+              </span>
             </label>
           ))}
         </div>
+        <p className="type-help muted small">{typeHint(type)}</p>
       </fieldset>
       <label className="field">
         <span>Estimated Time</span>

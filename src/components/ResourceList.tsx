@@ -1,21 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { RESOURCE_TYPES, STATUS_TEXT } from '../domain/constants';
+import { RESOURCE_TYPES, STATUS_TEXT, TYPES, typeHint } from '../domain/constants';
 import { metrics } from '../domain/metrics';
 import { focusResource, isDone, resStatus } from '../domain/resources';
 import type { Goal, Phase, Resource, ResourceStatus, ResourceType } from '../domain/types';
 import { useStore } from '../state/store';
-import { TypeIcon } from './icons';
 import { PhaseBand } from './PhaseBand';
 import { ResourceCard } from './ResourceCard';
 import { scrollToEl } from './scrollToEl';
 import { useReorderDrag } from './useReorderDrag';
-
-const PLURAL: Record<ResourceType, string> = {
-  article: 'Articles',
-  video: 'Videos',
-  course: 'Courses',
-  practice: 'Practice',
-};
 
 interface Group {
   key: string;
@@ -162,9 +154,13 @@ export function ResourceList({ goal }: { goal: Goal }) {
             All ({all.length})
           </button>
           {RESOURCE_TYPES.map((t) => (
-            <button key={t} aria-pressed={typeFilter === t} onClick={() => setTypeFilter(t)}>
-              <TypeIcon type={t} size={14} />
-              {PLURAL[t]} ({counts[t]})
+            <button
+              key={t}
+              aria-pressed={typeFilter === t}
+              title={typeHint(t)}
+              onClick={() => setTypeFilter(t)}
+            >
+              {TYPES[t]} ({counts[t]})
             </button>
           ))}
           <select

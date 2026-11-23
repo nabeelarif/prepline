@@ -6,7 +6,7 @@ import { createAppStore, type ResourceInput } from './store';
 const input = (o: Partial<ResourceInput> = {}): ResourceInput => ({
   url: '',
   title: 'Read',
-  type: 'article',
+  type: 'read',
   minutes: 60,
   notes: '',
   phaseId: null,
@@ -267,7 +267,7 @@ describe('store', () => {
     const { s, add } = await setup();
     const { id } = add();
     s().selectResource(id);
-    s().setTypeFilter('video');
+    s().setTypeFilter('watch');
     s().selectGoal(s().data.activeGoalId!);
     expect(s().ui).toMatchObject({ selectedResourceId: null, typeFilter: 'all' });
   });

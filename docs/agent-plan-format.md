@@ -44,7 +44,7 @@ Add to My Plans**, which keeps the user's existing plans.
           "id": "…",
           "title": "…",
           "url": "https://…",
-          "type": "article",
+          "type": "read",
           "minutes": 45,
           "notes": "…",
           "phaseId": "…"
@@ -114,36 +114,42 @@ user wants it.
 
 ### Resource (`resources[]`)
 
-| Field     | Required | Type             | Meaning and limits                                                                                  |
-| --------- | -------- | ---------------- | --------------------------------------------------------------------------------------------------- |
-| `title`   | yes      | string           | The resource's real title, with the source in brackets if it helps, for example `"… (WWDC21)"`.     |
-| `url`     | no       | string           | Full `https://` link that you have checked. Use `""` only for offline items such as a printed book. |
-| `type`    | no       | string           | `article`, `video`, `course` or `practice`. See section 4. An unknown value becomes `article`.      |
-| `minutes` | no       | whole number     | Estimated **study** time in minutes, 1 to 100000. See section 5. Defaults to 30.                    |
-| `notes`   | no       | string           | One or two sentences: why it matters and what to focus on. Say if it is paid.                       |
-| `phaseId` | no       | string or `null` | The `id` of a phase **in the same plan**, or `null` for no phase. An unknown id becomes `null`.     |
-| `id`      | no       | string           | Any unique string.                                                                                  |
+| Field     | Required | Type             | Meaning and limits                                                                                                    |
+| --------- | -------- | ---------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `title`   | yes      | string           | The resource's real title, with the source in brackets if it helps, for example `"… (WWDC21)"`.                       |
+| `url`     | no       | string           | Full `https://` link that you have checked. Use `""` only for offline items such as a printed book.                   |
+| `type`    | no       | string           | One of the ten types in section 4. See section 4. A missing value becomes `read`, and an unknown one becomes `other`. |
+| `minutes` | no       | whole number     | Estimated **study** time in minutes, 1 to 100000. See section 5. Defaults to 30.                                      |
+| `notes`   | no       | string           | One or two sentences: why it matters and what to focus on. Say if it is paid.                                         |
+| `phaseId` | no       | string or `null` | The `id` of a phase **in the same plan**, or `null` for no phase. An unknown id becomes `null`.                       |
+| `id`      | no       | string           | Any unique string.                                                                                                    |
 
 Leave these out of a new plan. They record the user's own progress:
 `done`, `doneMinutes`, `doneAt`, `startedAt`, `loggedOn`, `loggedMinutes`, `createdAt`, and the plan's `startDate`. Road to Goals ignores any other key.
 
 ## 4. Choosing `type`
 
-Decide by **what the learner does** with the resource, not by the website it is on.
+Decide by **what the person does** with the item, not by the website it is on. Plans can be about anything: studying, cooking, fitness, a diet, a to-do list.
 
-| Type       | Use it for                                                        | Examples                                                                                                                  |
-| ---------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `video`    | One recording to watch.                                           | A conference talk, a WWDC session, a single YouTube tutorial.                                                             |
-| `article`  | One page or chapter to read.                                      | A blog post, an official documentation page, a guide, a cheat sheet, one book chapter.                                    |
-| `course`   | A structured curriculum of several lessons with its own syllabus. | Udemy, Coursera or Kodeco courses, "100 Days of …", a whole book, a multi-part video series.                              |
-| `practice` | Active work where the learner produces something.                 | Problem sets, a single coding problem, mock interviews, interview question drills, a build-this-app exercise, flashcards. |
+| Type       | Use it for                                  | Examples                                                |
+| ---------- | ------------------------------------------- | ------------------------------------------------------- |
+| `read`     | Anything written.                           | Article, book chapter, docs page, paper, recipe, guide. |
+| `watch`    | Video or live sessions.                     | YouTube, a talk, a cooking demo, a workout video.       |
+| `listen`   | Audio.                                      | Podcast episode, audiobook, language audio.             |
+| `course`   | A structured, multi-part program.           | Udemy, Coursera, "100 Days of …", a 30-day program.     |
+| `practice` | Repeated drills and exercises.              | Coding problems, scales, vocabulary, stretching.        |
+| `project`  | Making or building something.               | A side project, cooking a full meal, DIY, an essay.     |
+| `workout`  | Physical activity.                          | A run, a gym session, yoga, a walk.                     |
+| `habit`    | Something done daily or on a schedule.      | Drink 3L water, no sugar, sleep by 10pm, meditate.      |
+| `task`     | A one-off to-do.                            | Book a doctor visit, buy ingredients, renew a passport. |
+| `other`    | Anything that does not fit the types above. | Anything else.                                          |
 
 Tie-breakers:
 
-- A YouTube **playlist or series** you follow lesson by lesson → `course`. One video from it → `video`.
+- A YouTube **playlist or series** followed lesson by lesson → `course`. One video from it → `watch`.
 - A **list of problems** → `practice`. A **guided study plan** that teaches as it goes → `course`.
-- A page of **interview questions** the user should answer aloud → `practice`. A page that explains the answers → `article`.
-- When it is unclear → `article`.
+- Something done **every day for many days** → one `habit`, not one resource per day.
+- When it is unclear → `other`.
 
 ## 5. Estimating `minutes`
 
@@ -153,10 +159,16 @@ notes and trying things out.
 
 | Type       | Rule of thumb                                                                                                     | Default if unknown |
 | ---------- | ----------------------------------------------------------------------------------------------------------------- | ------------------ |
-| `video`    | Runtime × 1.25 (pausing and notes).                                                                               | 60                 |
-| `article`  | About 200 words a minute, plus 5 to 15 minutes if it has code to try.                                             | 30                 |
-| `course`   | The stated length × 1.5 (exercises). If the user only needs part of it, estimate that part and say so in `notes`. | 600                |
-| `practice` | The time to budget: about 30 to 45 minutes per coding problem, 60 to 90 minutes per mock interview.               | 120                |
+| `read`     | About 200 words a minute, plus 5 to 15 minutes if it has code to try.                                             | 30                 |
+| `watch`    | Runtime × 1.25 (pausing and notes).                                                                               | 30                 |
+| `listen`   | The runtime.                                                                                                      | 30                 |
+| `course`   | The stated length × 1.5 (exercises). If the user only needs part of it, estimate that part and say so in `notes`. | 120                |
+| `practice` | The time to budget: about 30 to 45 minutes per coding problem, 60 to 90 minutes per mock interview.               | 45                 |
+| `project`  | The time to budget for building it.                                                                               | 120                |
+| `workout`  | The session length.                                                                                               | 45                 |
+| `habit`    | **Total** time over the whole plan: minutes per day × number of days (for example 10 × 100 = 1000).               | 10                 |
+| `task`     | A few minutes; most one-off tasks are 5 to 15.                                                                    | 5                  |
+| `other`    | Your best estimate.                                                                                               | 30                 |
 
 Round to whole minutes.
 
@@ -188,7 +200,7 @@ size the plan by what the user needs to learn.
 - Prefer free resources. Include paid ones only when they are clearly the best
   option, and write "Paid." in `notes`.
 - Don't include two resources that teach the same thing.
-- Mix types: reading and video for concepts, `practice` to prove them. Interview
+- Mix types: reading and watching for concepts, `practice` to prove them. Interview
   plans should end with practice and at least one mock interview.
 
 ## 9. Before you return the file
@@ -196,7 +208,7 @@ size the plan by what the user needs to learn.
 - [ ] It parses as JSON, with `"version": 1` and a `goals` array.
 - [ ] Every plan has a `name`, every phase a `name`, every resource a `title`.
 - [ ] Every `phaseId` matches a phase `id` in the same plan.
-- [ ] `type` is one of `article`, `video`, `course`, `practice`.
+- [ ] `type` is one of `read`, `watch`, `listen`, `course`, `practice`, `project`, `workout`, `habit`, `task`, `other`.
 - [ ] `minutes` are whole numbers, and their total fits 80% of capacity.
 - [ ] `targetDate` is either left out, or a real date written `YYYY-MM-DD` in the future.
 - [ ] `exportedAt` is the current local time with its UTC offset, and `generatedBy` only holds keys you know.
@@ -251,7 +263,7 @@ capacity when there are at least 51 days to go.
           "id": "arc",
           "title": "Automatic Reference Counting (The Swift Programming Language)",
           "url": "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/automaticreferencecounting/",
-          "type": "article",
+          "type": "read",
           "minutes": 45,
           "notes": "Know strong reference cycles and when to use weak versus unowned, including in closures.",
           "phaseId": "swift"
@@ -260,7 +272,7 @@ capacity when there are at least 51 days to go.
           "id": "concurrency",
           "title": "Concurrency (The Swift Programming Language)",
           "url": "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/concurrency/",
-          "type": "article",
+          "type": "read",
           "minutes": 60,
           "notes": "Focus on tasks, task groups, actors and Sendable. Be ready to explain data races.",
           "phaseId": "swift"
@@ -269,7 +281,7 @@ capacity when there are at least 51 days to go.
           "id": "async-await",
           "title": "Meet async/await in Swift (WWDC21)",
           "url": "https://developer.apple.com/videos/play/wwdc2021/10132/",
-          "type": "video",
+          "type": "watch",
           "minutes": 50,
           "notes": "Watch how completion handlers become async functions. A common whiteboard question.",
           "phaseId": "swift"
@@ -278,7 +290,7 @@ capacity when there are at least 51 days to go.
           "id": "demystify-swiftui",
           "title": "Demystify SwiftUI (WWDC21)",
           "url": "https://developer.apple.com/videos/play/wwdc2021/10022/",
-          "type": "video",
+          "type": "watch",
           "minutes": 50,
           "notes": "Identity, lifetime and dependencies: the basis for answering why a view redraws or loses state.",
           "phaseId": "swiftui"

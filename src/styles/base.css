@@ -138,11 +138,14 @@ textarea {
 }
 
 /* Type colours and tags */
-.t-article {
-  --t: var(--t-article);
+.t-read {
+  --t: var(--t-read);
 }
-.t-video {
-  --t: var(--t-video);
+.t-watch {
+  --t: var(--t-watch);
+}
+.t-listen {
+  --t: var(--t-listen);
 }
 .t-course {
   --t: var(--t-course);
@@ -150,9 +153,20 @@ textarea {
 .t-practice {
   --t: var(--t-practice);
 }
-.type-icon {
-  color: var(--t);
-  flex: none;
+.t-project {
+  --t: var(--t-project);
+}
+.t-workout {
+  --t: var(--t-workout);
+}
+.t-habit {
+  --t: var(--t-habit);
+}
+.t-task {
+  --t: var(--t-task);
+}
+.t-other {
+  --t: var(--t-other);
 }
 .tag,
 .status,

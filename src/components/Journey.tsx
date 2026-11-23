@@ -54,7 +54,7 @@ export function Journey({ goal, nodes }: Props) {
           </button>
         }
       >
-        Add an article, video, course or practice activity to build your preparation roadmap.
+        Add a resource, habit or task to build your roadmap.
       </EmptyState>
     );
   } else if (!nodes.length) {

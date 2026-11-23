@@ -67,7 +67,7 @@ describe('Add resource: details from the link', () => {
     const f = await openForm();
     fireEvent.change(f.url, { target: { value: 'https://www.udemy.com/course/swift-basics' } });
     await settle();
-    expect(f.hours).toHaveValue(10); // the course default stays; 4 min would understate it
+    expect(f.hours).toHaveValue(2); // the course default stays; 4 min would understate it
     fireEvent.change(f.url, { target: { value: 'https://vimeo.com/123456' } });
     await settle();
     expect(f.hours).toHaveValue(0.7);

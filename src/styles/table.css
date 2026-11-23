@@ -166,25 +166,6 @@
   cursor: grabbing;
   user-select: none;
 }
-.res-badge {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  margin-top: 2px;
-  border-radius: 50%;
-  background: var(--surface-2);
-  color: var(--t);
-}
-.res-card.s-completed .res-badge {
-  background: var(--good-soft);
-  color: var(--good-fg);
-}
-.res-card.s-in_progress .res-badge {
-  background: var(--accent-soft);
-  color: var(--accent);
-}
 .res-body {
   flex: 1;
   min-width: 0;

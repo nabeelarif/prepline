@@ -2,11 +2,11 @@ import type { Goal, Resource } from '../domain/types';
 
 export const TODAY = '2026-03-10';
 
-/** A 60-minute, unstarted article; override any field. */
+/** A 60-minute, unstarted read; override any field. */
 export const res = (o: Partial<Resource> & { id: string }): Resource => ({
   title: o.id,
   url: '',
-  type: 'article',
+  type: 'read',
   minutes: 60,
   doneMinutes: 0,
   notes: '',

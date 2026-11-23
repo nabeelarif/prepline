@@ -77,7 +77,7 @@ test('add resources, track weighted progress, and keep it after reload', async (
   await addResource(page, 'Design course', '3');
   await expect(page.getByRole('status')).toHaveText('Resource added');
   await expect(resources(page).getByRole('heading')).toHaveText('Resources (2)');
-  await expect(resources(page).getByText('Video', { exact: true })).toBeVisible();
+  await expect(resources(page).getByText('Watch', { exact: true })).toBeVisible();
 
   // Finishing the 1h video is 25% of 4h, though it is half of the resources.
   await statusOf(page, 'Caching talk').click();

@@ -71,7 +71,7 @@ describe('parseAppData', () => {
     expect(g.resources[0]).toMatchObject({
       id: 'r1',
       title: 'Untitled',
-      type: 'article',
+      type: 'other',
       minutes: 30,
       doneMinutes: 30,
       done: false,
@@ -399,5 +399,32 @@ describe('sharing in a plan file', () => {
     });
     expect(p.shares[0]!.tags).toHaveLength(5);
     expect(p.notes).toHaveLength(1);
+  });
+
+  it('maps old type names onto the current ones and unknown ones to other, and no type to read', () => {
+    const data = parseAppData({
+      goals: [
+        {
+          id: 'g',
+          name: 'G',
+          resources: [
+            { id: 'a', type: 'article' },
+            { id: 'b', type: 'video' },
+            { id: 'c', type: 'workout' },
+            { id: 'd', type: 'toString' },
+            { id: 'e', type: 'nonsense' },
+            { id: 'f' },
+          ],
+        },
+      ],
+    });
+    expect(data!.goals[0]!.resources.map((x) => x.type)).toEqual([
+      'read',
+      'watch',
+      'workout',
+      'other',
+      'other',
+      'read',
+    ]);
   });
 });

@@ -7,7 +7,6 @@ import { resDone, resStatus, statusLosesProgress } from '../../domain/resources'
 import type { Phase, Resource } from '../../domain/types';
 import { useStore } from '../../state/store';
 import { ConfirmButton } from '../ConfirmButton';
-import { TypeIcon } from '../icons';
 import { DIALOG_TITLE } from '../Overlay';
 import { ProgressRing } from '../ProgressRing';
 import { ResourceLink } from '../ResourceLink';
@@ -51,7 +50,6 @@ export function ResourceDetails({
   return (
     <div className="details">
       <h2 id={DIALOG_TITLE} className="sheet-title">
-        <TypeIcon type={r.type} size={22} />
         {r.title}
       </h2>
       <p className="details-meta">

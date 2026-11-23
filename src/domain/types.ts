@@ -1,4 +1,14 @@
-export type ResourceType = 'article' | 'video' | 'course' | 'practice';
+export type ResourceType =
+  | 'read'
+  | 'watch'
+  | 'listen'
+  | 'course'
+  | 'practice'
+  | 'project'
+  | 'workout'
+  | 'habit'
+  | 'task'
+  | 'other';
 export type ResourceStatus = 'not_started' | 'in_progress' | 'completed';
 export type PhaseColor = 'blue' | 'purple' | 'green' | 'orange' | 'red' | 'pink' | 'gray';
 /** Local calendar date as YYYY-MM-DD. Never converted through UTC. */

@@ -38,8 +38,8 @@ select lives_ok($$
     "phases": [{"id": "p1", "name": "One", "description": "", "color": "blue"},
                {"id": "p2", "name": "Two", "description": "", "color": "red"}],
     "resources": [
-      {"id": "r1", "title": "R1", "type": "article", "minutes": 30, "created_at": "2026-01-01", "phase_id": "p1"},
-      {"id": "r2", "title": "R2", "type": "video", "minutes": 60, "created_at": "2026-01-01"}]
+      {"id": "r1", "title": "R1", "type": "read", "minutes": 30, "created_at": "2026-01-01", "phase_id": "p1"},
+      {"id": "r2", "title": "R2", "type": "watch", "minutes": 60, "created_at": "2026-01-01"}]
   }'::jsonb)
 $$, 'user A saves a plan tree');
 
@@ -80,7 +80,7 @@ select lives_ok($$ select public.save_resource('g1', '{"id": "r3", "title": "R3b
 select throws_ok($$
   select public.append_goals('[
     {"id": "n1", "name": "New", "description": "", "target_date": "2027-01-01", "created_at": "2026-01-01",
-     "phases": [], "resources": [{"id": "bad", "title": "x", "type": "article", "minutes": 0, "created_at": "2026-01-01"}]}]'::jsonb, null)
+     "phases": [], "resources": [{"id": "bad", "title": "x", "type": "read", "minutes": 0, "created_at": "2026-01-01"}]}]'::jsonb, null)
 $$, '23514', null, 'invalid data is rejected');
 select is((select count(*)::int from public.goals where id in ('g1', 'n1')), 1, 'and nothing of it is saved, the old data is still there');
 
@@ -128,7 +128,7 @@ select lives_ok($$
 $$, 'append_goals adds a plan');
 select is((select array_agg(id order by position) from public.goals), array['g1', 'g2'], 'and keeps the existing plan first');
 select throws_ok($$
-  select public.save_resource('g2', '{"id": "r1", "title": "x", "type": "article", "minutes": 5, "created_at": "2026-01-01"}'::jsonb)
+  select public.save_resource('g2', '{"id": "r1", "title": "x", "type": "read", "minutes": 5, "created_at": "2026-01-01"}'::jsonb)
 $$, '23505', null, 'a resource id used by another plan is rejected');
 
 -- Sharing. Other people get content only, never progress, dates or daily hours.

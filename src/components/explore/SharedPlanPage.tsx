@@ -8,7 +8,6 @@ import { hostOf, safeUrl } from '../../domain/urls';
 import { paths } from '../../routes';
 import { useStore } from '../../state/store';
 import { EmptyState } from '../EmptyState';
-import { TypeIcon } from '../icons';
 import { PlanCard } from './PlanCard';
 import { useAsync } from './useAsync';
 import { useRequestSignIn } from './useRequestSignIn';
@@ -22,7 +21,6 @@ function Item({ r }: { r: SharedResource }) {
   const href = safeUrl(r.url);
   return (
     <li className="shared-item">
-      <TypeIcon type={r.type} />
       <div className="shared-item-main">
         <p className="shared-item-title">
           {href ? (

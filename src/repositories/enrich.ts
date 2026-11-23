@@ -3,7 +3,7 @@ export interface UrlInfo {
   title?: string;
   /** The real length of a video. */
   minutes?: number;
-  /** Reading time estimated from the page's text: only meaningful for an article. */
+  /** Reading time estimated from the page's text: only meaningful for a Read. */
   readMinutes?: number;
 }
 

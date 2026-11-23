@@ -176,7 +176,7 @@ export function PlanBox({
           </button>
           <button
             className="btn primary"
-            title="Add an article, video, course or practice"
+            title="Add a resource, habit or task"
             onClick={() => openOverlay({ kind: 'resource', resourceId: null })}
           >
             <Plus size={18} aria-hidden="true" /> Add Resource

@@ -13,9 +13,9 @@ import { useStore } from '../state/store';
 import { useTimer } from '../state/timer';
 import { DoneTick } from './DoneTick';
 import { ProgressRing } from './ProgressRing';
-import { TypeIcon } from './icons';
 import { ResourceLink } from './ResourceLink';
 import { TimerButton } from './TimerButton';
+import { TypeLabel } from './TypeLabel';
 
 type Range = 'today' | 'week';
 
@@ -222,11 +222,10 @@ function DaySection({
                 className={`today-item${seen.current.has(r.id) ? '' : ' arrive'}${r.done ? ' is-done' : ''}`}
               >
                 <DoneTick r={r} />
-                <TypeIcon type={r.type} size={20} />
                 <div className="today-main">
                   <strong>{r.title}</strong>
                   <span className="muted small">
-                    {fmtHours(minutes)}
+                    <TypeLabel type={r.type} /> · {fmtHours(minutes)}
                     {r.done && ' · completed'}
                   </span>
                 </div>
@@ -330,11 +329,10 @@ function SliceRow({
   return (
     <li className="today-item">
       {actions && <DoneTick r={r} />}
-      <TypeIcon type={r.type} size={20} />
       <div className="today-main">
         <strong>{r.title}</strong>
         <span className="muted small">
-          {fmtHours(slice.minutes)}
+          <TypeLabel type={r.type} /> · {fmtHours(slice.minutes)}
           {partial && ` of ${fmtHours(r.minutes)}`}
           {slice.from > 0 && ` · ${fmtHours(slice.from)} done`}
           {slice.finishes && partial && ' · finishes it'}

@@ -26,6 +26,8 @@ export function hostOf(u: string): string {
   }
 }
 
+const AUDIO_HOSTS =
+  /(^|\.)(spotify\.com|podcasts\.apple\.com|soundcloud\.com|overcast\.fm|pocketcasts\.com|audible\.com|anchor\.fm|castbox\.fm)$/;
 const VIDEO_HOSTS = /(^|\.)(youtube\.com|youtu\.be|vimeo\.com|loom\.com|twitch\.tv)$/;
 const PRACTICE_HOSTS =
   /(^|\.)(hackerrank\.com|codewars\.com|exercism\.org|neetcode\.io|codesignal\.com|pramp\.com|interviewing\.io)$/;
@@ -40,16 +42,17 @@ export function detectType(url: string): ResourceType {
     h = x.hostname.toLowerCase();
     p = x.pathname.toLowerCase();
   } catch {
-    return 'article';
+    return 'read';
   }
-  if (VIDEO_HOSTS.test(h)) return 'video';
-  if (/(^|\.)developer\.apple\.com$/.test(h) && p.startsWith('/videos')) return 'video';
+  if (AUDIO_HOSTS.test(h)) return 'listen';
+  if (VIDEO_HOSTS.test(h)) return 'watch';
+  if (/(^|\.)developer\.apple\.com$/.test(h) && p.startsWith('/videos')) return 'watch';
   if (COURSE_HOSTS.test(h)) return 'course';
   if (/(^|\.)linkedin\.com$/.test(h) && p.startsWith('/learning')) return 'course';
   if (/(^|\.)leetcode\.com$/.test(h) && (p.startsWith('/studyplan') || p.startsWith('/explore')))
     return 'course';
   if (/(^|\.)leetcode\.com$/.test(h) || PRACTICE_HOSTS.test(h)) return 'practice';
-  return 'article';
+  return 'read';
 }
 
 const GENERIC_SEGMENT =

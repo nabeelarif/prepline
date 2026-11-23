@@ -3,7 +3,6 @@ import { TYPES } from '../../domain/constants';
 import type { Resource } from '../../domain/types';
 import { embedUrl, hostOf, safeUrl } from '../../domain/urls';
 import { useStore } from '../../state/store';
-import { TypeIcon } from '../icons';
 import { DIALOG_TITLE } from '../Overlay';
 import { StatusButtons } from '../StatusButtons';
 import { StatusMenu } from '../StatusMenu';
@@ -21,7 +20,6 @@ export function ResourceViewer({ r }: { r: Resource }) {
   return (
     <div className="viewer">
       <h2 id={DIALOG_TITLE} className="sheet-title">
-        <TypeIcon type={r.type} size={22} />
         {r.title}
       </h2>
       <div className="viewer-bar">

@@ -149,17 +149,35 @@
   background: var(--bg);
   min-width: 0;
 }
-.wk-article {
-  --edge: var(--t-article);
+.wk-read {
+  --edge: var(--t-read);
 }
-.wk-video {
-  --edge: var(--t-video);
+.wk-watch {
+  --edge: var(--t-watch);
+}
+.wk-listen {
+  --edge: var(--t-listen);
 }
 .wk-course {
   --edge: var(--t-course);
 }
 .wk-practice {
   --edge: var(--t-practice);
+}
+.wk-project {
+  --edge: var(--t-project);
+}
+.wk-workout {
+  --edge: var(--t-workout);
+}
+.wk-habit {
+  --edge: var(--t-habit);
+}
+.wk-task {
+  --edge: var(--t-task);
+}
+.wk-other {
+  --edge: var(--t-other);
 }
 .wk-title {
   font-size: 13px;

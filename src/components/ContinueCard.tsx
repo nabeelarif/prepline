@@ -5,9 +5,9 @@ import type { Goal } from '../domain/types';
 import { useStore } from '../state/store';
 import { safeUrl } from '../domain/urls';
 import { DoneTick } from './DoneTick';
-import { TypeIcon } from './icons';
 import { ResourceLink } from './ResourceLink';
 import { TimerButton } from './TimerButton';
+import { TypeLabel } from './TypeLabel';
 
 /**
  * One line pointing at what to do now: the first In Progress resource, or the next
@@ -24,12 +24,12 @@ export function ContinueCard({ goal }: { goal: Goal }) {
   return (
     <section className="card focus" aria-labelledby="focusH">
       <DoneTick r={r} />
-      <TypeIcon type={r.type} size={22} />
       <div className="focus-main">
         <h2 id="focusH">{active ? 'Continue Learning' : 'Up Next'}</h2>
         <p>
           <strong>{r.title}</strong>{' '}
           <span className="muted">
+            <TypeLabel type={r.type} /> ·{' '}
             {active
               ? `${fmtHours(resDone(r))} of ${fmtHours(r.minutes)} completed`
               : `${fmtHours(r.minutes)} estimated`}

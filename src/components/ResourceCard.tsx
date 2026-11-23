@@ -24,7 +24,6 @@ import {
   StickyNote,
   Trash2,
 } from 'lucide-react';
-import { TYPES } from '../domain/constants';
 import { fmtHours } from '../domain/format';
 import { fmtDate } from '../domain/dates';
 import { metrics } from '../domain/metrics';
@@ -33,10 +32,10 @@ import type { Phase, Resource } from '../domain/types';
 import { embedUrl, hostOf, safeUrl } from '../domain/urls';
 import { useStore } from '../state/store';
 import { scrollToEl } from './scrollToEl';
-import { TypeIcon } from './icons';
 import { Menu, type MenuEntry } from './Menu';
 import { DoneTick } from './DoneTick';
 import { StatusMenu } from './StatusMenu';
+import { TypeLabel } from './TypeLabel';
 import { changeStatus } from './statusActions';
 
 interface Props {
@@ -162,8 +161,6 @@ export function ResourceCard({ r, prevId, nextId, phases, selected, focus, handl
   });
 
   const pct = status === 'in_progress' ? metrics([r]).pct : 0;
-  const statusIcon =
-    status === 'in_progress' ? <Play size={16} aria-hidden="true" /> : <TypeIcon type={r.type} />;
 
   return (
     <li
@@ -185,10 +182,9 @@ export function ResourceCard({ r, prevId, nextId, phases, selected, focus, handl
         <GripVertical size={16} aria-hidden="true" />
       </button>
       <DoneTick r={r} />
-      <span className={`res-badge t-${r.type}`}>{statusIcon}</span>
       <div className="res-body">
         <p className="res-meta">
-          <span className={`res-type t-${r.type}`}>{TYPES[r.type]}</span>
+          <TypeLabel type={r.type} />
           <i aria-hidden="true">•</i>
           <span>{fmtHours(r.minutes)}</span>
           {href && (

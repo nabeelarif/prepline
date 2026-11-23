@@ -4,7 +4,7 @@ export interface PageInfo {
   title?: string;
   /** The real length of a video. */
   minutes?: number;
-  /** Reading time estimated from a page's text. Only meaningful for an article. */
+  /** Reading time estimated from a page's text. Only meaningful for a Read. */
   readMinutes?: number;
 }
 

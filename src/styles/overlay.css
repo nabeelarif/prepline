@@ -194,6 +194,12 @@ textarea:focus {
 .type-card:has(input:focus-visible) .type-tip {
   display: grid;
 }
+/* Touch has no hover: a tapped card keeps focus, so show its tip then too. */
+@media (hover: none) {
+  .type-card:has(input:focus) .type-tip {
+    display: grid;
+  }
+}
 .type-help {
   margin: 8px 0 0;
 }

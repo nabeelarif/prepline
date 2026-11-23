@@ -183,6 +183,9 @@ export function ResourceForm({ resource, phases, presetPhase }: Props) {
           />
           <span aria-hidden="true">hours</span>
         </span>
+        {type === 'habit' && (
+          <small>Total time across the whole plan, e.g. 10 min a day for 30 days is 5 hours.</small>
+        )}
       </label>
       {phases.length > 0 && (
         <label className="field">

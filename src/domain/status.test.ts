@@ -1,5 +1,5 @@
-import { res, TODAY } from '../test/fixtures';
-import { metrics } from './metrics';
+import { goal, res, TODAY } from '../test/fixtures';
+import { metrics, metricsByType } from './metrics';
 import {
   focusResource,
   progressPatch,
@@ -8,6 +8,7 @@ import {
   statusLosesProgress,
   statusPatch,
 } from './resources';
+import { studyPlan } from './schedule';
 import type { Resource, ResourceStatus } from './types';
 
 const move = (r: Resource, to: ResourceStatus) => ({ ...r, ...statusPatch(r, to, TODAY) });
@@ -86,8 +87,34 @@ describe('focusResource', () => {
     expect(focusResource(list)?.id).toBe('b');
   });
 
+  it('gives a habit the focus only when nothing else is left', () => {
+    const habit = res({ id: 'h', type: 'habit', startedAt: TODAY });
+    expect(focusResource([habit, res({ id: 'a' })])?.id).toBe('a');
+    expect(focusResource([habit, res({ id: 'a', done: true })])?.id).toBe('h');
+  });
+
+  it('plans a habit after other work too', () => {
+    const habit = res({ id: 'h', type: 'habit', startedAt: TODAY });
+    const g = goal([habit, res({ id: 'a' })], { hoursPerDay: null, targetDate: null });
+    expect(studyPlan(g, 1, TODAY)[0]?.slices[0]?.resource.id).toBe('a');
+  });
+
   it('falls back to the first Not Started one, then to nothing', () => {
     expect(focusResource([res({ id: 'a', done: true }), res({ id: 'b' })])?.id).toBe('b');
     expect(focusResource([res({ id: 'a', done: true })])).toBeNull();
+  });
+});
+
+describe('metricsByType', () => {
+  it('splits minutes by type, largest first', () => {
+    const list = [
+      res({ id: 'a', type: 'read', minutes: 60, done: true }),
+      res({ id: 'b', type: 'practice', minutes: 180 }),
+      res({ id: 'c', type: 'read', minutes: 60 }),
+    ];
+    expect(metricsByType(list).map((s) => [s.type, s.total, s.done])).toEqual([
+      ['practice', 180, 0],
+      ['read', 120, 60],
+    ]);
   });
 });

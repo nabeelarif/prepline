@@ -25,6 +25,7 @@ import { exportMenuItems } from './exportMenu';
 import { Menu } from './Menu';
 import { daysLeftTile, paceText, untilText } from './paceText';
 import { ProgressRing } from './ProgressRing';
+import { TypeBreakdown } from './TypeBreakdown';
 import { VelocityStrip } from './VelocityStrip';
 
 const hrs = (m: number) => Math.round((m / 60) * 10) / 10;
@@ -205,31 +206,34 @@ export function PlanBox({
             hours
           </small>
         </ProgressRing>
-        <ul className="metrics">
-          <li>
-            <FileText aria-hidden="true" />
-            <div>
-              <strong>
-                {met.doneCount} / {met.count}
-              </strong>
-              <span>Resources Completed</span>
-            </div>
-          </li>
-          <li>
-            <Hourglass aria-hidden="true" />
-            <div>
-              <strong>{fmtHours(met.remaining)}</strong>
-              <span>Remaining</span>
-            </div>
-          </li>
-          <li>
-            <CalendarClock aria-hidden="true" />
-            <div>
-              <strong>{daysNum}</strong>
-              <span>{daysLabel}</span>
-            </div>
-          </li>
-        </ul>
+        <div className="plan-stats-main">
+          <ul className="metrics">
+            <li>
+              <FileText aria-hidden="true" />
+              <div>
+                <strong>
+                  {met.doneCount} / {met.count}
+                </strong>
+                <span>Resources Completed</span>
+              </div>
+            </li>
+            <li>
+              <Hourglass aria-hidden="true" />
+              <div>
+                <strong>{fmtHours(met.remaining)}</strong>
+                <span>Remaining</span>
+              </div>
+            </li>
+            <li>
+              <CalendarClock aria-hidden="true" />
+              <div>
+                <strong>{daysNum}</strong>
+                <span>{daysLabel}</span>
+              </div>
+            </li>
+          </ul>
+          <TypeBreakdown resources={goal.resources} />
+        </div>
       </div>
     </section>
   );

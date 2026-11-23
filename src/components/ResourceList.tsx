@@ -153,7 +153,7 @@ export function ResourceList({ goal }: { goal: Goal }) {
           <button aria-pressed={typeFilter === 'all'} onClick={() => setTypeFilter('all')}>
             All ({all.length})
           </button>
-          {RESOURCE_TYPES.map((t) => (
+          {RESOURCE_TYPES.filter((t) => counts[t] > 0 || typeFilter === t).map((t) => (
             <button
               key={t}
               aria-pressed={typeFilter === t}

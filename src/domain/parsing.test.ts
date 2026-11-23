@@ -12,6 +12,11 @@ describe('detectType', () => {
     ['https://leetcode.com/problems/two-sum/', 'practice'],
     ['https://www.hackerrank.com/challenges/x', 'practice'],
     ['https://medium.com/@a/swift-actors', 'read'],
+    ['https://github.com/apple/swift', 'project'],
+    ['https://github.com/apple', 'read'],
+    ['https://docs.github.com/en/actions', 'read'],
+    ['https://www.nike.com/a/running-tips', 'read'],
+    ['https://www.strava.com/activities/1', 'workout'],
     ['not a url', 'read'],
   ])('%s → %s', (url, type) => {
     expect(detectType(url)).toBe(type);

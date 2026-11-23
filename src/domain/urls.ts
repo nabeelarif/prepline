@@ -31,6 +31,7 @@ const AUDIO_HOSTS =
 const VIDEO_HOSTS = /(^|\.)(youtube\.com|youtu\.be|vimeo\.com|loom\.com|twitch\.tv)$/;
 const PRACTICE_HOSTS =
   /(^|\.)(hackerrank\.com|codewars\.com|exercism\.org|neetcode\.io|codesignal\.com|pramp\.com|interviewing\.io)$/;
+const WORKOUT_HOSTS = /(^|\.)(strava\.com|peloton\.com|alltrails\.com)$/;
 const COURSE_HOSTS =
   /(^|\.)(udemy\.com|coursera\.org|edx\.org|pluralsight\.com|educative\.io|frontendmasters\.com|kodeco\.com|skillshare\.com|datacamp\.com|codecademy\.com|egghead\.io|designcode\.io|teachable\.com|thinkific\.com|domestika\.org|objc\.io)$/;
 
@@ -45,6 +46,9 @@ export function detectType(url: string): ResourceType {
     return 'read';
   }
   if (AUDIO_HOSTS.test(h)) return 'listen';
+  if (WORKOUT_HOSTS.test(h)) return 'workout';
+  // Only a repository page (/owner/repo), not docs, blogs or profiles on the same site.
+  if (/^(www\.)?(github|gitlab)\.com$/.test(h) && /^\/[^/]+\/[^/]+/.test(p)) return 'project';
   if (VIDEO_HOSTS.test(h)) return 'watch';
   if (/(^|\.)developer\.apple\.com$/.test(h) && p.startsWith('/videos')) return 'watch';
   if (COURSE_HOSTS.test(h)) return 'course';

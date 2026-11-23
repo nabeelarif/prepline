@@ -1,7 +1,7 @@
 import { addDays, diffDays, todayISO } from './dates';
 import { metrics } from './metrics';
 import { pace } from './pace';
-import { resDone, resStatus, studiedToday } from './resources';
+import { focusOrder, resDone, studiedToday } from './resources';
 import type { Goal, ISODate, Resource } from './types';
 
 /** A share of one resource planned for one day. */
@@ -40,19 +40,17 @@ export function dailyBudget(g: Goal, today: ISODate = todayISO()): number | null
 
 /**
  * What to study over the next `days` days, filling each day's budget from the priority
- * order. Resources already In Progress come first (as in `focusResource`), then Not
- * Started ones; a long resource is split across days. With no budget, only today is
- * planned, holding the focus resource whole. Days after the deadline are left out.
+ * order, as in `focusOrder` (In Progress first, then Not Started, habits last); a long
+ * resource is split across days. With no budget, only today is planned, holding the focus
+ * resource whole. Days after the deadline are left out.
  * Minutes already studied today (`studiedToday`) come off today's budget, so the list ends
  * when the day's goal is met.
  */
 export function studyPlan(g: Goal, days = 1, today: ISODate = todayISO()): StudyDay[] {
   const budget = dailyBudget(g, today);
-  const open = g.resources.filter((r) => r.minutes - resDone(r) > 0);
-  const queue = [
-    ...open.filter((r) => resStatus(r) === 'in_progress'),
-    ...open.filter((r) => resStatus(r) === 'not_started'),
-  ].map((resource) => ({ resource, taken: resDone(resource) }));
+  const queue = focusOrder(g.resources.filter((r) => r.minutes - resDone(r) > 0)).map(
+    (resource) => ({ resource, taken: resDone(resource) }),
+  );
 
   const studiedItems = g.resources
     .map((resource) => ({ resource, minutes: studiedToday(resource, today) }))

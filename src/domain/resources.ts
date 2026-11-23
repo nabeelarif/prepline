@@ -121,15 +121,20 @@ export function progressPatch(r: Resource, minutes: number, today: ISODate): Pro
 }
 
 /**
- * What to work on now: the first In Progress resource in priority order, or else
- * the first Not Started one. Null when everything is done.
+ * Unfinished resources in the order to work on them: In Progress before Not Started, each in
+ * priority order. A habit repeats and is never "finished" in one sitting, so habits come
+ * after everything else.
+ */
+export function focusOrder<R extends Resource>(resources: R[]): R[] {
+  const rank = (r: R) => (r.type === 'habit' ? 2 : 0) + (resStatus(r) === 'in_progress' ? 0 : 1);
+  return resources.filter((r) => resStatus(r) !== 'completed').sort((a, b) => rank(a) - rank(b)); // stable, so priority order holds within a rank
+}
+
+/**
+ * What to work on now: the first of `focusOrder`. Null when everything is done.
  */
 export function focusResource(resources: Resource[]): Resource | null {
-  return (
-    resources.find((r) => resStatus(r) === 'in_progress') ??
-    resources.find((r) => resStatus(r) === 'not_started') ??
-    null
-  );
+  return focusOrder(resources)[0] ?? null;
 }
 
 /** A resource in any plan, by plan and resource id. */

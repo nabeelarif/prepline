@@ -10,7 +10,7 @@ import { PlanBox } from './PlanBox';
 import { ResourceList } from './ResourceList';
 import { StudyLogCard } from './StudyLogCard';
 
-/** Dashboard for one plan: plan box, journey, and resources. */
+/** Dashboard for one plan: plan box, what to do now, journey, and resources. */
 export function GoalView({ goal }: { goal: Goal }) {
   const view = useStore((s) => s.ui.view);
   const today = todayISO();
@@ -21,14 +21,10 @@ export function GoalView({ goal }: { goal: Goal }) {
   return (
     <>
       <PlanBox goal={goal} met={met} pace={p} today={today} />
+      <ContinueCard goal={goal} />
       <StudyLogCard />
       <Journey goal={goal} nodes={nodes} />
-      {goal.resources.length > 0 && (
-        <>
-          <ContinueCard goal={goal} />
-          <ResourceList goal={goal} />
-        </>
-      )}
+      {goal.resources.length > 0 && <ResourceList goal={goal} />}
     </>
   );
 }

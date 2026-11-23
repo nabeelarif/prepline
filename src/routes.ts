@@ -13,6 +13,8 @@ export const paths = {
   shared: (slug: string) => `/explore/${encodeURIComponent(slug)}`,
   /** The plans the signed-in user starred in Explore. */
   favorites: '/favorites',
+  /** Year-long study heatmap and streak. */
+  streak: '/streak',
   /** Explore filtered to one tag. */
   exploreTag: (tag: string) => `/explore?tag=${encodeURIComponent(tag)}`,
 };

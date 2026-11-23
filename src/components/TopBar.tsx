@@ -2,6 +2,7 @@ import {
   CalendarCheck,
   Check,
   Compass,
+  Flame,
   House,
   LayoutList,
   LoaderCircle,
@@ -9,6 +10,9 @@ import {
   TriangleAlert,
 } from 'lucide-react';
 import { Link, NavLink } from 'react-router-dom';
+import { todayISO } from '../domain/dates';
+import { pl } from '../domain/format';
+import { currentStreak } from '../domain/studyLog';
 import { paths } from '../routes';
 import { useStore } from '../state/store';
 import { AccountMenu } from './AccountMenu';
@@ -33,6 +37,9 @@ const STATUS = {
 export function TopBar() {
   const sync = useStore((s) => s.sync.status);
   const [StatusIcon, text] = STATUS[sync];
+  const log = useStore((s) => s.studyLog);
+  const streak = log.ready ? currentStreak(log.days, todayISO()) : null;
+  const streakText = streak === null ? 'Study streak' : `Study streak: ${pl(streak, 'day')}`;
 
   return (
     <header className="topbar">
@@ -50,6 +57,21 @@ export function TopBar() {
               </NavLink>
             </li>
           ))}
+          <li>
+            <NavLink
+              to={paths.streak}
+              className="nav-btn"
+              title={streakText}
+              aria-label={streakText}
+            >
+              <Flame
+                size={19}
+                aria-hidden="true"
+                className={(streak ?? 0) > 0 ? 'lit' : undefined}
+              />
+              {streak ?? ''}
+            </NavLink>
+          </li>
         </ul>
       </nav>
       <div className="top-tools">

@@ -590,3 +590,7 @@
   justify-content: space-between;
   align-items: center;
 }
+
+.nav-btn svg.lit {
+  color: var(--ph-orange);
+}

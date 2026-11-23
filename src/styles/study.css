@@ -1,52 +1,4 @@
 /* Study log: streak and heatmap */
-.study-log {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  margin-top: 16px;
-  padding: 14px 16px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-}
-.study-streak {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: none;
-}
-.study-streak > svg {
-  width: 28px;
-  height: 28px;
-  color: var(--muted);
-}
-.study-streak > svg.lit {
-  color: var(--ph-orange);
-}
-.study-streak > div {
-  display: flex;
-  flex-direction: column;
-  font-size: 13px;
-}
-.study-streak strong {
-  font-size: 18px;
-}
-.study-heat-wrap {
-  flex: 1;
-  min-width: 0;
-  overflow-x: auto;
-}
-.study-heat {
-  display: flex;
-  gap: 3px;
-  width: max-content;
-  margin-left: auto;
-}
-.study-week {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
 .study-cell {
   width: 11px;
   height: 11px;
@@ -68,30 +20,6 @@
 .study-cell.lvl-4 {
   background: var(--accent);
 }
-@media (max-width: 680px) {
-  .study-log {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-  .study-heat-wrap {
-    width: 100%;
-  }
-  .study-heat {
-    margin-left: 0;
-  }
-}
-
-.study-log {
-  position: relative;
-}
-.study-log {
-  padding-right: 48px;
-}
-.study-log.folded {
-  padding-block: 8px;
-}
-
 /* The collapse chevron sits in the same top-right corner on every foldable card. */
 .fold-btn {
   position: absolute;
@@ -103,4 +31,70 @@
 }
 .journey .card-head {
   padding-right: 32px;
+}
+
+/* Streak page: the year grid spans the full width, one square per day. */
+.streak-page {
+  padding: 16px;
+}
+.streak-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 32px;
+  margin-bottom: 20px;
+}
+.streak-summary > svg {
+  width: 32px;
+  height: 32px;
+  color: var(--muted);
+}
+.streak-summary > svg.lit {
+  color: var(--ph-orange);
+}
+.streak-summary > div {
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+}
+.streak-summary strong {
+  font-size: 20px;
+}
+.streak-scroll {
+  overflow-x: auto;
+}
+.streak-grid {
+  display: grid;
+  gap: 3px;
+  min-width: 640px;
+}
+.streak-row {
+  display: contents;
+}
+.streak-grid .study-cell {
+  width: auto;
+  height: auto;
+  aspect-ratio: 1;
+}
+.streak-month,
+.streak-day {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: visible;
+}
+.streak-day {
+  padding-right: 6px;
+  align-self: center;
+}
+.streak-legend {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: 12px;
+  font-size: 12px;
+}
+.streak-legend .muted {
+  margin: 0 4px;
 }

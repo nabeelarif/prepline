@@ -7,6 +7,7 @@ import {
   heatLevel,
   heatmapWeeks,
   longestStreak,
+  monthLabels,
   studyDelta,
 } from './studyLog';
 import { goal, res } from '../test/fixtures';
@@ -102,5 +103,19 @@ describe('heatmap', () => {
     expect(last[0]!.day).toBe('2026-03-09');
     expect(last[1]).toEqual({ day: TODAY, minutes: 45, level: 2 });
     expect(last.slice(2)).toEqual([null, null, null, null, null]);
+  });
+});
+
+describe('monthLabels', () => {
+  it('labels the first column and each new month once', () => {
+    const labels = monthLabels(heatmapWeeks({}, '2026-03-15', 8));
+    expect(labels[0]).toBe('Jan');
+    expect(labels.filter(Boolean)).toEqual(['Jan', 'Feb', 'Mar']);
+  });
+
+  it('drops the first label when the next column starts a new month', () => {
+    // Weeks start 2026-12-28 and 2027-01-04.
+    const labels = monthLabels(heatmapWeeks({}, '2027-01-06', 2));
+    expect(labels).toEqual(['', 'Jan']);
   });
 });

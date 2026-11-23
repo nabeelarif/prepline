@@ -106,3 +106,22 @@ export function heatmapWeeks(log: StudyLog, today: ISODate, weeks: number): (Hea
     }),
   );
 }
+
+/**
+ * Month names for the heatmap's top row: one entry per week column, set only where a new
+ * month begins (the first column is always labelled), otherwise an empty string.
+ */
+export function monthLabels(weeks: (HeatCell | null)[][]): string[] {
+  let prev = -1;
+  const labels = weeks.map((week) => {
+    const first = week.find((c) => c);
+    if (!first) return '';
+    const date = fromISO(first.day);
+    if (date.getMonth() === prev) return '';
+    prev = date.getMonth();
+    return date.toLocaleString('en-US', { month: 'short' });
+  });
+  // A month that ends in the first column would print over the next month's label.
+  if (labels[0] && labels[1]) labels[0] = '';
+  return labels;
+}

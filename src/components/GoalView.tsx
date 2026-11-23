@@ -8,7 +8,6 @@ import { ContinueCard } from './ContinueCard';
 import { Journey } from './Journey';
 import { PlanBox } from './PlanBox';
 import { ResourceList } from './ResourceList';
-import { StudyLogCard } from './StudyLogCard';
 
 /** Dashboard for one plan: plan box, what to do now, journey, and resources. */
 export function GoalView({ goal }: { goal: Goal }) {
@@ -22,7 +21,6 @@ export function GoalView({ goal }: { goal: Goal }) {
     <>
       <PlanBox goal={goal} met={met} pace={p} today={today} />
       <ContinueCard goal={goal} />
-      <StudyLogCard />
       <Journey goal={goal} nodes={nodes} />
       {goal.resources.length > 0 && <ResourceList goal={goal} />}
     </>

@@ -35,6 +35,9 @@ const ExplorePage = lazy(() =>
 const FavoritesPage = lazy(() =>
   import('./components/explore/FavoritesPage').then((m) => ({ default: m.FavoritesPage })),
 );
+const StreakPage = lazy(() =>
+  import('./components/StreakPage').then((m) => ({ default: m.StreakPage })),
+);
 const SharedPlanPage = lazy(() =>
   import('./components/explore/SharedPlanPage').then((m) => ({ default: m.SharedPlanPage })),
 );
@@ -224,6 +227,14 @@ function Shell() {
               element={
                 <LazyPage>
                   <FavoritesPage />
+                </LazyPage>
+              }
+            />
+            <Route
+              path={paths.streak}
+              element={
+                <LazyPage>
+                  <StreakPage />
                 </LazyPage>
               }
             />

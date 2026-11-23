@@ -4,15 +4,15 @@ import { create } from 'zustand';
  * Which dashboard sections are folded away. A per-browser preference like the theme:
  * not part of AppData, backups or the backend.
  */
-export type Section = 'streak' | 'journey';
+export type Section = 'journey';
 
 const KEY = 'roadtogoals:layout';
 
 function load(): Record<Section, boolean> {
-  const hidden = { streak: false, journey: false };
+  const hidden = { journey: false };
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) ?? '{}') as Partial<Record<Section, unknown>>;
-    return { streak: raw.streak === true, journey: raw.journey === true };
+    return { journey: raw.journey === true };
   } catch {
     return hidden;
   }

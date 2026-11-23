@@ -293,21 +293,21 @@ describe('Today', () => {
 });
 
 describe('Study log', () => {
-  it('shows the streak and heatmap, and grows them as progress is recorded', async () => {
+  it('shows the streak in the top bar and the year grid on its page', async () => {
     await resetApp({
       version: 1,
       activeGoalId: 'a',
       goals: [goal([res({ id: 'a', title: 'Intro', minutes: 90 })], { id: 'a' })],
     });
     renderApp('/dashboard');
-    const card = await screen.findByRole('region', { name: 'Study log' });
-    expect(within(card).getByText('no streak yet')).toBeVisible();
-    expect(within(card).getByText('Nothing logged today')).toBeVisible();
+    const link = await screen.findByRole('link', { name: 'Study streak: 0 days' });
+    expect(screen.queryByRole('region', { name: 'Study log' })).toBeNull();
     act(() => useStore.getState().setProgress('a', 30));
-    expect(await within(card).findByText('current streak')).toBeVisible();
-    expect(within(card).getByText('1 day')).toBeVisible();
-    expect(within(card).getByText('30m studied today')).toBeVisible();
-    expect(within(card).getByRole('img', { name: /last 20 weeks: 1 day studied/ })).toBeVisible();
+    expect(await screen.findByRole('link', { name: 'Study streak: 1 day' })).toBeVisible();
+    fireEvent.click(link);
+    const page = await screen.findByRole('region', { name: 'Study log' });
+    expect(within(page).getByText('current streak')).toBeVisible();
+    expect(within(page).getByRole('img', { name: /last year: 1 day studied/ })).toBeVisible();
   });
 });
 

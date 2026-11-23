@@ -376,7 +376,7 @@
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 .metrics li {
   display: flex;
@@ -392,7 +392,7 @@
   color: var(--accent);
   margin-top: 3px;
 }
-.metrics li:nth-child(4) svg {
+.metrics li:nth-child(3) svg {
   color: var(--warn);
 }
 .metrics div {

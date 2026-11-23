@@ -3,7 +3,6 @@ import {
   CalendarDays,
   Check,
   ChevronDown,
-  Clock,
   Download,
   FileText,
   Hourglass,
@@ -195,13 +194,15 @@ export function PlanBox({
       <div className="plan-stats">
         <ProgressRing
           pct={met.pct}
-          size={116}
-          stroke={11}
+          size={100}
+          stroke={10}
           label={`${met.pct}% complete, ${hrs(met.done)} of ${hrs(met.total)} hours`}
         >
           <strong>{met.pct}%</strong>
           <small>
-            {hrs(met.done)} / {hrs(met.total)} hours
+            {hrs(met.done)} / {hrs(met.total)}
+            <br />
+            hours
           </small>
         </ProgressRing>
         <ul className="metrics">
@@ -212,13 +213,6 @@ export function PlanBox({
                 {met.doneCount} / {met.count}
               </strong>
               <span>Resources Completed</span>
-            </div>
-          </li>
-          <li>
-            <Clock aria-hidden="true" />
-            <div>
-              <strong>{fmtHours(met.done)}</strong>
-              <span>Completed</span>
             </div>
           </li>
           <li>

@@ -1,0 +1,328 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-24T06:55:45+00:00",
+  "title": "Design System: Road to Goals",
+  "extensions": {
+    "colorMeta": {
+      "pine": {
+        "role": "primary",
+        "displayName": "Pine",
+        "canonical": "#1F6B52",
+        "tonalRamp": [
+          "#1B322A",
+          "#1E674F",
+          "#2A9270",
+          "#37BE91",
+          "#61D1AC",
+          "#90DFC5",
+          "#C0EDDE",
+          "#EBF4F1"
+        ]
+      },
+      "pine-deep": {
+        "role": "primary",
+        "displayName": "Deep Pine",
+        "canonical": "#123D2F",
+        "tonalRamp": [
+          "#1B322A",
+          "#1E664F",
+          "#2B9270",
+          "#38BD92",
+          "#61D1AC",
+          "#91DEC5",
+          "#C0ECDE",
+          "#EBF4F1"
+        ]
+      },
+      "lake": {
+        "role": "secondary",
+        "displayName": "Lake",
+        "canonical": "#276C8C",
+        "tonalRamp": [
+          "#1A2B32",
+          "#1D5068",
+          "#297294",
+          "#3594BF",
+          "#5FAED3",
+          "#8FC6E0",
+          "#BFDFED",
+          "#EBF1F4"
+        ]
+      },
+      "summit": {
+        "role": "tertiary",
+        "displayName": "Summit Amber",
+        "canonical": "#F0B43C",
+        "tonalRamp": [
+          "#382C14",
+          "#7B5509",
+          "#AF790D",
+          "#E39D11",
+          "#F0B642",
+          "#F5CC7A",
+          "#F9E2B3",
+          "#F7F2E8"
+        ]
+      },
+      "flag": {
+        "role": "tertiary",
+        "displayName": "Flag Red",
+        "canonical": "#A33723",
+        "tonalRamp": [
+          "#341D19",
+          "#6D2517",
+          "#9B3421",
+          "#CA442B",
+          "#DB6C57",
+          "#E69889",
+          "#F1C4BC",
+          "#F5ECEA"
+        ]
+      },
+      "mist": {
+        "role": "neutral",
+        "displayName": "Mist",
+        "canonical": "#F1F4EF",
+        "tonalRamp": [
+          "#252A22",
+          "#404F36",
+          "#5B704D",
+          "#769164",
+          "#95AC86",
+          "#B5C5AA",
+          "#D5DECF",
+          "#EFF1EE"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Paper",
+        "canonical": "#FBFCFA",
+        "tonalRamp": [
+          "#262C21",
+          "#425332",
+          "#5E7647",
+          "#7A995C",
+          "#99B37F",
+          "#B8C9A6",
+          "#D6E0CC",
+          "#F0F2EE"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#15281F",
+        "tonalRamp": [
+          "#202D27",
+          "#2E5743",
+          "#417C60",
+          "#54A17C",
+          "#79B99B",
+          "#A1CEB9",
+          "#C9E3D7",
+          "#EDF2F0"
+        ]
+      },
+      "stone": {
+        "role": "neutral",
+        "displayName": "Stone",
+        "canonical": "#4F6158",
+        "tonalRamp": [
+          "#242826",
+          "#3C4942",
+          "#55685E",
+          "#6E877A",
+          "#8FA399",
+          "#B0BFB8",
+          "#D2DAD6",
+          "#EFF1F0"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Plan and page titles."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Card headings, sheet titles, empty states."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Phase names, the next resource, plan card titles."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Everything operated or read."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Chips, pills, labels, metadata."
+      }
+    },
+    "shadows": [
+      {
+        "name": "sheet",
+        "value": "0 1px 0 rgba(21,40,31,0.04), 0 2px 8px rgba(21,40,31,0.06)",
+        "purpose": "Cards at rest."
+      },
+      {
+        "name": "lifted",
+        "value": "0 14px 44px rgba(14,30,23,0.2)",
+        "purpose": "Menus, toasts, dialogs, the timer."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease",
+        "value": "cubic-bezier(0.22, 1, 0.36, 1)",
+        "purpose": "Exponential ease-out for every transition."
+      },
+      {
+        "name": "fast",
+        "value": "140ms",
+        "purpose": "Hover, press and state feedback."
+      },
+      {
+        "name": "base",
+        "value": "220ms",
+        "purpose": "Entrances of menus, sheets and toasts."
+      },
+      {
+        "name": "slow",
+        "value": "420ms",
+        "purpose": "Progress bars and rings changing value."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "phone",
+        "value": "560px"
+      },
+      {
+        "name": "nav-fold",
+        "value": "680px"
+      },
+      {
+        "name": "tablet",
+        "value": "860px"
+      },
+      {
+        "name": "journey-4",
+        "value": "700px"
+      },
+      {
+        "name": "journey-5",
+        "value": "900px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one main action in a view.",
+      "html": "<button class=\"ds-btn ds-btn-primary\">Add Resource</button>",
+      "css": ".ds-btn{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:8px 16px;border-radius:8px;border:1px solid var(--control);background:var(--surface);color:var(--fg);font:600 .9375rem var(--f-body);cursor:pointer;transition:background-color 140ms,border-color 140ms}.ds-btn:hover{background:var(--surface-2);border-color:var(--fg)}.ds-btn-primary{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}.ds-btn-primary:hover{background:color-mix(in srgb,var(--accent) 86%,var(--fg));border-color:color-mix(in srgb,var(--accent) 86%,var(--fg))}.ds-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Supporting actions beside a primary.",
+      "html": "<button class=\"ds-btn\">Add Phase</button>",
+      "css": ".ds-btn{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:8px 16px;border-radius:8px;border:1px solid var(--control);background:var(--surface);color:var(--fg);font:600 .9375rem var(--f-body);cursor:pointer}.ds-btn:hover{background:var(--surface-2);border-color:var(--fg)}.ds-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "",
+      "description": "Single-line input with a visible label.",
+      "html": "<label class=\"ds-field\"><span>Plan Title</span><input class=\"ds-input\" placeholder=\"e.g. iOS interview prep\" /></label>",
+      "css": ".ds-field{display:grid;gap:6px;font:700 .86rem var(--f-body)}.ds-input{min-height:42px;padding:9px 12px;border:1px solid var(--control);border-radius:8px;background:var(--surface);color:var(--fg);font:400 .9375rem var(--f-body)}.ds-input:hover{border-color:var(--fg)}.ds-input:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:var(--accent)}"
+    },
+    {
+      "name": "Filter Chips",
+      "kind": "chip",
+      "refersTo": "chip-selected",
+      "description": "Pill filters; the selected one fills pine.",
+      "html": "<div class=\"ds-chips\"><button class=\"ds-chip\" aria-pressed=\"true\">All (8)</button><button class=\"ds-chip\" aria-pressed=\"false\">Read (2)</button></div>",
+      "css": ".ds-chips{display:flex;gap:6px}.ds-chip{min-height:32px;padding:4px 12px;border:1px solid var(--line-strong);border-radius:999px;background:var(--surface);color:var(--muted);font:500 .86rem var(--f-body);cursor:pointer}.ds-chip:hover{border-color:var(--fg);color:var(--fg)}.ds-chip[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:var(--accent-fg);font-weight:600}"
+    },
+    {
+      "name": "Next-step Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "The Continue card: one next step with its amber tag and ring.",
+      "html": "<section class=\"ds-focus\"><span class=\"ds-tag\">Up Next</span><strong class=\"ds-title\">Meet async/await in Swift (WWDC21)</strong><span class=\"ds-meta\">Watch \u00b7 50m estimated</span></section>",
+      "css": ".ds-focus{display:grid;gap:4px;justify-items:start;padding:16px 26px;border:1px solid color-mix(in srgb,var(--next) 70%,var(--line));border-radius:14px;background:var(--surface);box-shadow:0 0 0 3px color-mix(in srgb,var(--next) 22%,transparent)}.ds-tag{padding:2px 10px;border-radius:999px;background:var(--next);color:var(--next-fg);font:700 .86rem var(--f-body)}.ds-title{font:600 1.25rem/1.25 var(--f-display)}.ds-meta{color:var(--muted);font-size:.86rem}"
+    },
+    {
+      "name": "Top Bar",
+      "kind": "nav",
+      "refersTo": "top-bar",
+      "description": "Deep pine bar; the current page is a pine pill.",
+      "html": "<header class=\"ds-top\"><span class=\"ds-brand\">Road to Goals</span><nav><a class=\"ds-nav\" aria-current=\"page\" href=\"#\">Dashboard</a><a class=\"ds-nav\" href=\"#\">Today</a><a class=\"ds-nav\" href=\"#\">My Plans</a></nav></header>",
+      "css": ".ds-top{display:flex;align-items:center;gap:24px;padding:10px 28px;background:var(--side-bg);color:var(--side-fg)}.ds-brand{font:600 1.4rem var(--f-display);color:#fff}.ds-top nav{display:flex;gap:2px}.ds-nav{padding:8px 13px;border-radius:8px;color:var(--side-fg);font:600 .9375rem var(--f-body);text-decoration:none}.ds-nav:hover{background:var(--side-hover);color:#fff}.ds-nav[aria-current=page]{background:var(--side-active);color:#fff}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Trailhead",
+    "overview": "A study plan is a road with a date at the end of it, so the interface is drawn like a trail map kept in a field notebook: a deep pine bar, a cool mist ground, serif plan titles, and a path of waypoints. Finished stretches are solid pine, what is left is dotted footprints, and exactly one waypoint is amber: the next step.",
+    "keyCharacteristics": [
+      "Pine does the work; lake blue means in progress; amber means next; red means real schedule risk.",
+      "Serif for what is named, humanist sans for everything operated.",
+      "Flat sheets with a hairline edge; depth from tint and a soft offset shadow, never blur or glow.",
+      "Dark mode is a re-lit version of the same trail, not an inversion."
+    ],
+    "rules": [
+      {
+        "name": "The One Amber Rule",
+        "body": "Amber marks the next step and nothing else. If two things on a screen are amber, one of them is wrong.",
+        "section": "colors"
+      },
+      {
+        "name": "The No-Alarm Rule",
+        "body": "Red appears only when the pace maths says the date is at risk. A plan with no progress yet is never red.",
+        "section": "colors"
+      },
+      {
+        "name": "The Token Rule",
+        "body": "Colours come from the custom properties in tokens.css. A literal colour in a component is a bug.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tabular Rule",
+        "body": "Every figure that changes or sits in a column uses tabular numerals.",
+        "section": "typography"
+      },
+      {
+        "name": "The No Eyebrow Rule",
+        "body": "A heading carries its own weight. No small capitalised label above it.",
+        "section": "typography"
+      },
+      {
+        "name": "The No-Glow Rule",
+        "body": "No zero-offset coloured halos, no blur as decoration, no gradients.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do use amber for the single next step and pine for finished work.",
+      "Do keep red for real schedule risk, and word it with a way out.",
+      "Do set plan and phase names in Newsreader and operate everything in Plus Jakarta Sans.",
+      "Do give every control a 40px target (44px on touch) and a visible 2px focus ring.",
+      "Do read colours from tokens.css and keep the light, OS-dark and [data-theme='dark'] blocks in step."
+    ],
+    "donts": [
+      "Don't add a gradient, a glow, glass or a decorative blur.",
+      "Don't put a coloured bar down one side of a rounded box.",
+      "Don't place a small capitalised label above a heading.",
+      "Don't nest cards, or turn the trail into a row of identical tiles.",
+      "Don't show red, or the word \"behind\", for a plan that has no progress yet."
+    ]
+  }
+}

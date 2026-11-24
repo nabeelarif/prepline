@@ -99,8 +99,8 @@ export interface SnakeLayout {
 }
 
 /** Height of one snake row, and of one stepper row. */
-export const ROW_HEIGHT = 128;
-export const STEP_HEIGHT = 76;
+export const ROW_HEIGHT = 148;
+export const STEP_HEIGHT = 84;
 /** Marker centre from the top of its row. */
 export const MARKER_Y = 22;
 /** How far a U-turn may bulge past the outer marker's cell, into the card padding. */

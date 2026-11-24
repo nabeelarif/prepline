@@ -1,12 +1,21 @@
 /* Breakpoints, kept last so they override the rules above. */
-@media (max-width: 1100px) {
-  .metrics li {
-    padding: 4px 12px;
-  }
-}
+
 /* Tablet widths: the logo alone is enough. On phones there is room again. */
 @media (min-width: 681px) and (max-width: 860px) {
   .topbar .brand span {
+    display: none;
+  }
+}
+@media (max-width: 900px) {
+  .auth-page.has-aside {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+  }
+  .auth-aside {
+    padding: 16px 20px;
+    gap: 0;
+  }
+  .auth-pitch {
     display: none;
   }
 }
@@ -19,10 +28,10 @@
   }
   .topbar {
     padding: 10px 16px;
-    gap: 10px 14px;
+    gap: 8px 14px;
   }
   .main {
-    padding: 16px 16px 56px;
+    padding: 16px 16px 112px;
   }
 }
 @media (max-width: 680px) {
@@ -41,7 +50,7 @@
     margin: 0;
     padding: 8px 12px 12px;
     background: var(--side-bg);
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.25);
+    box-shadow: var(--shadow-lg);
     z-index: 25;
   }
   .top-nav.open {
@@ -52,24 +61,41 @@
   }
   .top-nav .nav-btn {
     justify-content: flex-start;
-    min-height: 44px;
-    font-size: 15px;
+    min-height: 48px;
+    font-size: var(--fs-md);
   }
   .confirm-actions .btn,
   .danger-zone .btn {
     flex: 1;
-    min-height: 44px;
+    min-height: var(--hit);
   }
-  .plan-stats {
-    grid-template-columns: minmax(0, 1fr);
-    justify-items: center;
+  .card {
+    padding: 16px;
   }
-  .estimate {
-    margin-left: 0;
-    flex-basis: 100%;
+  .plan-box {
+    padding: 18px 16px;
+    gap: 14px;
   }
   .plan-head {
     flex-wrap: wrap;
+  }
+  .plan-pick {
+    flex-wrap: wrap;
+  }
+  .plan-pick > .plan-switch {
+    flex: 1 1 100%;
+  }
+  .plan-btn {
+    max-width: 100%;
+  }
+  .plan-btn h1 {
+    font-size: var(--fs-xl);
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    text-align: left;
   }
   .plan-actions {
     flex: 1 0 100%;
@@ -78,25 +104,25 @@
     flex: 1;
     justify-content: center;
   }
-  .metrics {
-    width: 100%;
+  .estimate {
+    margin-left: 0;
+    flex-basis: 100%;
   }
-  .metrics li {
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 10px 12px;
-    margin: 0 4px;
+  .trail-figures {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 16px;
   }
-  .card {
-    padding: 16px;
+  .trail-figures li {
+    flex-direction: column;
+    gap: 0;
   }
-
-  .done-tick {
-    width: 32px;
-    height: 32px;
+  .focus .btn-row {
+    flex: 1 0 100%;
   }
-  .done-tick::before {
-    inset: -6px;
+  .page-head h1,
+  .shared-head h1 {
+    font-size: var(--fs-xl);
   }
 
   /* The status pill and actions drop under the text of each card. */
@@ -109,14 +135,55 @@
   .res-side {
     flex-basis: 100%;
     justify-content: flex-start;
-    padding-left: 70px;
+    padding-left: 38px;
     min-height: 0;
   }
+  /* Notes drop their "Show more" link under the text so the text keeps the width. */
+  .res-notes-line {
+    flex-wrap: wrap;
+  }
+  .res-notes {
+    flex: 1 1 calc(100% - 34px);
+  }
+  .res-notes-line .link-btn {
+    margin-left: 28px;
+  }
+
+  /* A phase band keeps its name readable: the toggle takes the row, progress and actions follow. */
   .phase-band {
     flex-wrap: wrap;
   }
+  .band-toggle {
+    flex: 1 1 100%;
+  }
   .band-hint {
     white-space: normal;
+  }
+  .phase-band > .band-pct,
+  .phase-band > .band-done {
+    margin-left: 40px;
+  }
+  .band-actions {
+    margin-left: auto;
+  }
+
+  /* Menus open as a sheet at the bottom of the screen, so none can run off the edge. */
+  .menu {
+    position: fixed;
+    top: auto;
+    left: 12px;
+    right: 12px;
+    bottom: max(12px, env(safe-area-inset-bottom, 0px));
+    z-index: 45;
+    min-width: 0;
+    max-width: none;
+    max-height: 60vh;
+    border-radius: var(--r-lg);
+    padding: 8px;
+  }
+  .menu-item {
+    min-height: 48px;
+    align-items: center;
   }
 }
 @media (max-width: 560px) {
@@ -127,7 +194,8 @@
   .sheet {
     width: 100%;
     max-height: 94vh;
-    border-radius: 16px 16px 0 0;
+    max-height: 94dvh;
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
     padding: 20px 16px max(20px, env(safe-area-inset-bottom, 0px));
   }
   .row2 {
@@ -147,17 +215,111 @@
   .plan-grid {
     grid-template-columns: minmax(0, 1fr);
   }
+  .explore-search {
+    flex-wrap: wrap;
+  }
 }
+
+/* Touch: a finger is the pointer, so every control gets a 44px target. */
+@media (pointer: coarse) {
+  .btn,
+  .btn.sm,
+  .icon-btn,
+  .nav-btn,
+  .avatar-btn,
+  .nav-toggle,
+  .menu-item,
+  input[type='text'],
+  input[type='email'],
+  input[type='password'],
+  input[type='search'],
+  input[type='url'],
+  input[type='tel'],
+  input[type='date'],
+  input[type='number'],
+  select {
+    min-height: var(--hit);
+  }
+  .icon-btn {
+    min-width: var(--hit);
+  }
+  .avatar-btn {
+    width: var(--hit);
+  }
+  .seg button,
+  .chips button,
+  .status-btn,
+  .badge,
+  .explore-tags .badge {
+    min-height: 40px;
+  }
+  .seg button {
+    padding-inline: 16px;
+  }
+  .drag-handle {
+    width: 32px;
+    min-height: var(--hit);
+    margin-top: 0;
+  }
+  .timer-pomodoro {
+    min-height: var(--hit);
+  }
+  .brand {
+    min-height: var(--hit);
+  }
+  .choice {
+    min-height: var(--hit);
+    align-items: center;
+  }
+  .choice input {
+    width: 20px;
+    height: 20px;
+    margin-top: 0;
+  }
+}
+/* Auth links are text buttons: give them a real target everywhere. */
+.auth-switch .link-btn {
+  min-height: var(--hit);
+  padding-inline: 2px;
+}
+
+/* Reduced motion keeps what a change means (a fade, a colour) and drops travel, spin and scale. */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    transition: none !important;
-    animation: none !important;
+  html {
+    scroll-behavior: auto;
+  }
+  .menu,
+  .toast,
+  .sheet {
+    animation-name: fade;
+    animation-duration: var(--t-fast);
+  }
+  .btn:active,
+  .step-btn:hover .step-marker {
+    transform: none;
+  }
+  .done-tick.pop,
+  .today-item.arrive {
+    animation: none;
+  }
+  .res-card:has(.done-tick.pop) {
+    animation: none;
+  }
+  .spin,
+  .spinner {
+    animation: none;
   }
   /* A still ring next to the text still reads as "working". */
   .spinner {
     border-color: var(--accent);
+  }
+  .pring-arc,
+  .trail-bar i,
+  .step-bar i {
+    transition: none;
+  }
+  .skip-link {
+    transition: none;
   }
 }
 
@@ -177,7 +339,7 @@
     padding: 16px;
   }
   .week .today-day h2 {
-    font-size: 16px;
+    font-size: var(--fs-md);
   }
   .week .today-day h2 .sep {
     display: inline;

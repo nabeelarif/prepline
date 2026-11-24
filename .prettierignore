@@ -3,3 +3,4 @@ legacy
 playwright-report
 test-results
 package-lock.json
+.impeccable/hook.cache.json

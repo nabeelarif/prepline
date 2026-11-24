@@ -1,7 +1,8 @@
-/* Preparation journey: absolutely positioned steps over one SVG path. */
+/* Preparation journey: the trail. Steps sit over one SVG path; finished stretches are solid pine,
+   what is left is dotted footprints, and the single next step carries the summit amber. */
 .snake {
   position: relative;
-  margin: 8px 0 4px;
+  margin: 12px 0 4px;
   min-height: 60px;
 }
 .snake-path {
@@ -10,15 +11,16 @@
   overflow: visible;
   pointer-events: none;
 }
-.seg {
+.trail-seg {
   fill: none;
-  stroke: var(--track);
-  stroke-width: 2.5;
-  stroke-dasharray: 5 6;
+  stroke: var(--line-strong);
+  stroke-width: 3;
+  stroke-dasharray: 1 8;
   stroke-linecap: round;
 }
-.seg.done {
-  stroke: var(--good);
+.trail-seg.done {
+  stroke: var(--accent);
+  stroke-width: 4;
   stroke-dasharray: none;
 }
 .steps {
@@ -40,7 +42,7 @@
   border: none;
   background: none;
   padding: 0 0 4px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   cursor: pointer;
   text-align: center;
 }
@@ -50,38 +52,37 @@
   place-items: center;
 }
 .step-marker {
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   display: grid;
   place-items: center;
   font-weight: 700;
-  font-size: 14px;
+  font-size: var(--fs-base);
   background: var(--surface);
   color: var(--fg);
-  border: 2px solid var(--track);
+  border: 2px solid var(--line-strong);
   transition:
-    transform 200ms,
-    background-color 200ms,
-    border-color 200ms,
-    box-shadow 200ms;
+    transform var(--t-fast) var(--ease),
+    background-color var(--t-fast) var(--ease),
+    border-color var(--t-fast) var(--ease);
 }
 .step-btn[style*='--ph'] .step-marker {
-  border-color: color-mix(in srgb, var(--ph) 55%, var(--track));
+  border-color: color-mix(in srgb, var(--ph) 70%, var(--line-strong));
 }
 .step-btn.is-done .step-marker {
-  background: var(--good);
-  border-color: var(--good);
-  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-fg);
 }
 .step-btn.is-active .step-marker {
-  width: 44px;
-  height: 44px;
+  width: 46px;
+  height: 46px;
   border: none;
   background: none;
 }
 .step-btn.is-active .pring svg circle:first-child {
-  stroke: color-mix(in srgb, var(--accent) 22%, transparent);
+  stroke: color-mix(in srgb, var(--prog) 24%, transparent);
 }
 .step-num {
   width: 34px;
@@ -89,27 +90,32 @@
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: var(--accent);
-  color: var(--accent-fg);
+  background: var(--prog);
+  color: var(--surface);
 }
+/* The next step: summit amber, ringed like a waypoint. */
 .step-btn.is-next .step-marker {
-  box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 16%, transparent);
+  background: var(--next);
+  border-color: var(--next);
+  color: var(--next-fg);
+  box-shadow:
+    0 0 0 3px var(--surface),
+    0 0 0 5px var(--next);
 }
-.next-tag {
-  margin-top: 2px;
-  padding: 1px 8px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--accent);
-  background: var(--accent-soft);
+.step-btn.is-next.is-active .step-marker {
+  background: none;
+  box-shadow: none;
+}
+.step-btn.is-next.is-active .step-num {
+  background: var(--next);
+  color: var(--next-fg);
 }
 .step-btn:hover .step-marker {
-  transform: scale(1.06);
+  transform: scale(1.08);
 }
 .step-btn.is-selected .step-marker {
   outline: 2px solid var(--accent);
-  outline-offset: 3px;
+  outline-offset: 5px;
 }
 .step-text {
   display: grid;
@@ -121,27 +127,30 @@
 .step-title {
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   font-weight: 600;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   line-height: 1.3;
 }
 .step-btn:hover .step-title {
-  color: var(--accent);
+  color: var(--accent-text);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
 }
 .step-title .ph-dot {
   margin-right: 6px;
   vertical-align: 1px;
 }
 .step-meta {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--muted);
 }
 .step-bar {
   width: 96px;
   height: 5px;
-  border-radius: 3px;
+  border-radius: 999px;
   background: var(--track);
   overflow: hidden;
   margin-top: 2px;
@@ -149,12 +158,9 @@
 .step-bar i {
   display: block;
   height: 100%;
-  border-radius: 3px;
+  border-radius: 999px;
   background: var(--accent);
-  transition: width 300ms;
-}
-.step-btn.is-done .step-bar i {
-  background: var(--good);
+  transition: width var(--t-slow) var(--ease);
 }
 .finish-flag {
   position: absolute;
@@ -162,7 +168,7 @@
   height: 28px;
   display: grid;
   place-items: center;
-  color: var(--muted);
+  color: var(--accent-text);
 }
 
 /* Vertical stepper for narrow screens */

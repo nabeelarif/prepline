@@ -2,10 +2,6 @@
 .today-sub {
   margin: 2px 0 0;
 }
-.seg {
-  display: flex;
-  gap: 6px;
-}
 .today-day,
 .today-notice {
   margin-top: 16px;
@@ -24,11 +20,12 @@
   min-width: 0;
 }
 .week .today-day h2 {
-  font-size: 14px;
+  font-size: var(--fs-md);
 }
 .week .today-day h2 .muted {
   display: block;
-  font-size: 12px;
+  font-family: var(--f-body);
+  font-size: var(--fs-xs);
   font-weight: 400;
 }
 .week .today-day h2 .sep {
@@ -36,11 +33,14 @@
 }
 .week .today-day.is-today {
   border-color: var(--accent);
+  box-shadow:
+    0 0 0 1px var(--accent),
+    var(--shadow);
 }
 .today-day h2,
 .today-notice h2 {
   margin: 0 0 8px;
-  font-size: 16px;
+  font-size: var(--fs-lg);
 }
 .today-notice p {
   margin: 0;
@@ -75,10 +75,8 @@
 }
 .today-sub-h {
   margin: 14px 0 4px;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-size: var(--fs-sm);
+  font-weight: 700;
   color: var(--muted);
 }
 
@@ -87,7 +85,7 @@
   align-items: center;
   gap: 6px;
   margin: 4px 0 0;
-  font-size: 0.9rem;
+  font-size: var(--fs-sm);
 }
 .today-streak svg {
   color: var(--muted);
@@ -117,11 +115,6 @@
     transform: translateY(-6px);
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .today-item.arrive {
-    animation: none;
-  }
-}
 .today-item .done-tick {
   margin-top: 0;
 }
@@ -144,9 +137,9 @@
   flex-direction: column;
   gap: 4px;
   padding: 8px 10px;
-  border-radius: 8px;
-  border-left: 3px solid var(--edge);
-  background: var(--bg);
+  border-radius: var(--r-sm);
+  border: 1px solid color-mix(in srgb, var(--edge) 35%, var(--line));
+  background: color-mix(in srgb, var(--edge) 6%, var(--surface));
   min-width: 0;
 }
 .wk-read {
@@ -180,17 +173,17 @@
   --edge: var(--t-other);
 }
 .wk-title {
-  font-size: 13px;
+  font-size: var(--fs-sm);
   line-height: 1.3;
   overflow-wrap: anywhere;
 }
 .wk-meta {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--muted);
 }
 .wk-type {
   color: var(--edge);
-  font-weight: 600;
+  font-weight: 700;
 }
 .wk-cell.is-done .wk-title {
   opacity: 0.7;

@@ -1,11 +1,8 @@
 import {
-  CalendarClock,
   CalendarDays,
   Check,
   ChevronDown,
   Download,
-  FileText,
-  Hourglass,
   ListPlus,
   PartyPopper,
   Play,
@@ -24,9 +21,6 @@ import { useStore } from '../state/store';
 import { exportMenuItems } from './exportMenu';
 import { Menu } from './Menu';
 import { daysLeftTile, paceText, untilText } from './paceText';
-import { ProgressRing } from './ProgressRing';
-import { TypeBreakdown } from './TypeBreakdown';
-import { VelocityStrip } from './VelocityStrip';
 
 const hrs = (m: number) => Math.round((m / 60) * 10) / 10;
 
@@ -71,6 +65,7 @@ export function PlanBox({
   const navigate = useNavigate();
 
   const pt = paceText(pace, goal);
+  const hoursText = `${hrs(met.done)} of ${hrs(met.total)} hours`;
   // Schema and `startPlan` keep a deadline from existing without a start.
   const target = goal.targetDate;
   const [daysNum, daysLabel] = !goal.startDate
@@ -80,7 +75,76 @@ export function PlanBox({
       : daysLeftTile(today, target);
 
   return (
-    <section className="card plan-box" aria-label="Plan overview">
+    <section className="card plan-box contours" aria-label="Plan overview">
+      <div className="plan-head">
+        <div className="plan-pick">
+          <Menu
+            label={`Current plan: ${goal.name}. Switch plan`}
+            triggerClass="plan-btn"
+            wrapClass="plan-switch"
+            trigger={
+              <>
+                <h1>{goal.name}</h1>
+                <ChevronDown size={20} aria-hidden="true" />
+              </>
+            }
+            items={[
+              { heading: 'Your plans' },
+              ...goals.map((g) => ({
+                label: g.name,
+                checked: g.id === goal.id,
+                icon: g.id === goal.id ? <Check size={16} /> : <span className="menu-gap" />,
+                onSelect: () => navigate(paths.plan(g.id)),
+              })),
+              'divider',
+              {
+                label: 'New plan',
+                icon: <Plus size={16} />,
+                onSelect: () => openOverlay({ kind: 'goal', goalId: null }),
+              },
+            ]}
+          />
+          <button
+            className="icon-btn"
+            aria-label="Share plan"
+            title="Share plan"
+            onClick={() => openOverlay({ kind: 'share', goalId: goal.id })}
+          >
+            <Share2 size={18} />
+          </button>
+          <Menu
+            label="Export plan"
+            triggerClass="icon-btn"
+            trigger={<Download size={18} />}
+            items={exportMenuItems(goal, sharing)}
+          />
+          <button
+            className="icon-btn"
+            aria-label="Edit plan"
+            title="Edit plan"
+            onClick={() => openOverlay({ kind: 'goal', goalId: goal.id })}
+          >
+            <Pencil size={18} />
+          </button>
+        </div>
+        <div className="plan-actions">
+          <button
+            className="btn"
+            title="Group resources into milestones (optional)"
+            onClick={() => openOverlay({ kind: 'phase', phaseId: null })}
+          >
+            <ListPlus size={18} aria-hidden="true" /> Add Phase
+          </button>
+          <button
+            className="btn primary"
+            title="Add a resource, habit or task"
+            onClick={() => openOverlay({ kind: 'resource', resourceId: null })}
+          >
+            <Plus size={18} aria-hidden="true" /> Add Resource
+          </button>
+        </div>
+      </div>
+
       <div className={`plan-status pace-${pace.kind}`}>
         {pace.kind === 'done' ? (
           <p className="done-note">
@@ -116,124 +180,36 @@ export function PlanBox({
         ) : null}
         <Estimate goal={goal} met={met} today={today} />
       </div>
-
-      <div className="plan-head">
-        <div className="plan-pick">
-          <Menu
-            label={`Current plan: ${goal.name}. Switch plan`}
-            triggerClass="plan-btn"
-            trigger={
-              <>
-                <h1>{goal.name}</h1>
-                <ChevronDown size={18} aria-hidden="true" />
-              </>
-            }
-            items={[
-              { heading: 'Your plans' },
-              ...goals.map((g) => ({
-                label: g.name,
-                checked: g.id === goal.id,
-                icon: g.id === goal.id ? <Check size={16} /> : <span className="menu-gap" />,
-                onSelect: () => navigate(paths.plan(g.id)),
-              })),
-              'divider',
-              {
-                label: 'New plan',
-                icon: <Plus size={16} />,
-                onSelect: () => openOverlay({ kind: 'goal', goalId: null }),
-              },
-            ]}
-          />
-          <button
-            className="icon-btn"
-            aria-label="Share plan"
-            title="Share plan"
-            onClick={() => openOverlay({ kind: 'share', goalId: goal.id })}
-          >
-            <Share2 size={16} />
-          </button>
-          <Menu
-            label="Export plan"
-            triggerClass="icon-btn"
-            trigger={<Download size={16} />}
-            items={exportMenuItems(goal, sharing)}
-          />
-          <button
-            className="icon-btn"
-            aria-label="Edit plan"
-            title="Edit plan"
-            onClick={() => openOverlay({ kind: 'goal', goalId: goal.id })}
-          >
-            <Pencil size={16} />
-          </button>
-        </div>
-        <div className="plan-actions">
-          <button
-            className="btn"
-            title="Group resources into milestones (optional)"
-            onClick={() => openOverlay({ kind: 'phase', phaseId: null })}
-          >
-            <ListPlus size={18} aria-hidden="true" /> Add Phase
-          </button>
-          <button
-            className="btn primary"
-            title="Add a resource, habit or task"
-            onClick={() => openOverlay({ kind: 'resource', resourceId: null })}
-          >
-            <Plus size={18} aria-hidden="true" /> Add Resource
-          </button>
-        </div>
-      </div>
       {goal.source && (
         <p className="muted plan-source">
           Forked from <Link to={paths.shared(goal.source.slug)}>{goal.source.name}</Link>
         </p>
       )}
 
-      <VelocityStrip goal={goal} met={met} pace={pace} />
-
-      <div className="plan-stats">
-        <ProgressRing
-          pct={met.pct}
-          size={100}
-          stroke={10}
-          label={`${met.pct}% complete, ${hrs(met.done)} of ${hrs(met.total)} hours`}
-        >
-          <strong>{met.pct}%</strong>
-          <small>
-            {hrs(met.done)} / {hrs(met.total)}
-            <br />
-            hours
-          </small>
-        </ProgressRing>
-        <div className="plan-stats-main">
-          <ul className="metrics">
-            <li>
-              <FileText aria-hidden="true" />
-              <div>
-                <strong>
-                  {met.doneCount} / {met.count}
-                </strong>
-                <span>Resources Completed</span>
-              </div>
-            </li>
-            <li>
-              <Hourglass aria-hidden="true" />
-              <div>
-                <strong>{fmtHours(met.remaining)}</strong>
-                <span>Remaining</span>
-              </div>
-            </li>
-            <li>
-              <CalendarClock aria-hidden="true" />
-              <div>
-                <strong>{daysNum}</strong>
-                <span>{daysLabel}</span>
-              </div>
-            </li>
-          </ul>
-          <TypeBreakdown resources={goal.resources} />
+      <div className="trail-progress">
+        <div className="trail-bar" role="img" aria-label={`${met.pct}% complete, ${hoursText}`}>
+          <i style={{ width: `${met.pct}%` }} />
         </div>
+        <ul className="trail-figures">
+          <li>
+            <strong>{met.pct}%</strong>
+            <span>{hoursText}</span>
+          </li>
+          <li>
+            <strong>
+              {met.doneCount} / {met.count}
+            </strong>
+            <span>Resources Completed</span>
+          </li>
+          <li>
+            <strong>{fmtHours(met.remaining)}</strong>
+            <span>Remaining</span>
+          </li>
+          <li>
+            <strong>{daysNum}</strong>
+            <span>{daysLabel}</span>
+          </li>
+        </ul>
       </div>
     </section>
   );

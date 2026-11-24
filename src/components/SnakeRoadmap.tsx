@@ -31,7 +31,7 @@ function Marker({ node, n }: { node: RoadmapNode; n: number }) {
   if (node.state === 'done') return <Check size={18} strokeWidth={3} />;
   if (node.state === 'active')
     return (
-      <ProgressRing pct={node.pct} size={44} stroke={3} color="var(--accent)">
+      <ProgressRing pct={node.pct} size={44} stroke={3} color="var(--prog)">
         <span className="step-num">{n}</span>
       </ProgressRing>
     );
@@ -68,7 +68,11 @@ export function SnakeRoadmap({ nodes, start = 0, finish, selectedId, onPick }: P
         <>
           <svg className="snake-path" width={width} height={layout.height} aria-hidden="true">
             {layout.segments.map((d, i) => (
-              <path key={i} d={d} className={nodes[i]?.state === 'done' ? 'seg done' : 'seg'} />
+              <path
+                key={i}
+                d={d}
+                className={nodes[i]?.state === 'done' ? 'trail-seg done' : 'trail-seg'}
+              />
             ))}
           </svg>
           <ol className="steps">

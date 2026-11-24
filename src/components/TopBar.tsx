@@ -86,7 +86,7 @@ export function TopBar() {
       </button>
       <Link to={paths.dashboard} className="brand" aria-label="Road to Goals home">
         <Logo />
-        <span>Road to Goals</span>
+        <span translate="no">Road to Goals</span>
       </Link>
       <nav
         aria-label="Main"

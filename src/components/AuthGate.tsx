@@ -5,12 +5,14 @@ import { useLocation } from 'react-router-dom';
 import { rememberReturnPath } from '../routes';
 import { useStore, type AuthOutcome } from '../state/store';
 import { MAX_DISPLAY_NAME } from '../domain/share';
+import { usePageTitle } from '../hooks/usePageTitle';
 import { Logo } from './icons';
 
 type Mode = 'signIn' | 'signUp' | 'reset';
 
 /** Sign-in screen: every plan belongs to an account, so nothing else shows until signed in. */
 export function AuthGate() {
+  usePageTitle('Sign in');
   const [mode, setMode] = useState<Mode>('signIn');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -58,120 +60,132 @@ export function AuthGate() {
   };
 
   return (
-    <main className="auth-page">
-      <section className="card auth-card" aria-labelledby="authTitle">
+    <main className="auth-page has-aside">
+      <div className="auth-aside contours">
         <span className="brand">
           <Logo />
-          Road to Goals
+          <span translate="no">Road to Goals</span>
         </span>
-        <h1 id="authTitle">
-          {mode === 'signUp'
-            ? 'Create your account'
-            : mode === 'reset'
-              ? 'Reset password'
-              : 'Sign in'}
-        </h1>
-        <p className="muted">Your plans are saved to your account, on every device.</p>
+        <div className="auth-pitch">
+          <p>Plan the road to your next goal, then follow it one step at a time.</p>
+          <ul>
+            <li>Progress is counted in hours of real work, not items ticked.</li>
+            <li>See whether your daily time gets you there by your date.</li>
+            <li>Share a plan with anyone without sharing your progress.</li>
+          </ul>
+        </div>
+      </div>
+      <div className="auth-main">
+        <section className="card auth-card" aria-labelledby="authTitle">
+          <h1 id="authTitle">
+            {mode === 'signUp'
+              ? 'Create your account'
+              : mode === 'reset'
+                ? 'Reset password'
+                : 'Sign in'}
+          </h1>
+          <p className="muted">Your plans are saved to your account, on every device.</p>
 
-        {notice && (
-          <p className="auth-notice" role="status">
-            <MailCheck size={18} aria-hidden="true" /> {notice}
-          </p>
-        )}
-
-        {mode !== 'reset' && (
-          <div className="auth-providers">
-            {AUTH_PROVIDERS.filter((p) => p.id !== 'password').map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                className="btn"
-                disabled={busy}
-                onClick={() => {
-                  // The provider sends the browser back to `/`; remember the page asked for.
-                  rememberReturnPath(pathname + search);
-                  return run(() =>
-                    store.signInWithProvider(p.id as Exclude<typeof p.id, 'password'>),
-                  );
-                }}
-              >
-                Continue with {p.label}
-              </button>
-            ))}
-            <p className="auth-or">or use email</p>
-          </div>
-        )}
-
-        <form noValidate onSubmit={submit}>
-          {mode === 'signUp' && (
-            <label className="field">
-              <span>
-                Name <small>(optional)</small>
-              </span>
-              <input
-                type="text"
-                autoComplete="name"
-                maxLength={MAX_DISPLAY_NAME}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-              <small className="muted">
-                Shown as the author of plans you share publicly. Leave it blank and we will pick one
-                for you. You can change it any time in Account settings.
-              </small>
-            </label>
-          )}
-          <label className="field">
-            <span>Email</span>
-            <input
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </label>
-          {mode !== 'reset' && (
-            <label className="field">
-              <span>Password</span>
-              <input
-                type="password"
-                autoComplete={mode === 'signUp' ? 'new-password' : 'current-password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </label>
-          )}
-          {error && (
-            <p className="form-error" role="alert">
-              {error}
+          {notice && (
+            <p className="auth-notice" role="status">
+              <MailCheck size={18} aria-hidden="true" /> {notice}
             </p>
           )}
-          <button className="btn primary" type="submit" disabled={busy}>
-            {mode === 'signUp'
-              ? 'Create account'
-              : mode === 'reset'
-                ? 'Send reset link'
-                : 'Sign in'}
-          </button>
-        </form>
 
-        <p className="auth-switch">
-          {mode === 'signIn' ? (
-            <>
-              <button className="link-btn" onClick={() => setMode('signUp')}>
-                Create an account
-              </button>
-              <button className="link-btn" onClick={() => setMode('reset')}>
-                Forgot password?
-              </button>
-            </>
-          ) : (
-            <button className="link-btn" onClick={() => setMode('signIn')}>
-              Back to sign in
-            </button>
+          {mode !== 'reset' && (
+            <div className="auth-providers">
+              {AUTH_PROVIDERS.filter((p) => p.id !== 'password').map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  className="btn"
+                  disabled={busy}
+                  onClick={() => {
+                    // The provider sends the browser back to `/`; remember the page asked for.
+                    rememberReturnPath(pathname + search);
+                    return run(() =>
+                      store.signInWithProvider(p.id as Exclude<typeof p.id, 'password'>),
+                    );
+                  }}
+                >
+                  Continue with {p.label}
+                </button>
+              ))}
+              <p className="auth-or">or use email</p>
+            </div>
           )}
-        </p>
-      </section>
+
+          <form noValidate onSubmit={submit}>
+            {mode === 'signUp' && (
+              <label className="field">
+                <span>
+                  Name <small>(optional)</small>
+                </span>
+                <input
+                  type="text"
+                  autoComplete="name"
+                  maxLength={MAX_DISPLAY_NAME}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+                <small className="muted">
+                  Shown as the author of plans you share publicly. Leave it blank and we will pick
+                  one for you. You can change it any time in Account settings.
+                </small>
+              </label>
+            )}
+            <label className="field">
+              <span>Email</span>
+              <input
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </label>
+            {mode !== 'reset' && (
+              <label className="field">
+                <span>Password</span>
+                <input
+                  type="password"
+                  autoComplete={mode === 'signUp' ? 'new-password' : 'current-password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </label>
+            )}
+            {error && (
+              <p className="form-error" role="alert" id="authError">
+                {error}
+              </p>
+            )}
+            <button className="btn primary" type="submit" disabled={busy}>
+              {mode === 'signUp'
+                ? 'Create account'
+                : mode === 'reset'
+                  ? 'Send reset link'
+                  : 'Sign in'}
+            </button>
+          </form>
+
+          <p className="auth-switch">
+            {mode === 'signIn' ? (
+              <>
+                <button className="link-btn" onClick={() => setMode('signUp')}>
+                  Create an account
+                </button>
+                <button className="link-btn" onClick={() => setMode('reset')}>
+                  Forgot password?
+                </button>
+              </>
+            ) : (
+              <button className="link-btn" onClick={() => setMode('signIn')}>
+                Back to sign in
+              </button>
+            )}
+          </p>
+        </section>
+      </div>
     </main>
   );
 }

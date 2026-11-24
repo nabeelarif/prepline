@@ -8,13 +8,13 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.8125rem;
+  font-size: var(--fs-sm);
   color: var(--muted);
   cursor: pointer;
 }
 .timer-clock {
   font-variant-numeric: tabular-nums;
-  font-weight: 600;
+  font-weight: 700;
 }
 .details-timer {
   margin: 12px 0 0;
@@ -22,7 +22,7 @@
 .timer-bar {
   position: fixed;
   left: 50%;
-  bottom: 16px;
+  bottom: max(16px, env(safe-area-inset-bottom, 0px));
   transform: translateX(-50%);
   z-index: 30;
   display: flex;
@@ -31,13 +31,18 @@
   max-width: calc(100vw - 32px);
   padding: 8px 8px 8px 16px;
   background: var(--surface);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
   border-radius: 999px;
-  box-shadow: 0 4px 16px rgb(0 0 0 / 0.18);
+  box-shadow: var(--shadow-lg);
 }
 .timer-what {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.timer-pomodoro input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
 }

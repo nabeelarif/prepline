@@ -9,7 +9,7 @@ export function TypeBreakdown({ resources }: { resources: Resource[] }) {
   // One type adds nothing the plan box does not already say.
   if (shares.length < 2) return null;
   return (
-    <div className="type-breakdown">
+    <div className="card type-breakdown">
       <h3>Time by type</h3>
       <div className="tb-bar" role="img" aria-label="Estimated time by type">
         {shares.map((s) => (

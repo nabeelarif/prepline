@@ -3,6 +3,7 @@ import { Square } from 'lucide-react';
 import { findResource } from '../domain/resources';
 import { timerView } from '../domain/timer';
 import { useNow } from '../hooks/useNow';
+import { setTitlePrefix } from '../pageTitle';
 import { useStore } from '../state/store';
 import { useTimer } from '../state/timer';
 import { ConfirmButton } from './ConfirmButton';
@@ -18,11 +19,8 @@ export function TimerBar() {
 
   useEffect(() => {
     if (!timer) return;
-    const old = document.title;
-    document.title = `${clock} · ${old.replace(/^[\d:]+ · /, '')}`;
-    return () => {
-      document.title = old;
-    };
+    setTitlePrefix(clock);
+    return () => setTitlePrefix('');
   }, [timer, clock]);
 
   // Tell the user when a Pomodoro switches between focus and break (not on first render).

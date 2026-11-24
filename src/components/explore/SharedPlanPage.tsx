@@ -6,6 +6,7 @@ import { fmtHours, pl, shareCounts } from '../../domain/format';
 import type { PlanSummary, SharedPlan, SharedResource } from '../../domain/share';
 import { hostOf, safeUrl } from '../../domain/urls';
 import { paths } from '../../routes';
+import { usePageTitle } from '../../hooks/usePageTitle';
 import { useStore } from '../../state/store';
 import { EmptyState } from '../EmptyState';
 import { PlanCard } from './PlanCard';
@@ -63,6 +64,7 @@ export function SharedPlanPage() {
   const requestSignIn = useRequestSignIn();
   const ownPlanId = useOwnPlanId(slug);
   const fav = useFavorite(result.status === 'ready' ? result.data : null);
+  usePageTitle(result.status === 'ready' && result.data ? result.data.name : 'Shared plan');
 
   if (result.status === 'loading') return <p role="status">Loading plan…</p>;
   if (result.status === 'error') {

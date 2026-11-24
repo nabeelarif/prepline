@@ -25,6 +25,7 @@ import { TimerBar } from './components/TimerBar';
 import { Toast } from './components/Toast';
 import { lazy, useEffect } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
+import { usePageTitle } from './hooks/usePageTitle';
 import { clearReturnPath, paths, peekReturnPath } from './routes';
 import { backendConfigError, useActiveGoal, useStore } from './state/store';
 
@@ -118,7 +119,7 @@ function OverlayContent() {
 function NoPlans() {
   const openOverlay = useStore((s) => s.openOverlay);
   return (
-    <section className="card welcome">
+    <section className="card welcome contours">
       <EmptyState
         level={1}
         icon={<Target />}
@@ -198,8 +199,34 @@ function PlanPage() {
   return goal && current ? <GoalView goal={goal} /> : null;
 }
 
+/** First tab stop: jumps past the top bar to the page's `<main id="main">`. */
+function SkipLink() {
+  return (
+    <a className="skip-link" href="#main">
+      Skip to main content
+    </a>
+  );
+}
+
+/** The tab title for each address; a plan's own pages are named after the plan. */
+function pageTitleFor(pathname: string, planName?: string): string | null | undefined {
+  // A shared plan is named by its own page, once it has loaded.
+  if (pathname.startsWith(`${paths.explore}/`)) return null;
+  if (pathname === paths.today) return 'Today';
+  if (pathname === paths.plans) return 'My Plans';
+  if (pathname === paths.favorites) return 'Favorites';
+  if (pathname === paths.streak) return 'Study streak';
+  if (pathname === paths.explore) return 'Explore plans';
+  if (pathname === paths.dashboard || pathname.startsWith(`${paths.plans}/`))
+    return planName ?? 'Dashboard';
+  return undefined;
+}
+
 function Shell() {
   const { pathname } = useLocation();
+  // Only the name: a progress edit must not re-render the whole shell.
+  const planName = useStore((s) => s.data.goals.find((g) => g.id === s.data.activeGoalId)?.name);
+  usePageTitle(pageTitleFor(pathname, planName));
 
   // Back, Forward and links leave no form open for a plan that is no longer on screen.
   useEffect(() => useStore.getState().closeOverlay(), [pathname]);
@@ -211,8 +238,9 @@ function Shell() {
   return (
     <>
       <div className="app">
+        <SkipLink />
         <TopBar />
-        <main className="main">
+        <main className="main" id="main" tabIndex={-1}>
           <SyncBanner />
           <Routes>
             <Route path={paths.home} element={<Home />} />
@@ -252,12 +280,15 @@ function Shell() {
 /** Explore and shared plans work without an account, so they get their own small shell. */
 function PublicShell() {
   const requestSignIn = useRequestSignIn();
+  const { pathname } = useLocation();
+  usePageTitle(pageTitleFor(pathname));
   return (
     <div className="app">
+      <SkipLink />
       <header className="topbar">
         <Link to={paths.explore} className="brand" aria-label="Road to Goals Explore">
           <Logo />
-          <span>Road to Goals</span>
+          <span translate="no">Road to Goals</span>
         </Link>
         <div className="top-tools">
           <button className="btn primary" onClick={requestSignIn}>
@@ -265,7 +296,7 @@ function PublicShell() {
           </button>
         </div>
       </header>
-      <main className="main">
+      <main className="main" id="main" tabIndex={-1}>
         <Routes>
           {exploreRoutes}
           <Route path="*" element={<Navigate to={paths.explore} replace />} />

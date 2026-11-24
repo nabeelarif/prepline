@@ -16,15 +16,15 @@
 }
 .choice small {
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
 }
 .share-note {
   margin: 4px 0 12px;
   padding: 10px 12px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   background: var(--surface-2);
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   line-height: 1.5;
 }
 .share-note strong {
@@ -79,14 +79,15 @@ button.badge {
 }
 .shared-head h1 {
   margin: 0;
-  font-size: 26px;
-  line-height: 1.2;
+  font-size: var(--fs-2xl);
+  line-height: 1.15;
+  letter-spacing: -0.015em;
 }
 .shared-head p {
   margin: 0;
 }
 .shared-note {
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 .shared-report {
   display: grid;
@@ -100,7 +101,7 @@ button.badge {
   align-items: center;
   gap: 8px;
   margin: 0 0 6px;
-  font-size: 18px;
+  font-size: var(--fs-lg);
 }
 .shared-list {
   list-style: none;
@@ -127,29 +128,36 @@ button.badge {
 .shared-item-notes {
   margin-top: 4px;
   color: var(--muted);
-  font-size: 14px;
+  font-size: var(--fs-base);
+  max-width: 75ch;
   overflow-wrap: anywhere;
 }
 
 .explore-controls {
   display: flex;
   justify-content: flex-end;
-  margin: 0 0 var(--space-2, 8px);
+  margin: 0 0 var(--s-2);
 }
-
-.plan-source {
-  margin: 0 0 var(--space-2, 8px);
+.explore-controls label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+.explore-controls select {
+  width: auto;
 }
 
 .by-you {
-  color: var(--accent);
-  font-weight: 600;
+  color: var(--accent-text);
+  font-weight: 700;
 }
 
 /* Favorite star: filled and accent-colored once the plan is starred. */
 .fav-btn.on {
-  color: var(--accent);
-  font-weight: 600;
+  color: var(--accent-text);
+  font-weight: 700;
 }
 .plan-foot > span {
   display: inline-flex;

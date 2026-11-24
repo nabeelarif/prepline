@@ -1,9 +1,10 @@
-/* Shell: top bar, main column, header, cards, summary, empty states. */
+/* Shell: top bar, main column, header, cards, plan box, empty states, sign-in. */
 .app {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto 1fr;
   min-height: 100vh;
+  min-height: 100dvh;
 }
 .topbar {
   position: sticky;
@@ -12,8 +13,9 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 12px 24px;
-  padding: 12px 28px;
+  gap: 8px 24px;
+  padding: 10px max(28px, env(safe-area-inset-right, 0px)) 10px
+    max(28px, env(safe-area-inset-left, 0px));
   background: var(--side-bg);
   color: var(--side-fg);
 }
@@ -22,78 +24,81 @@
 }
 .nav-toggle {
   display: none;
-  width: 34px;
-  height: 34px;
+  width: var(--hit);
+  height: var(--hit);
   place-items: center;
   padding: 0;
   border: none;
-  border-radius: 9px;
+  border-radius: var(--r-sm);
   background: none;
   color: var(--side-fg);
   cursor: pointer;
 }
 .nav-toggle:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--side-hover);
 }
-.nav-toggle:focus-visible {
-  outline: 2px solid #fff;
-  outline-offset: 2px;
+.topbar :focus-visible {
+  outline-color: #fff;
 }
 .top-tools {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 8px;
   min-width: 0;
 }
 .brand {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-weight: 700;
-  font-size: 21px;
-  letter-spacing: -0.02em;
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-size: 1.4rem;
+  letter-spacing: -0.01em;
   color: #fff;
   text-decoration: none;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   flex: none;
 }
 .brand:focus-visible {
-  outline: 2px solid #fff;
   outline-offset: 4px;
 }
 .logo {
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   flex: none;
-  border-radius: 7px;
+  border-radius: 8px;
 }
 .nav {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
-  gap: 4px;
+  gap: 2px;
 }
 .nav-btn {
   text-decoration: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 9px;
+  min-height: 40px;
   white-space: nowrap;
   border: none;
   background: none;
   color: var(--side-fg);
-  padding: 10px 12px;
-  border-radius: 9px;
-  font-size: 14px;
-  font-weight: 500;
+  padding: 8px 13px;
+  border-radius: var(--r-sm);
+  font-size: var(--fs-base);
+  font-weight: 600;
   cursor: pointer;
   text-align: left;
-  transition: background-color 150ms;
+  transition:
+    background-color var(--t-fast) var(--ease),
+    color var(--t-fast) var(--ease);
 }
 .nav-btn:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--side-hover);
+  color: #fff;
 }
 .nav-btn[aria-current='page'] {
   background: var(--side-active);
@@ -103,35 +108,36 @@
   margin: 0;
   display: flex;
   align-items: center;
-  color: var(--good);
+  color: var(--bar-accent);
 }
 .sync-icon.off {
-  color: var(--warn);
+  color: var(--next);
 }
 .spin {
   animation: spin 900ms linear infinite;
 }
 .avatar-btn {
-  width: 34px;
-  height: 34px;
+  width: 40px;
+  height: 40px;
   display: grid;
   place-items: center;
   padding: 0;
-  border: none;
+  border: 2px solid transparent;
   border-radius: 50%;
   background: var(--side-active);
   color: #fff;
   font-weight: 700;
-  font-size: 14px;
+  font-size: var(--fs-base);
   cursor: pointer;
+  transition: border-color var(--t-fast) var(--ease);
 }
 .avatar-btn:hover {
-  filter: brightness(1.15);
+  border-color: var(--bar-accent);
 }
 
 .main {
-  padding: 24px 28px 64px;
-  max-width: 1240px;
+  padding: 28px 28px 112px;
+  max-width: 1180px;
   margin-inline: auto;
   width: 100%;
   min-width: 0;
@@ -140,59 +146,16 @@
   gap: 20px;
   align-content: start;
 }
+.main:focus {
+  outline: none;
+}
 
-/* Plan box: status, title, actions and progress in one card */
+/* Plan box: title, actions, schedule line, and the trail's progress in one card */
 .plan-box {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 18px;
-}
-.plan-status {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px 20px;
-}
-.plan-status .pill {
-  font-size: 13px;
-  padding: 5px 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--muted);
-  background: var(--surface-2);
-}
-.target {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  color: var(--muted);
-}
-.target > svg {
-  color: var(--accent);
-  flex: none;
-}
-.target strong {
-  color: var(--fg);
-  font-weight: 600;
-}
-.estimate {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 2px 10px;
-  margin: 0 0 0 auto;
-  font-size: 14px;
-}
-.estimate-label {
-  color: var(--muted);
-}
-.est-good {
-  color: var(--good-fg);
-}
-.est-bad {
-  color: var(--bad-fg);
+  gap: 16px;
+  padding: 24px 28px;
 }
 .plan-head {
   display: flex;
@@ -212,20 +175,31 @@
   gap: 10px;
   min-width: 0;
   max-width: 100%;
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 9px 14px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  /* The inset is always there (and pulled back by the margin) so hover never moves the title. */
+  padding: 4px 10px;
+  margin-left: -10px;
   cursor: pointer;
+  transition: border-color var(--t-fast) var(--ease);
+}
+.plan-btn:hover {
+  border-color: var(--line-strong);
 }
 .plan-btn h1 {
   margin: 0;
-  font-size: 20px;
+  font-size: var(--fs-2xl);
   font-weight: 600;
-  letter-spacing: -0.01em;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.plan-btn svg {
+  flex: none;
+  color: var(--muted);
 }
 .plan-pick .menu-wrap {
   min-width: 0;
@@ -233,17 +207,135 @@
 .plan-actions {
   display: flex;
   flex: none;
-  gap: 10px;
+  gap: 8px;
   margin-left: auto;
 }
+.plan-status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+.plan-status .pill {
+  font-size: var(--fs-sm);
+  padding: 3px 12px;
+  font-weight: 700;
+  color: var(--muted);
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
+}
+.target {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin: 0;
+  color: var(--muted);
+}
+.target > svg {
+  color: var(--muted);
+  flex: none;
+}
+.target strong {
+  color: var(--fg);
+  font-weight: 600;
+}
+.estimate {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  margin: 0 0 0 auto;
+  font-size: var(--fs-base);
+}
+.estimate-label {
+  color: var(--muted);
+}
+.est-good {
+  color: var(--good-fg);
+}
+.est-bad {
+  color: var(--bad-fg);
+}
+.plan-source {
+  margin: -6px 0 0;
+}
+.pace-on_track .pill,
+.pace-done .pill {
+  color: var(--good-fg);
+  background: var(--good-soft);
+  border-color: color-mix(in srgb, var(--good) 40%, transparent);
+}
+.pace-at_risk .pill {
+  color: var(--warn-fg);
+  background: var(--warn-soft);
+  border-color: color-mix(in srgb, var(--warn) 55%, transparent);
+}
+.pace-behind .pill,
+.pace-past .pill {
+  color: var(--bad-fg);
+  background: var(--bad-soft);
+  border-color: color-mix(in srgb, var(--bad) 45%, transparent);
+}
+.pace-no_capacity .pill {
+  color: var(--info);
+  background: var(--info-soft);
+  border-color: color-mix(in srgb, var(--info) 40%, transparent);
+}
+
+/* The trail's progress: one bar weighted by hours, then the facts that explain it. */
+.trail-progress {
+  display: grid;
+  gap: 12px;
+}
+.trail-bar {
+  height: 12px;
+  border-radius: 999px;
+  background: var(--track);
+  overflow: hidden;
+}
+.trail-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width var(--t-slow) var(--ease);
+}
+.trail-figures {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 36px;
+}
+.trail-figures li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.trail-figures strong {
+  font-family: var(--f-display);
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  line-height: 1.2;
+}
+.trail-figures span {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+/* Schedule pace: daily time needed against planned */
 .velocity {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) minmax(220px, 340px);
   align-items: center;
   gap: 12px 20px;
-  padding: 14px 18px;
-  border-radius: 10px;
+  padding: 12px 16px;
+  border-radius: var(--r-md);
   background: var(--surface-2);
+  border: 1px solid var(--line);
   --vel: var(--good);
   --vel-soft: var(--good-soft);
   --vel-fg: var(--good-fg);
@@ -266,15 +358,15 @@
 .vel-icon {
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
   background: var(--vel-soft);
   color: var(--vel-fg);
 }
 .vel-icon svg {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
 }
 .vel-head,
 .vel-detail,
@@ -286,32 +378,33 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 4px 10px;
-  font-size: 16px;
+  font-size: var(--fs-md);
 }
 .vel-tag {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: var(--fs-xs);
+  font-weight: 700;
   padding: 2px 8px;
-  border-radius: 6px;
+  border-radius: 999px;
   color: var(--vel-fg);
   background: var(--vel-soft);
 }
 .vel-detail {
   margin-top: 2px;
   color: var(--muted);
-  font-size: 14px;
+  font-size: var(--fs-sm);
+  max-width: 68ch;
 }
 .vel-labels {
   display: flex;
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 6px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--muted);
 }
 .vel-labels span:last-child {
   color: var(--vel-fg);
-  font-weight: 600;
+  font-weight: 700;
 }
 .vel-bar {
   display: flex;
@@ -329,300 +422,20 @@
 .vel-diff {
   background: var(--vel);
 }
-.plan-stats {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: 16px 28px;
-}
-.page-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-.page-head h1 {
-  margin: 0;
-  font-size: 24px;
-  letter-spacing: -0.02em;
-}
 
-/* Cards */
-.card {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: 20px 24px;
-}
-.card-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px 16px;
-  flex-wrap: wrap;
-  margin-bottom: 14px;
-}
-.card-head h2 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-}
-.card-sub {
-  margin: 2px 0 0;
-  color: var(--muted);
-  font-size: 13px;
-}
-.empty-note {
-  margin: 8px 0;
-  color: var(--muted);
-}
-
-/* Progress ring and metrics */
-.plan-stats .pring-body strong {
-  font-size: 26px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-.plan-stats .pring-body small {
-  font-size: 11.5px;
-  color: var(--muted);
-}
-.metrics {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+/* Pace and time by type: the numbers behind the status line, after the trail. */
+.insights {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
 }
-.metrics li {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 4px 18px;
-  border-left: 1px solid var(--line);
-}
-.metrics svg {
-  flex: none;
-  width: 22px;
-  height: 22px;
-  color: var(--accent);
-  margin-top: 3px;
-}
-.metrics li:nth-child(3) svg {
-  color: var(--warn);
-}
-.metrics div {
-  display: grid;
-}
-.metrics strong {
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  line-height: 1.2;
-}
-.metrics span {
-  color: var(--muted);
-  font-size: 12.5px;
-}
-.pace .pill {
-  font-size: 15px;
-  padding: 6px 14px;
-  font-weight: 700;
-  color: var(--muted);
-  background: var(--surface-2);
-}
-.pace-on_track .pill,
-.pace-done .pill {
-  color: var(--good-fg);
-  background: var(--good-soft);
-}
-.pace-at_risk .pill {
-  color: var(--warn-fg);
-  background: var(--warn-soft);
-}
-.pace-behind .pill,
-.pace-past .pill {
-  color: var(--bad-fg);
-  background: var(--bad-soft);
-}
-.pace-no_capacity .pill {
-  color: var(--info);
-  background: var(--info-soft);
-}
-.done-note {
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.done-note svg {
-  color: var(--good);
-  flex: none;
-}
-
-/* Empty states */
-.empty {
-  display: grid;
-  justify-items: center;
-  text-align: center;
-  gap: 8px;
-  padding: 28px 12px;
-}
-.empty-icon {
-  width: 52px;
-  height: 52px;
-  display: grid;
-  place-items: center;
-  border-radius: 14px;
-  background: var(--accent-soft);
-  color: var(--accent);
-}
-.empty h1,
-.empty h2,
-.empty h3 {
-  margin: 6px 0 0;
-  font-size: 18px;
-  letter-spacing: -0.01em;
-}
-.empty h1 {
-  font-size: 24px;
-}
-.empty p {
-  margin: 0 0 8px;
-  max-width: 460px;
-  color: var(--muted);
-}
-.welcome {
-  margin-top: 8vh;
-  padding-block: 32px;
-}
-
-/* Continue learning */
-.focus {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  flex-wrap: wrap;
-  padding-block: 14px;
-  border-left: 4px solid var(--accent);
-}
-.focus-main {
-  flex: 1;
-  min-width: 200px;
-}
-.focus h2 {
-  margin: 0;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--accent);
-}
-.focus p {
-  margin: 2px 0 0;
-}
-
-/* Banners */
-.banner {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  border-radius: var(--radius);
-}
-.banner p {
-  margin: 0;
-  flex: 1;
-}
-.banner.warn {
-  background: var(--warn-soft);
-  color: var(--fg);
-  border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent);
-}
-.banner.warn > svg {
-  color: var(--warn-fg);
-  flex: none;
-}
-
-/* Sign-in and status screens */
-.auth-page {
-  min-height: 100vh;
-  display: grid;
-  place-items: center;
-  padding: 24px 16px;
-}
-.auth-card {
-  width: min(420px, 100%);
-  padding: 28px;
-  display: grid;
-  gap: 12px;
-}
-.auth-card h1 {
-  margin: 4px 0 0;
-  font-size: 24px;
-}
-.auth-providers {
-  display: grid;
-  gap: 8px;
-}
-.auth-or {
-  margin: 4px 0 0;
-  text-align: center;
-  color: var(--muted);
-  font-size: 13px;
-}
-.auth-switch {
-  display: flex;
-  justify-content: space-between;
-  margin: 0;
-}
-.auth-notice {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  margin: 0;
-}
-.link-btn {
-  background: none;
-  border: 0;
-  padding: 0;
-  color: var(--accent);
-  cursor: pointer;
-  font: inherit;
-}
-.form-error {
-  color: var(--bad-fg);
-  margin: 0;
-}
-.method-list {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 12px;
-  display: grid;
-  gap: 8px;
-}
-.method-list li {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.nav-btn svg.lit {
-  color: var(--ph-orange);
+.insights:empty {
+  display: none;
 }
 
 /* Time by type */
-.plan-stats-main {
-  min-width: 0;
-  display: grid;
-  gap: 14px;
-}
 .type-breakdown h3 {
   margin: 0 0 6px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--muted);
   font-weight: 600;
 }
@@ -645,7 +458,7 @@
   margin: 8px 0 0;
   padding: 0;
   list-style: none;
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
 }
 .tb-legend li {
   display: inline-flex;
@@ -657,4 +470,307 @@
   height: 8px;
   border-radius: 50%;
   background: var(--t);
+}
+
+.page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.page-head h1 {
+  margin: 0;
+  font-size: var(--fs-2xl);
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+}
+
+/* Cards: flat sheets with a hairline. */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow);
+  padding: 22px 26px;
+}
+.card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px 16px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.card-head h2 {
+  margin: 0;
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+.card-sub {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  max-width: 60ch;
+}
+.empty-note {
+  margin: 8px 0;
+  color: var(--muted);
+}
+.done-note {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.done-note svg {
+  color: var(--good);
+  flex: none;
+}
+
+/* Empty states: a waypoint on the terrain, asking for the first step. */
+.empty {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 32px 12px;
+}
+.empty-icon {
+  width: 60px;
+  height: 60px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 2px dashed var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+.empty h1,
+.empty h2,
+.empty h3 {
+  margin: 8px 0 0;
+  font-family: var(--f-display);
+  font-size: var(--fs-xl);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+.empty h1 {
+  font-size: var(--fs-2xl);
+}
+.empty p {
+  margin: 0 0 8px;
+  max-width: 46ch;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+.welcome {
+  margin-top: 6vh;
+  padding-block: 40px;
+}
+
+/* Continue learning: the summit marker, pointing at the one next step. */
+.focus {
+  display: flex;
+  align-items: center;
+  gap: 14px 18px;
+  flex-wrap: wrap;
+  padding-block: 16px;
+  border-color: color-mix(in srgb, var(--next) 70%, var(--line));
+  background: var(--surface);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--next) 22%, transparent),
+    var(--shadow);
+}
+.focus-main {
+  flex: 1;
+  min-width: 220px;
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+}
+.focus h2 {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--next);
+  color: var(--next-fg);
+  font-family: var(--f-body);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  letter-spacing: 0;
+}
+.focus p {
+  margin: 0;
+}
+.focus-title {
+  font-family: var(--f-display);
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+/* Banners */
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: var(--r-md);
+}
+.banner p {
+  margin: 0;
+  flex: 1;
+}
+.banner.warn {
+  background: var(--warn-soft);
+  color: var(--fg);
+  border: 1px solid color-mix(in srgb, var(--warn) 55%, transparent);
+}
+.banner.warn > svg {
+  color: var(--warn-fg);
+  flex: none;
+}
+
+/* Sign-in and status screens: the aside is the terrain, the card is the way in. */
+.auth-page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+}
+.auth-page.has-aside {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  place-items: stretch;
+  padding: 0;
+}
+.auth-aside {
+  --contours-tint: var(--bar-accent);
+  --contours-opacity: 0.16;
+  --contours-place: center bottom / 125% auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 32px;
+  padding: 48px max(48px, 5vw);
+  background: var(--side-bg);
+  color: var(--side-fg);
+  overflow: hidden;
+}
+.auth-aside .brand {
+  color: #fff;
+}
+.auth-pitch {
+  display: grid;
+  gap: 20px;
+  max-width: 34rem;
+}
+.auth-pitch p {
+  margin: 0;
+  font-family: var(--f-display);
+  font-size: var(--fs-2xl);
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: #fff;
+  text-wrap: balance;
+}
+.auth-pitch ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+  font-size: var(--fs-md);
+}
+.auth-pitch li {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+}
+.auth-pitch li::before {
+  content: '';
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 0.1em;
+  border-radius: 50%;
+  background: var(--next);
+}
+.auth-main {
+  display: grid;
+  place-items: center;
+  padding: 32px 16px;
+}
+.auth-card {
+  width: min(420px, 100%);
+  padding: 28px;
+  display: grid;
+  gap: 12px;
+}
+.auth-card .brand {
+  color: var(--fg);
+}
+.auth-card p {
+  margin: 0;
+}
+.auth-card h1 {
+  margin: 4px 0 0;
+  font-size: var(--fs-xl);
+}
+.auth-providers {
+  display: grid;
+  gap: 8px;
+}
+.auth-or {
+  margin: 4px 0 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+.auth-switch {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0;
+}
+.auth-notice {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 0;
+}
+.link-btn {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--accent-text);
+  cursor: pointer;
+  font: inherit;
+}
+.form-error {
+  color: var(--bad-fg);
+  margin: 0;
+}
+.method-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 12px;
+  display: grid;
+  gap: 8px;
+}
+.method-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.nav-btn svg.lit {
+  color: var(--ph-orange);
 }

@@ -37,6 +37,7 @@ export function FavoritesPage() {
       {result.status === 'ready' && result.data.items.length === 0 && (
         <section className="card">
           <EmptyState
+            level={2}
             icon={<Star />}
             title="No favorites yet"
             action={

@@ -27,3 +27,6 @@ npm-debug.log*
 
 # Personal Claude Code settings (shared .claude/settings.json is committed)
 .claude/settings.local.json
+
+# Impeccable design tool: local cache
+.impeccable/hook.cache.json

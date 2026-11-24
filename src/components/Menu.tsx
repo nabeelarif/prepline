@@ -27,13 +27,23 @@ interface Props {
   items: MenuEntry[];
   align?: 'start' | 'end';
   menuClass?: string;
+  /** Extra class on the wrapper, so CSS can name a menu instead of counting siblings. */
+  wrapClass?: string;
 }
 
 /**
  * Button with a dropdown of actions. Closes on Escape (returning focus to the
  * trigger), an outside click, or after an item runs. Arrow keys move between items.
  */
-export function Menu({ label, triggerClass, trigger, items, align = 'start', menuClass }: Props) {
+export function Menu({
+  label,
+  triggerClass,
+  trigger,
+  items,
+  align = 'start',
+  menuClass,
+  wrapClass,
+}: Props) {
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
   const btn = useRef<HTMLButtonElement>(null);
@@ -78,7 +88,7 @@ export function Menu({ label, triggerClass, trigger, items, align = 'start', men
   };
 
   return (
-    <div className="menu-wrap" ref={wrap}>
+    <div className={wrapClass ? `menu-wrap ${wrapClass}` : 'menu-wrap'} ref={wrap}>
       <button
         ref={btn}
         type="button"

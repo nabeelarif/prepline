@@ -47,6 +47,7 @@ export function MyPlans() {
       {!goals.length ? (
         <section className="card">
           <EmptyState
+            level={2}
             icon={<Target />}
             title="Start your preparation journey"
             action={

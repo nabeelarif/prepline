@@ -1,4 +1,4 @@
-import { ExternalLink, Gauge, Play } from 'lucide-react';
+import { ExternalLink, Flag, Gauge, Play } from 'lucide-react';
 import { fmtHours } from '../domain/format';
 import { focusResource, resDone, resStatus } from '../domain/resources';
 import type { Goal } from '../domain/types';
@@ -25,9 +25,12 @@ export function ContinueCard({ goal }: { goal: Goal }) {
     <section className="card focus" aria-labelledby="focusH">
       <DoneTick r={r} />
       <div className="focus-main">
-        <h2 id="focusH">{active ? 'Continue Learning' : 'Up Next'}</h2>
+        <h2 id="focusH">
+          <Flag size={14} aria-hidden="true" />
+          {active ? 'Continue Learning' : 'Up Next'}
+        </h2>
         <p>
-          <strong>{r.title}</strong>{' '}
+          <strong className="focus-title">{r.title}</strong>{' '}
           <span className="muted">
             <TypeLabel type={r.type} /> ·{' '}
             {active

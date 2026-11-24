@@ -64,7 +64,7 @@ export function ExplorePage() {
           id="exQuery"
           type="search"
           value={draft}
-          placeholder="Search by title, description or tag"
+          placeholder="Search by title, description or tag…"
           onChange={(e) => setDraft(e.target.value)}
         />
         <button className="btn primary" type="submit">
@@ -115,7 +115,7 @@ export function ExplorePage() {
       )}
       {result.status === 'ready' && result.data.items.length === 0 && (
         <section className="card">
-          <EmptyState icon={<Compass />} title="No plans found">
+          <EmptyState level={2} icon={<Compass />} title="No plans found">
             {query || tag ? 'Try a different search.' : 'Nobody has shared a plan yet.'}
           </EmptyState>
         </section>

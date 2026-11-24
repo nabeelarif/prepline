@@ -16,10 +16,22 @@ export function loadTheme(): Theme {
   }
 }
 
+/** The top bar colour in each theme (`--side-bg` in tokens.css), shown by the browser's own chrome. */
+const BAR_COLOR = { light: '#123D2F', dark: '#0A130F' } as const;
+
+/** An explicit choice overrides both `theme-color` tags; Auto restores each tag's own colour. */
+function syncThemeColor(theme: Theme) {
+  document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]').forEach((meta) => {
+    const own = meta.media.includes('dark') ? BAR_COLOR.dark : BAR_COLOR.light;
+    meta.content = theme === 'system' ? own : BAR_COLOR[theme];
+  });
+}
+
 export function applyTheme(theme: Theme) {
   const root = document.documentElement;
   if (theme === 'system') delete root.dataset.theme;
   else root.dataset.theme = theme;
+  syncThemeColor(theme);
 }
 
 export function saveTheme(theme: Theme) {

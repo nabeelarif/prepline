@@ -3,23 +3,26 @@
   position: fixed;
   inset: 0;
   z-index: 50;
-  background: rgba(15, 23, 42, 0.45);
+  background: var(--overlay);
   display: grid;
   place-items: center;
   padding: 16px;
   overflow-y: auto;
-  animation: fade 150ms ease-out;
+  overscroll-behavior: contain;
+  animation: fade var(--t-fast) var(--ease);
 }
 .sheet {
   position: relative;
   width: min(500px, 100%);
   background: var(--surface);
-  border-radius: 16px;
-  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 26px;
   box-shadow: var(--shadow-lg);
   max-height: 100%;
   overflow-y: auto;
-  animation: pop 200ms ease-out;
+  overscroll-behavior: contain;
+  animation: pop var(--t-base) var(--ease);
 }
 .sheet-close {
   position: absolute;
@@ -27,9 +30,10 @@
   right: 16px;
 }
 .sheet h2 {
-  font-size: 20px;
+  font-size: var(--fs-xl);
+  line-height: 1.2;
   letter-spacing: -0.01em;
-  margin: 0 40px 18px 0;
+  margin: 0 44px 18px 0;
 }
 .sheet-title {
   display: flex;
@@ -37,21 +41,20 @@
   gap: 10px;
 }
 .sheet-title > svg {
-  color: var(--accent);
+  color: var(--accent-text);
   flex: none;
 }
 .sheet-title small {
+  font-family: var(--f-body);
   font-weight: 400;
   color: var(--muted);
-  font-size: 15px;
+  font-size: var(--fs-md);
 }
 .sheet h3 {
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin: 20px 0 8px;
+  font-size: var(--fs-base);
+  font-weight: 700;
+  color: var(--fg);
+  margin: 22px 0 8px;
 }
 .sheet p {
   margin: 0 0 10px;
@@ -66,8 +69,8 @@
 }
 .field > span,
 .field > legend {
-  font-size: 13.5px;
-  font-weight: 600;
+  font-size: var(--fs-sm);
+  font-weight: 700;
   padding: 0;
   margin-bottom: 6px;
 }
@@ -75,49 +78,75 @@
   margin-bottom: 0;
 }
 .field small {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--muted);
   font-weight: 400;
 }
 input[type='text'],
+input[type='email'],
+input[type='password'],
+input[type='search'],
+input[type='url'],
+input[type='tel'],
 input[type='date'],
 input[type='number'],
 select,
 textarea {
   width: 100%;
   min-width: 0;
+  min-height: 42px;
   padding: 9px 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface);
+  border: 1px solid var(--control);
+  border-radius: var(--r-sm);
+  background-color: var(--surface);
+  color: var(--fg);
+  transition: border-color var(--t-fast) var(--ease);
+}
+input::placeholder,
+textarea::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+select {
+  cursor: pointer;
+}
+select option {
+  background-color: var(--surface);
+  color: var(--fg);
 }
 textarea {
   resize: vertical;
+}
+input:hover,
+select:hover,
+textarea:hover {
+  border-color: var(--fg);
 }
 input:focus,
 select:focus,
 textarea:focus {
   outline: 2px solid var(--accent);
   outline-offset: -1px;
+  border-color: var(--accent);
 }
 .suffixed {
   display: flex;
   align-items: stretch;
 }
 .suffixed input {
-  border-radius: 8px 0 0 8px;
+  border-radius: var(--r-sm) 0 0 var(--r-sm);
 }
 .suffixed > span {
   display: grid;
   place-items: center;
   padding: 0 12px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--control);
   border-left: none;
-  border-radius: 0 8px 8px 0;
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
   background: var(--surface-2);
   color: var(--muted);
   white-space: nowrap;
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 .row2 {
   display: grid;
@@ -133,15 +162,23 @@ textarea:focus {
   position: relative;
   display: grid;
   place-items: center;
+  gap: 6px;
+  min-height: 56px;
   padding: 10px 6px;
-  border: 1px solid var(--line);
-  border-left: 3px solid var(--t);
-  border-radius: 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   transition:
-    border-color 150ms,
-    background-color 150ms;
+    border-color var(--t-fast) var(--ease),
+    background-color var(--t-fast) var(--ease);
+}
+.type-card::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--t);
 }
 .type-card input {
   position: absolute;
@@ -151,15 +188,13 @@ textarea:focus {
   cursor: pointer;
 }
 .type-card:hover {
-  border-color: var(--muted);
-  border-left-color: var(--t);
+  border-color: var(--fg);
 }
 .type-card:has(input:checked) {
   border: 2px solid var(--accent);
-  border-left: 3px solid var(--t);
   padding: 9px 5px;
   background: var(--accent-soft);
-  font-weight: 600;
+  font-weight: 700;
 }
 .type-card:has(input:focus-visible) {
   outline: 2px solid var(--accent);
@@ -174,10 +209,10 @@ textarea:focus {
   display: none;
   gap: 4px;
   padding: 8px 10px;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   background: var(--fg);
   color: var(--bg);
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-weight: 400;
   line-height: 1.35;
   text-align: left;
@@ -247,7 +282,7 @@ textarea:focus {
 }
 .msg {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--muted);
 }
 .msg.err {
@@ -263,12 +298,12 @@ textarea:focus {
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 .details-notes {
   white-space: pre-wrap;
   background: var(--surface-2);
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   padding: 10px 12px;
   margin-top: 12px !important;
 }
@@ -279,7 +314,7 @@ textarea:focus {
   margin-top: 16px;
   padding: 14px;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--r-md);
 }
 .progress-edit {
   display: flex;
@@ -326,7 +361,7 @@ textarea:focus {
   place-items: center;
   width: 48px;
   height: 48px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
 }
 .tile.round {
   border-radius: 50%;
@@ -335,7 +370,7 @@ textarea:focus {
 }
 .tile.accent {
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .tile.good {
   background: var(--good-soft);
@@ -355,17 +390,18 @@ textarea:focus {
 }
 /* Headings inside the backup panel read as titles, not as the small form labels. */
 .sheet.wide h3 {
-  font-size: 17px;
-  font-weight: 700;
+  font-family: var(--f-display);
+  font-size: var(--fs-lg);
+  font-weight: 600;
   letter-spacing: -0.01em;
-  text-transform: none;
   color: var(--fg);
   margin: 0 0 4px;
 }
 .sheet.wide h4 {
-  font-size: 15px;
+  font-size: var(--fs-base);
   margin: 0 0 4px;
 }
+/* These headings take focus from script to announce a step; they are not controls. */
 .sheet.wide h3:focus,
 .sheet.wide h4:focus {
   outline: none;
@@ -386,11 +422,11 @@ textarea:focus {
 }
 .wide-btn {
   width: 100%;
-  min-height: 44px;
+  min-height: var(--hit);
 }
 .btn.outline {
   border-color: var(--accent);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .btn.danger-solid {
   background: var(--bad);
@@ -409,13 +445,13 @@ textarea:focus {
   gap: 6px;
   padding: 20px 16px;
   text-align: center;
-  border: 2px dashed var(--line);
-  border-radius: 12px;
+  border: 2px dashed var(--control);
+  border-radius: var(--r-md);
   background: var(--surface);
   cursor: pointer;
   transition:
-    border-color 150ms,
-    background-color 150ms;
+    border-color var(--t-fast) var(--ease),
+    background-color var(--t-fast) var(--ease);
 }
 .dropzone:hover,
 .dropzone.over {
@@ -427,7 +463,7 @@ textarea:focus {
 }
 .sheet .dropzone p {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 .sheet .dropzone .dz-title {
   font-weight: 600;
@@ -438,7 +474,7 @@ textarea:focus {
 }
 .file-name {
   font-weight: 600;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   overflow-wrap: anywhere;
 }
 .spinner {
@@ -459,7 +495,7 @@ textarea:focus {
   gap: 10px;
   padding: 16px;
   border: 1px solid var(--bad);
-  border-radius: 12px;
+  border-radius: var(--r-md);
   background: var(--bad-soft);
   font-size: 14px;
 }
@@ -513,16 +549,17 @@ textarea:focus {
 }
 .backup-stats dd {
   margin: 0;
-  font-size: 22px;
-  font-weight: 700;
+  font-family: var(--f-display);
+  font-size: var(--fs-xl);
+  font-weight: 600;
 }
 .backup-stats dt {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--muted);
 }
 .backup-meta {
   margin: 0 0 12px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 .backup-meta > div {
   display: flex;
@@ -541,14 +578,14 @@ textarea:focus {
   margin: 0 0 12px;
   padding-left: 18px;
   color: var(--warn-fg);
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 .sheet .danger-note {
   padding: 10px 12px;
   border-radius: 10px;
   background: var(--warn-soft);
   color: var(--warn-fg);
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 .confirm-panel {
   padding: 4px 0 0;
@@ -568,7 +605,7 @@ textarea:focus {
   gap: 14px;
   padding: 16px;
   border: 1px solid var(--bad);
-  border-radius: 12px;
+  border-radius: var(--r-md);
   background: var(--bad-soft);
 }
 .danger-zone p {
@@ -577,7 +614,7 @@ textarea:focus {
 .delete-all .confirm-panel {
   padding: 16px;
   border: 1px solid var(--bad);
-  border-radius: 12px;
+  border-radius: var(--r-md);
   background: var(--surface);
 }
 

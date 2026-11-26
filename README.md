@@ -52,7 +52,7 @@ To set up the dev site:
 2. Add the repository variables `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (**Settings → Secrets and variables → Actions → Variables**).
 3. In Supabase, add the dev address to the [redirect URLs](docs/supabase-setup.md#2-authentication-settings-dashboard--authentication).
 
-Every push to `main` deploys to dev. To deploy another branch, run `gh workflow run deploy.yml --ref <branch>`; the branch must be allowed by the `github-pages` environment (**Settings → Environments**).
+Every push to `main` or `redesign` deploys to dev, which shows whichever was deployed last. To deploy another branch, run `gh workflow run deploy.yml --ref <branch>`; the branch must be allowed by the `github-pages` environment (**Settings → Environments**).
 
 ## Data
 

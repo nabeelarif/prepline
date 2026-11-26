@@ -20,7 +20,7 @@ npm run lint && npm run typecheck && npm run format:check
 npm run build
 ```
 
-CI (`.github/workflows/ci.yml`) runs all of the above. Cloudflare builds production (roadtogoals.com) from `wrangler.jsonc`, which also handles the SPA fallback there. `deploy.yml` publishes `dist/` to GitHub Pages, the dev site at nabeelarif.github.io/prepline/, on push to `main` or by manual run on an allowed branch, passing the `VITE_SUPABASE_*` repository variables to the build and the Pages subpath as Vite's `--base`. `base` in `vite.config.ts` is `/`, so full links must be built with `appUrl()` (`src/routes.ts`), and any other root-relative address must include the base. GitHub Pages cannot rewrite URLs, so the build copies `index.html` to `404.html` (`spaFallback` in `vite.config.ts`); Pages serves that for `/prepline/plans/abc`, and the router reads the address.
+CI (`.github/workflows/ci.yml`) runs all of the above. Cloudflare builds production (roadtogoals.com) from `wrangler.jsonc`, which also handles the SPA fallback there. `deploy.yml` publishes `dist/` to GitHub Pages, the dev site at nabeelarif.github.io/prepline/, on push to `main` or `redesign`, or by manual run on an allowed branch, passing the `VITE_SUPABASE_*` repository variables to the build and the Pages subpath as Vite's `--base`. `base` in `vite.config.ts` is `/`, so full links must be built with `appUrl()` (`src/routes.ts`), and any other root-relative address must include the base. GitHub Pages cannot rewrite URLs, so the build copies `index.html` to `404.html` (`spaFallback` in `vite.config.ts`); Pages serves that for `/prepline/plans/abc`, and the router reads the address.
 
 ## Architecture
 

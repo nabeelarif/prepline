@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Road to Goals is a static study planner. Users create plans (called `Goal` in code) with optional daily study hours; a plan starts Not started, and pressing Start begins it with an optional deadline, collect resources (read, watch, listen, course, practice, project, workout, habit, task or other) under them, optionally group them into phases, and follow them on a snake-shaped "preparation journey". Progress is weighted by estimated hours, never by resource count. Vite + React 18 + TypeScript (strict) + Zustand + Zod + Supabase + lucide-react, deployed to GitHub Pages by GitHub Actions. Data lives in Supabase (Postgres with Row Level Security, signed-in users only) behind backend-independent repository and auth interfaces. Only the auth session, the theme and a running study timer stay in the browser.
+Road to Goals is a static study planner. Users create plans (called `Goal` in code) with optional daily study hours; a plan starts Not started, and pressing Start begins it with an optional deadline, collect resources (read, watch, listen, course, practice, project, workout, habit, task or other) under them, optionally group them into phases, and follow them on a snake-shaped "preparation journey". Progress is weighted by estimated hours, never by resource count. Vite + React 18 + TypeScript (strict) + Zustand + Zod + Supabase + lucide-react, deployed as a static site (see Commands). Data lives in Supabase (Postgres with Row Level Security, signed-in users only) behind backend-independent repository and auth interfaces. Only the auth session, the theme and a running study timer stay in the browser.
 
 `legacy/index.html` is the original single-file version, kept only for comparison. Don't edit it.
 
@@ -20,7 +20,7 @@ npm run lint && npm run typecheck && npm run format:check
 npm run build
 ```
 
-CI (`.github/workflows/ci.yml`) runs all of the above; `deploy.yml` publishes `dist/` to Pages on push to `main`. `deploy.yml` passes the `VITE_SUPABASE_*` repository variables to the build. `base` in `vite.config.ts` is `/` because the site is served from the custom domain roadtogoals.com (`public/CNAME`). GitHub Pages cannot rewrite URLs, so the build copies `index.html` to `404.html` (`spaFallback` in `vite.config.ts`); Pages serves that for `/plans/abc`, and the router reads the address.
+CI (`.github/workflows/ci.yml`) runs all of the above. Cloudflare builds production (roadtogoals.com) from `wrangler.jsonc`, which also handles the SPA fallback there. `deploy.yml` publishes `dist/` to GitHub Pages, the dev site at nabeelarif.github.io/prepline/, on push to `main` or by manual run on an allowed branch, passing the `VITE_SUPABASE_*` repository variables to the build and the Pages subpath as Vite's `--base`. `base` in `vite.config.ts` is `/`, so full links must be built with `appUrl()` (`src/routes.ts`), and any other root-relative address must include the base. GitHub Pages cannot rewrite URLs, so the build copies `index.html` to `404.html` (`spaFallback` in `vite.config.ts`); Pages serves that for `/prepline/plans/abc`, and the router reads the address.
 
 ## Architecture
 

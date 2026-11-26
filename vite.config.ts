@@ -18,7 +18,8 @@ const spaFallback = (): Plugin => {
 };
 
 export default defineConfig({
-  // Served from the custom domain roadtogoals.com (public/CNAME), so the base is the root.
+  // The root, for roadtogoals.com and local dev. deploy.yml overrides it with --base for the
+  // GitHub Pages dev site, which is served from /<repo>/.
   base: '/',
   plugins: [react(), spaFallback()],
   test: {

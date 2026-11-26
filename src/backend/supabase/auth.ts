@@ -7,6 +7,7 @@ import {
   type AuthUser,
   type LinkedMethod,
 } from '../../auth/types';
+import { appUrl, paths } from '../../routes';
 import { toAuthError } from './errors';
 
 /** App provider ids → Supabase provider names. Adding a provider starts here. */
@@ -23,8 +24,8 @@ const FROM_SUPABASE: Record<string, AuthProviderId> = {
 const toUser = (u: User | null | undefined): AuthUser | null =>
   u ? { id: u.id, email: u.email ?? null } : null;
 
-/** Where OAuth and email links send the user back to: this page. */
-const redirectUrl = () => `${window.location.origin}/`;
+/** Where OAuth and email links send the user back to: the app's root, wherever it is hosted. */
+const redirectUrl = () => appUrl(paths.home);
 
 async function wrap<R extends { data: unknown; error: unknown }>(
   op: PromiseLike<R>,

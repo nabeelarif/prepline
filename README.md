@@ -39,12 +39,20 @@ npm run build        # production build in dist/
 
 Built with Vite, React, TypeScript, Zustand, Zod and Supabase. Set up the backend first: see [docs/supabase-setup.md](docs/supabase-setup.md). Without `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` the app shows a configuration error and saves nothing.
 
-## Deploy to GitHub Pages
+## Deployment
 
-1. Push the repo to GitHub.
-2. In the repo, go to **Settings → Pages** and set **Source** to **GitHub Actions**.
-3. Add the repository variables `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (**Settings → Secrets and variables → Actions → Variables**). Every push to `main` builds and deploys the site through `.github/workflows/deploy.yml`. It is live at https://roadtogoals.com.
-4. The custom domain comes from `public/CNAME`. In **Settings → Pages**, set the custom domain to `roadtogoals.com`, point DNS at GitHub Pages, and enable **Enforce HTTPS**. Because it is served from the domain root, `base` in `vite.config.ts` is `/`.
+| Environment | Address                                | Built by                                        |
+| ----------- | -------------------------------------- | ----------------------------------------------- |
+| Production  | https://roadtogoals.com                | Cloudflare Workers Builds (`wrangler.jsonc`)    |
+| Dev         | https://nabeelarif.github.io/prepline/ | GitHub Actions (`.github/workflows/deploy.yml`) |
+
+To set up the dev site:
+
+1. In **Settings → Pages**, set **Source** to **GitHub Actions**. Do not use **Deploy from a branch**: it publishes the unbuilt source.
+2. Add the repository variables `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (**Settings → Secrets and variables → Actions → Variables**).
+3. In Supabase, add the dev address to the [redirect URLs](docs/supabase-setup.md#2-authentication-settings-dashboard--authentication).
+
+Every push to `main` deploys to dev. To deploy another branch, run `gh workflow run deploy.yml --ref <branch>`; the branch must be allowed by the `github-pages` environment (**Settings → Environments**).
 
 ## Data
 

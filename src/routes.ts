@@ -1,3 +1,6 @@
+/** The folder the app is served from, without a trailing slash ('' at the root). */
+export const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
+
 /** Every address the app uses. The URL decides the screen and the selected plan. */
 export const paths = {
   home: '/',
@@ -18,6 +21,9 @@ export const paths = {
   /** Explore filtered to one tag. */
   exploreTag: (tag: string) => `/explore?tag=${encodeURIComponent(tag)}`,
 };
+
+/** The full address of an in-app path, for links that leave the app. */
+export const appUrl = (path: string) => `${window.location.origin}${basePath}${path}`;
 
 const RETURN_KEY = 'roadtogoals:returnTo';
 

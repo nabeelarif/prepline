@@ -43,7 +43,7 @@ Hidden plans stop appearing in Explore and their link stops working. The owner s
 - **Anonymous sign-ins: off.**
 - **URL Configuration:**
   - Site URL: `https://roadtogoals.com`
-  - Redirect URLs: `https://roadtogoals.com/`, `http://localhost:5173/`, `http://localhost:4173/`
+  - Redirect URLs: `https://roadtogoals.com/`, `https://nabeelarif.github.io/prepline/` (dev), `http://localhost:5173/`, `http://localhost:4173/`
 
 `supabase/config.toml` holds the same settings for the local stack.
 
@@ -54,9 +54,9 @@ cp .env.example .env     # then fill in the URL and anon key
 npm run dev              # http://localhost:5173/
 ```
 
-## 4. Deployment (GitHub Pages)
+## 4. Deployment
 
-In the repository: Settings → Secrets and variables → Actions → **Variables**, add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. `deploy.yml` passes them to the build. They end up in the public JavaScript, which is expected.
+The dev and production builds both need `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. They end up in the public JavaScript, which is expected. For dev, they are GitHub Actions repository variables (see [Deployment](../README.md#deployment) in the README). Production is built by Cloudflare, which needs them in its own build settings.
 
 ## 5. Link auto-fill (Edge Function)
 

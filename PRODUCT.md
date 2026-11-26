@@ -22,7 +22,7 @@ The journey is the product: the plan is a path with a next step, and progress is
 
 ## Operating Context
 
-Signed-in app on Supabase (Postgres with row-level security) behind backend-independent repository interfaces, deployed as a static site to GitHub Pages at roadtogoals.com. Explore and shared plans work signed out. Data entered by the user is arbitrary in length and language.
+Signed-in app on Supabase (Postgres with row-level security) behind backend-independent repository interfaces, deployed as a static site to roadtogoals.com. Explore and shared plans work signed out. Data entered by the user is arbitrary in length and language.
 
 ## Capabilities and Constraints
 

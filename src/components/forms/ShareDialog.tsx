@@ -2,14 +2,10 @@ import { useState, type FormEvent } from 'react';
 import { Check, Copy, Share2 } from 'lucide-react';
 import { sharingArgs, type SharingValue } from '../../domain/share';
 import type { Goal } from '../../domain/types';
-import { paths } from '../../routes';
+import { appUrl, paths } from '../../routes';
 import { useStore } from '../../state/store';
 import { DIALOG_TITLE } from '../Overlay';
 import { SharingFields } from './SharingFields';
-
-/** The full link to a shared plan, on this site. */
-const linkTo = (slug: string) =>
-  `${window.location.origin}${import.meta.env.BASE_URL.replace(/\/$/, '')}${paths.shared(slug)}`;
 
 /** Choose who can open a plan. Only the plan is shared, never progress, dates or daily hours. */
 export function ShareDialog({ goal }: { goal: Goal }) {
@@ -25,7 +21,8 @@ export function ShareDialog({ goal }: { goal: Goal }) {
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const link = current?.slug && current.visibility !== 'private' ? linkTo(current.slug) : '';
+  const link =
+    current?.slug && current.visibility !== 'private' ? appUrl(paths.shared(current.slug)) : '';
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();

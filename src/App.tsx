@@ -26,6 +26,7 @@ import { TimerBar } from './components/TimerBar';
 import { Toast } from './components/Toast';
 import { lazy, useEffect } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
+import { goalOfResource } from './domain/resources';
 import { usePageTitle } from './hooks/usePageTitle';
 import { clearReturnPath, paths, peekReturnPath } from './routes';
 import { backendConfigError, useActiveGoal, useStore } from './state/store';
@@ -73,7 +74,15 @@ const SHEET_SIZE: Record<string, 'wide' | 'viewer' | undefined> = {
 
 function OverlayContent() {
   const overlay = useStore((s) => s.ui.overlay);
-  const goal = useActiveGoal();
+  // A resource's overlay belongs to the plan holding it, which on Today need not be the
+  // current one. Everything else is about the current plan.
+  const goal = useStore((s) => {
+    const o = s.ui.overlay;
+    const resourceId = o && 'resourceId' in o ? o.resourceId : null;
+    return resourceId
+      ? goalOfResource(s.data.goals, resourceId)
+      : s.data.goals.find((g) => g.id === s.data.activeGoalId);
+  });
   if (!overlay) return null;
 
   let content;
@@ -170,8 +179,8 @@ function Dashboard() {
 }
 
 function Today() {
-  const goal = useActiveGoal();
-  return goal ? <TodayView goal={goal} /> : <NoPlans />;
+  const hasPlans = useStore((s) => s.data.goals.length > 0);
+  return hasPlans ? <TodayView /> : <NoPlans />;
 }
 
 function NotFound({ plan = false }: { plan?: boolean }) {

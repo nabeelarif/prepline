@@ -137,6 +137,14 @@ export function focusResource(resources: Resource[]): Resource | null {
   return focusOrder(resources)[0] ?? null;
 }
 
+/** The plan holding a resource. Resource ids are unique across a user's plans. */
+export function goalOfResource<G extends { resources: Pick<Resource, 'id'>[] }>(
+  goals: G[],
+  resourceId: string,
+): G | undefined {
+  return goals.find((g) => g.resources.some((r) => r.id === resourceId));
+}
+
 /** A resource in any plan, by plan and resource id. */
 export function findResource<R extends Pick<Resource, 'id'>>(
   goals: { id: string; resources: R[] }[],

@@ -271,6 +271,28 @@ describe('sharing', () => {
     expect(await missing.getShared('nope')).toBeNull();
   });
 
+  it('gives the owner fork and favorite counts, and leaves out a taken-down plan', async () => {
+    const share = { visibility: 'public', tags: [], hidden: false, copy_count: 2 };
+    const { client } = fakeClient((call) => {
+      if (call === 'rpc:my_favorite_counts') return { data: { g1: 3, g3: 9 } };
+      if (call.includes('plan_shares'))
+        return {
+          data: [
+            { ...share, goal_id: 'g1', slug: 'a' },
+            { ...share, goal_id: 'g2', slug: 'b' },
+            { ...share, goal_id: 'g3', slug: 'c', hidden: true },
+          ],
+        };
+      return { data: { display_name: 'Ada' } };
+    });
+    const { plans } = await createSupabaseSharing(client).loadSharing();
+    expect(plans).toMatchObject({
+      g1: { copyCount: 2, favoriteCount: 3 },
+      g2: { copyCount: 2, favoriteCount: 0 },
+    });
+    expect(Object.keys(plans)).toEqual(['g1', 'g2']);
+  });
+
   it('lists, sets and reports through functions, never tables, and cleans tags first', async () => {
     const { client, calls } = fakeClient((call) =>
       call === 'rpc:set_plan_sharing'

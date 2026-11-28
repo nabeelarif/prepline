@@ -11,10 +11,12 @@ import {
   Target,
   Trash2,
 } from 'lucide-react';
+import { useEffect } from 'react';
 import { fmtDate, todayISO } from '../domain/dates';
-import { fmtHours } from '../domain/format';
+import { fmtHours, shareCounts } from '../domain/format';
 import { metrics } from '../domain/metrics';
 import { pace } from '../domain/pace';
+import { planStatus } from '../domain/schedule';
 import { Link } from 'react-router-dom';
 import { paths } from '../routes';
 import { useStore } from '../state/store';
@@ -26,13 +28,14 @@ import { ProgressRing } from './ProgressRing';
 
 export function MyPlans() {
   const goals = useStore((s) => s.data.goals);
-  const activeId = useStore((s) => s.data.activeGoalId);
   const shared = useStore((s) => s.sharing.plans);
   const { openOverlay, duplicateGoal, deleteGoal } = useStore.getState();
   const today = todayISO();
   const newPlan = () => openOverlay({ kind: 'goal', goalId: null });
   const importPlan = () => openOverlay({ kind: 'import' });
   const pastePlan = () => openOverlay({ kind: 'import', source: 'paste' });
+  // Other people fork and star plans, so the counts are read again on each visit.
+  useEffect(() => void useStore.getState().refreshSharing(), []);
 
   return (
     <>
@@ -74,19 +77,25 @@ export function MyPlans() {
           {goals.map((g) => {
             const m = metrics(g.resources);
             const p = pace(g, m, today);
-            const active = g.id === activeId;
+            const status = planStatus(g);
+            const share = shared[g.id];
             return (
-              <li key={g.id} className={`card plan-card${active ? ' is-active' : ''}`}>
+              <li key={g.id} className="card plan-card">
                 <div className="plan-top">
                   <ProgressRing pct={m.pct} size={56} stroke={6} label={`${m.pct}% complete`}>
                     <strong className="small">{m.pct}%</strong>
                   </ProgressRing>
                   <div className="plan-title">
                     <h2>{g.name}</h2>
-                    {active && <span className="badge">Current</span>}
-                    {shared[g.id] && shared[g.id]!.visibility !== 'private' && (
+                    {status === 'in_progress' && (
+                      <span className="status s-in_progress">In progress</span>
+                    )}
+                    {status === 'completed' && (
+                      <span className="status s-completed">Completed</span>
+                    )}
+                    {share && share.visibility !== 'private' && (
                       <span className="badge">
-                        {shared[g.id]!.visibility === 'public' ? 'Public' : 'Shared'}
+                        {share.visibility === 'public' ? 'Public' : 'Shared'}
                       </span>
                     )}
                   </div>
@@ -149,9 +158,15 @@ export function MyPlans() {
                     <dd>{fmtHours(m.remaining)}</dd>
                   </div>
                 </dl>
+                {share?.visibility === 'public' && (
+                  <p className="muted small plan-counts">
+                    {shareCounts(share.copyCount, share.favoriteCount)}
+                  </p>
+                )}
                 <div className="plan-foot">
                   <span className={`pace pace-${p.kind}`}>
-                    <span className="pill">{paceText(p, g).label}</span>
+                    {/* The Completed badge already says what this pill would. */}
+                    {status !== 'completed' && <span className="pill">{paceText(p, g).label}</span>}
                   </span>
                   {!g.startDate && (
                     <button

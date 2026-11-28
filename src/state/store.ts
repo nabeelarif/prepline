@@ -7,6 +7,7 @@ import { uid } from '../domain/format';
 import type { RoadmapView } from '../domain/roadmap';
 import {
   findResource,
+  goalOfResource,
   progressPatch,
   resDone,
   sameProgress,
@@ -143,6 +144,11 @@ export interface Store {
   setFavorite(slug: string, on: boolean): Promise<string | null>;
   /** Title and length of a link, looked up by the server. Null when nothing could be read. */
   fetchUrlInfo(url: string): Promise<UrlInfo | null>;
+  /**
+   * Reads sharing again, for fork and favorite counts that others change. Quiet: a failure
+   * keeps what is already shown, and nothing happens before the first load has finished.
+   */
+  refreshSharing(): Promise<void>;
   /**
    * Changes who can open a plan. Returns an error text to show, or null on success.
    * Other people see the account's display name as the author.
@@ -292,6 +298,8 @@ function place<T extends { id: string }>(list: T[], id: string, targetId: string
 
 let toastSeq = 0;
 
+const TAKEN_DOWN = 'This plan was taken down after a report, so nobody can open it right now.';
+
 /** Error text for a sharing action: the server's own message for a rejected value. */
 const sharingError = (e: unknown): string =>
   e instanceof RepositoryError && e.code === 'validation' ? e.message : describeError(e);
@@ -305,6 +313,8 @@ export function createAppStore({ repo, auth, sharing, enricher }: Backend) {
     const queue = new WriteQueue((sync) => set({ sync }));
     let userId: string | null = null;
     let loadSeq = 0;
+    /** Bumped by a refresh or a sharing change, so an older refresh never overwrites either. */
+    let sharingSeq = 0;
 
     /**
      * Applies a change to the data in memory at once, then saves it through the write queue.
@@ -414,13 +424,28 @@ export function createAppStore({ repo, auth, sharing, enricher }: Backend) {
     };
     const loadSharing = async () => {
       const seq = loadSeq;
+      const mine = ++sharingSeq;
+      const latest = () => seq === loadSeq && mine === sharingSeq;
       try {
         const s = await sharing.loadSharing();
-        if (seq === loadSeq) set({ sharing: { status: 'ready', ...s } });
+        if (latest()) set({ sharing: { status: 'ready', ...s } });
       } catch {
-        // Not worth blocking the app: sharing just shows as unavailable.
-        if (seq === loadSeq) set({ sharing: { status: 'error', plans: {}, displayName: null } });
+        // Not worth blocking the app: sharing shows as unavailable, or stays as last read.
+        if (latest() && get().sharing.status !== 'ready') {
+          set({ sharing: { status: 'error', plans: {}, displayName: null } });
+        }
       }
+    };
+
+    /**
+     * Puts a saved sharing change on screen. Without a full load to put it on, the change
+     * must not pass for the whole picture, so everything is read again instead.
+     */
+    const patchSharing = (change: (s: SharingState) => Partial<SharingState>) => {
+      if (get().sharing.status !== 'ready') return void loadSharing();
+      // A load already in flight may have missed this change.
+      sharingSeq++;
+      set((s) => ({ sharing: { ...s.sharing, ...change(s.sharing) } }));
     };
 
     /** Starts over for another user, or for nobody: nothing of the old user stays in memory. */
@@ -463,8 +488,10 @@ export function createAppStore({ repo, auth, sharing, enricher }: Backend) {
 
     const setUi = (ui: Partial<UiState>) => set((s) => ({ ui: { ...s.ui, ...ui } }));
     const toast = (text: string, undo?: () => void) => ({ toast: { id: ++toastSeq, text, undo } });
+    // Today acts on every plan, so a resource is looked up in all of them, not just the
+    // current one.
     const resource = (d: Draft<AppData>, id: string) =>
-      activeOf(d)?.resources.find((x) => x.id === id);
+      goalOfResource(d.goals, id)?.resources.find((x) => x.id === id);
 
     return {
       data: createEmptyAppData(),
@@ -493,6 +520,11 @@ export function createAppStore({ repo, auth, sharing, enricher }: Backend) {
       },
       fetchUrlInfo: (url) => enricher.enrich(url),
 
+      refreshSharing: async () => {
+        // The first load is still on its way, so asking again would only repeat it.
+        if (get().sharing.status !== 'idle') await loadSharing();
+      },
+
       setPlanSharing: async (goalId, visibility, tags) => {
         const startedFor = userId;
         try {
@@ -500,13 +532,15 @@ export function createAppStore({ repo, auth, sharing, enricher }: Backend) {
           await queue.settled();
           const result = await sharing.setSharing(goalId, visibility, tags);
           if (userId !== startedFor) return null;
-          set((s) => {
-            const plans = { ...s.sharing.plans };
-            if (result.visibility === 'private') delete plans[goalId];
+          // As in a load, a plan that was taken down reads as not shared.
+          const takenDown = result.visibility !== 'private' && result.hidden;
+          patchSharing((s) => {
+            const plans = { ...s.plans };
+            if (result.visibility === 'private' || takenDown) delete plans[goalId];
             else plans[goalId] = result;
-            return { sharing: { ...s.sharing, status: 'ready', plans } };
+            return { plans };
           });
-          return null;
+          return takenDown ? TAKEN_DOWN : null;
         } catch (e) {
           return sharingError(e);
         }
@@ -517,9 +551,7 @@ export function createAppStore({ repo, auth, sharing, enricher }: Backend) {
         const clean = name.trim();
         try {
           await sharing.setDisplayName(clean);
-          if (userId === startedFor) {
-            set((s) => ({ sharing: { ...s.sharing, displayName: clean || null } }));
-          }
+          if (userId === startedFor) patchSharing(() => ({ displayName: clean || null }));
           return null;
         } catch (e) {
           return sharingError(e);
@@ -691,7 +723,7 @@ export function createAppStore({ repo, auth, sharing, enricher }: Backend) {
       updateResource: (id, input) =>
         commit(
           (d) => {
-            const g = activeOf(d);
+            const g = goalOfResource(d.goals, id);
             const r = g?.resources.find((x) => x.id === id);
             if (!g || !r) return;
             Object.assign(r, input, { phaseId: validPhase(g, input.phaseId) });
@@ -703,7 +735,7 @@ export function createAppStore({ repo, auth, sharing, enricher }: Backend) {
       deleteResource: (id) =>
         commit(
           (d) => {
-            const g = activeOf(d);
+            const g = goalOfResource(d.goals, id);
             if (g) g.resources = g.resources.filter((x) => x.id !== id);
           },
           () => ({
@@ -764,7 +796,7 @@ export function createAppStore({ repo, auth, sharing, enricher }: Backend) {
 
       setResourcePhase: (id, phaseId) =>
         commit((d) => {
-          const g = activeOf(d);
+          const g = goalOfResource(d.goals, id);
           const r = g?.resources.find((x) => x.id === id);
           if (g && r) r.phaseId = validPhase(g, phaseId);
         }),

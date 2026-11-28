@@ -12,12 +12,6 @@
   gap: 12px;
   align-content: start;
 }
-.plan-card.is-active {
-  border-color: var(--accent);
-  box-shadow:
-    0 0 0 1px var(--accent),
-    var(--shadow);
-}
 .plan-top {
   display: flex;
   align-items: center;
@@ -32,6 +26,9 @@
   display: grid;
   justify-items: start;
   gap: 4px;
+}
+.plan-counts {
+  margin: 0;
 }
 .plan-title h2 {
   margin: 0;

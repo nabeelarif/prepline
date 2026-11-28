@@ -79,6 +79,8 @@ export interface PlanSharing {
   /** A moderator took the plan down. The owner still sees it as shared. */
   hidden: boolean;
   copyCount: number;
+  /** How many people starred it; the owner sees the count, never who. */
+  favoriteCount: number;
 }
 
 export const MAX_TAGS = 5;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { goal, res, TODAY } from '../test/fixtures';
-import { dailyBudget, studyPlan } from './schedule';
+import { dailyBudget, dayAgenda, planStatus, studyPlan } from './schedule';
 
 const ids = (g: ReturnType<typeof studyPlan>[number]) =>
   g.slices.map((s) => `${s.resource.id}:${s.minutes}`);
@@ -98,5 +98,95 @@ describe('studyPlan: minutes studied today', () => {
     const [day] = studyPlan(old, 1, TODAY);
     expect(day!.studied).toBe(0);
     expect(ids(day!)).toEqual(['a:60']);
+  });
+});
+
+describe('planStatus', () => {
+  it('is completed, not started or in progress', () => {
+    const open = [res({ id: 'a' })];
+    expect(planStatus(goal(open))).toBe('in_progress');
+    expect(planStatus(goal([]))).toBe('in_progress');
+    expect(planStatus(goal(open, { startDate: null }))).toBe('not_started');
+    expect(planStatus(goal([res({ id: 'a', done: true })]))).toBe('completed');
+  });
+});
+
+describe('dayAgenda', () => {
+  const plan = (id: string, minutes: number, o = {}) =>
+    goal([res({ id, minutes })], { id, targetDate: null, ...o });
+  const listed = (a: ReturnType<typeof dayAgenda>) => a.plans.map((p) => p.goal.id);
+
+  it('holds every plan in progress, in order, with the budgets added up', () => {
+    const goals = [plan('a', 300), plan('b', 300, { hoursPerDay: 2 })];
+    const waiting = plan('c', 60, { startDate: null });
+    const a = dayAgenda([...goals, waiting], 0, TODAY);
+    expect(listed(a)).toEqual(['a', 'b']);
+    expect(a).toMatchObject({ date: TODAY, budget: 180, target: 180, credited: 0 });
+  });
+
+  it('never lets extra time on one plan cover another, and skips plans with no budget', () => {
+    const studied = (id: string, minutes: number, o = {}) =>
+      goal(
+        [res({ id, minutes: 600, doneMinutes: minutes, loggedOn: TODAY, loggedMinutes: minutes })],
+        {
+          id,
+          targetDate: null,
+          ...o,
+        },
+      );
+    const a = dayAgenda(
+      [studied('a', 200), plan('b', 300), studied('c', 30, { hoursPerDay: null })],
+      0,
+      TODAY,
+    );
+    expect(a).toMatchObject({ budget: 120, credited: 60 });
+  });
+
+  it('asks no more of a plan than it has left, so finishing it all reaches the target', () => {
+    const last = goal(
+      [res({ id: 'a', minutes: 30, done: true, loggedOn: TODAY, loggedMinutes: 30 })],
+      { id: 'a', hoursPerDay: 2, targetDate: null },
+    );
+    const a = dayAgenda([last, plan('b', 30)], 0, TODAY);
+    expect(a).toMatchObject({ budget: 180, target: 60, credited: 30 });
+  });
+
+  it('keeps a plan finished today, but not one finished earlier', () => {
+    const done = (id: string, on: string) =>
+      goal([res({ id, done: true, doneAt: on, loggedOn: on, loggedMinutes: 60 })], { id });
+    const a = dayAgenda([done('a', TODAY), done('b', '2026-03-09')], 0, TODAY);
+    expect(listed(a)).toEqual(['a']);
+  });
+
+  it('lists a later day only for plans with something planned on it', () => {
+    const goals = [
+      plan('long', 600),
+      plan('short', 60),
+      plan('due', 600, { targetDate: TODAY }),
+      plan('unpaced', 600, { hoursPerDay: null }),
+    ];
+    const a = dayAgenda(goals, 1, TODAY);
+    expect(listed(a)).toEqual(['long']);
+    expect(a.date).toBe('2026-03-11');
+    expect(a.plans[0]!.day.slices[0]).toMatchObject({ from: 60, minutes: 60 });
+  });
+});
+
+describe('dailyBudget: a deadline with no daily hours', () => {
+  const dueToday = (doneMinutes: number, done = false) =>
+    goal([res({ id: 'a', done, doneMinutes, loggedOn: TODAY, loggedMinutes: doneMinutes })], {
+      hoursPerDay: null,
+      targetDate: TODAY,
+    });
+
+  it('does not shrink as today is studied', () => {
+    const g = dueToday(30);
+    expect(dailyBudget(g, TODAY)).toBe(60);
+    const [day] = studyPlan(g, 1, TODAY);
+    expect(ids(day!)).toEqual(['a:30']);
+  });
+
+  it('stays for the day the plan is finished', () => {
+    expect(dailyBudget(dueToday(60, true), TODAY)).toBe(60);
   });
 });

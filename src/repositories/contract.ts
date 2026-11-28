@@ -385,6 +385,10 @@ export function describeSharingContract(name: string, make: () => Promise<Contra
       expect((await sharing.getShared(slug!))?.favorited).toBe(false);
       await sharing.setFavorite(slug!, true);
       expect(await sharing.getShared(slug!)).toMatchObject({ favoriteCount: 1, favorited: false });
+      const owned = (await sharing.loadSharing()).plans['g1']!;
+      expect(owned.favoriteCount).toBe(1);
+      // Saving answers with exactly what a fresh load would.
+      expect(await sharing.setSharing('g1', 'public', owned.tags)).toEqual(owned);
       await subject.switchUser('b');
       await sharing.setFavorite(slug!, false);
       expect(await sharing.listFavorites()).toEqual([]);

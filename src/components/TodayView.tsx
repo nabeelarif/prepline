@@ -1,14 +1,13 @@
-import { ExternalLink, Flame, Gauge, Play } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ExternalLink, Flame, Gauge, Play } from 'lucide-react';
 import { useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { TYPES } from '../domain/constants';
+import { Link, useSearchParams } from 'react-router-dom';
 import { fmtDate, relDay, todayISO } from '../domain/dates';
 import { fmtHours, pl } from '../domain/format';
-import { metrics } from '../domain/metrics';
 import { resStatus } from '../domain/resources';
-import { studyPlan, type StudyDay, type StudySlice } from '../domain/schedule';
+import { dayAgenda, planStatus, type StudyDay, type StudySlice } from '../domain/schedule';
 import { currentStreak } from '../domain/studyLog';
 import type { Goal } from '../domain/types';
+import { paths } from '../routes';
 import { useStore } from '../state/store';
 import { useTimer } from '../state/timer';
 import { DoneTick } from './DoneTick';
@@ -17,43 +16,71 @@ import { ResourceLink } from './ResourceLink';
 import { TimerButton } from './TimerButton';
 import { TypeLabel } from './TypeLabel';
 
-type Range = 'today' | 'week';
+/** How many days past today can be looked at. Further out, the guess is worth little. */
+const DAYS_AHEAD = 6;
 
-/** The study list for today, or the next seven days, filled from the plan's priority order. */
-export function TodayView({ goal }: { goal: Goal }) {
-  // The range lives in the address, so a reload or a shared link keeps it.
+/** The day to show, as days from today; anything unusable in the address means today. */
+function dayOffset(raw: string | null): number {
+  const n = Number(raw);
+  return Number.isInteger(n) && n > 0 && n <= DAYS_AHEAD ? n : 0;
+}
+
+/**
+ * What to study on one day in every plan in progress, filled from each plan's priority
+ * order. Opens on today and steps forward a day at a time.
+ */
+export function TodayView() {
+  // The day lives in the address, so a reload keeps it.
   const [params, setParams] = useSearchParams();
-  const range: Range = params.get('range') === 'week' ? 'week' : 'today';
-  const setRange = (r: Range) =>
+  const offset = dayOffset(params.get('day'));
+  const nextRef = useRef<HTMLButtonElement>(null);
+  const goTo = (to: number) => {
+    if (to < 0 || to > DAYS_AHEAD) return;
     setParams(
       (prev) => {
         const next = new URLSearchParams(prev);
-        if (r === 'week') next.set('range', 'week');
-        else next.delete('range');
+        if (to > 0) next.set('day', String(to));
+        else next.delete('day');
         return next;
       },
       { replace: true },
     );
-  const today = todayISO();
-  const days = studyPlan(goal, range === 'today' ? 1 : 7, today);
-  const budget = days[0]?.budget ?? null;
-  const finished = metrics(goal.resources).remaining === 0;
+  };
+
+  const goals = useStore((s) => s.data.goals);
   const log = useStore((s) => s.studyLog);
   const timing = useTimer((s) => s.timer !== null);
-  const studied = days[0]?.studied ?? 0;
-  const dayPct = budget ? Math.round(Math.min(100, (studied / budget) * 100)) : 0;
+  const today = todayISO();
+  const isToday = offset === 0;
+  const agenda = dayAgenda(goals, offset, today);
+  const inProgress = goals.filter((g) => planStatus(g) === 'in_progress').length;
+  const waiting = goals.filter((g) => planStatus(g) === 'not_started');
   const streak = log.ready ? currentStreak(log.days, today) : 0;
+  const { budget, target, credited } = agenda;
+  const dayPct = target ? Math.round((credited / target) * 100) : 0;
+  const planned = agenda.plans.reduce((a, p) => a + p.day.minutes, 0);
+  // Today lists every plan in progress, so an empty list means there is none.
+  const nothingStarted = isToday && !agenda.plans.length;
+  const title = relDay(agenda.date, today);
 
   return (
     <>
       <header className="page-head">
         <div>
-          <h1>{range === 'today' ? 'Today' : 'This week'}</h1>
+          <h1 aria-live="polite">{title}</h1>
           <p className="muted today-sub">
-            {goal.name} · {fmtDate(today)}
-            {budget != null && ` · ${fmtHours(budget)} a day`}
+            {[
+              isToday && inProgress > 0 && `${pl(inProgress, 'plan')} in progress`,
+              // Further out, the heading is already the date.
+              offset < 2 && fmtDate(agenda.date),
+              isToday
+                ? budget != null && `${fmtHours(budget)} a day`
+                : planned > 0 && `${fmtHours(planned)} planned`,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
           </p>
-          {log.ready && (
+          {isToday && log.ready && (
             <p className="today-streak">
               <Flame size={16} aria-hidden="true" className={streak > 0 ? 'lit' : ''} />{' '}
               {streak > 0 ? `${pl(streak, 'day')} streak` : 'No streak yet'}
@@ -61,66 +88,79 @@ export function TodayView({ goal }: { goal: Goal }) {
             </p>
           )}
         </div>
-        <div className="today-head-side">
-          {range === 'today' && budget != null && goal.startDate && (
-            <ProgressRing
-              pct={dayPct}
-              size={64}
-              stroke={7}
-              label={`${fmtHours(studied)} of ${fmtHours(budget)} studied today`}
-            >
-              <strong>{dayPct}%</strong>
-            </ProgressRing>
-          )}
-          <div className="seg" role="group" aria-label="Range">
-            {(['today', 'week'] as const).map((r) => (
-              <button
-                key={r}
-                type="button"
-                className={`btn sm${range === r ? ' primary' : ''}`}
-                aria-pressed={range === r}
-                onClick={() => setRange(r)}
+        {!nothingStarted && (
+          <div className="today-head-side">
+            {isToday && target > 0 && (
+              <ProgressRing
+                pct={dayPct}
+                size={64}
+                stroke={7}
+                label={`${fmtHours(credited)} of ${fmtHours(target)} studied today`}
               >
-                {r === 'today' ? 'Today' : 'This week'}
+                <strong>{dayPct}%</strong>
+              </ProgressRing>
+            )}
+            <div className="day-nav" role="group" aria-label="Day">
+              {!isToday && (
+                <button
+                  type="button"
+                  className="btn sm ghost"
+                  onClick={() => {
+                    goTo(0);
+                    // This button goes away, so focus moves to one that stays.
+                    nextRef.current?.focus();
+                  }}
+                >
+                  Back to today
+                </button>
+              )}
+              {/* aria-disabled, not disabled: a button that was just used keeps focus. */}
+              <button
+                type="button"
+                className="btn sm icon-only"
+                aria-label="Previous day"
+                title="Previous day"
+                aria-disabled={isToday}
+                onClick={() => goTo(offset - 1)}
+              >
+                <ChevronLeft size={16} aria-hidden="true" />
               </button>
-            ))}
+              <button
+                ref={nextRef}
+                type="button"
+                className="btn sm"
+                aria-disabled={offset === DAYS_AHEAD}
+                onClick={() => goTo(offset + 1)}
+              >
+                Next day <ChevronRight size={16} aria-hidden="true" />
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </header>
-      {!goal.startDate ? (
-        <Notice title="This plan has not started">
-          Start it to get a daily list.{' '}
-          <button
-            className="btn sm primary"
-            onClick={() => useStore.getState().openOverlay({ kind: 'start', goalId: goal.id })}
-          >
-            Start plan
-          </button>
-        </Notice>
-      ) : !goal.resources.length ? (
-        <Notice title="Nothing to study yet">Add resources to this plan to fill your day.</Notice>
-      ) : (
+      {agenda.plans.length ? (
         <>
-          {finished && <Notice title="All done">Every resource in this plan is complete.</Notice>}
-          {budget == null && (
-            <p className="muted">
-              Set daily study hours or a deadline in Edit plan to fill each day. Showing what to
-              work on next.
-            </p>
-          )}
-          <div className={range === 'week' ? 'today-days week' : 'today-days'}>
-            {days.map((d) => (
-              <DaySection
-                key={d.date}
-                day={d}
-                goalId={goal.id}
-                today={today}
-                showHeading={range === 'week'}
-                finished={finished}
-              />
-            ))}
-          </div>
+          {!isToday && <p className="muted today-assume">Assumes you finish the days before.</p>}
+          {agenda.plans.map(({ goal, day }) => (
+            <PlanDay
+              // A new day starts over, so nothing on it slides in as if just finished.
+              key={`${goal.id}:${day.date}`}
+              goal={goal}
+              day={day}
+              isToday={isToday}
+            />
+          ))}
         </>
+      ) : !isToday ? (
+        <Notice title="Nothing planned for this day">
+          <p>Later days fill from plans with daily study hours or a deadline.</p>
+        </Notice>
+      ) : waiting.length ? (
+        <StartAPlan plans={waiting} />
+      ) : (
+        <Notice title="All done">
+          <p>Every plan is complete.</p>
+        </Notice>
       )}
     </>
   );
@@ -130,43 +170,68 @@ function Notice({ title, children }: { title: string; children: React.ReactNode 
   return (
     <section className="card today-notice">
       <h2>{title}</h2>
-      <p>{children}</p>
+      {children}
     </section>
   );
 }
 
-function DaySection({
-  day,
-  goalId,
-  today,
-  showHeading,
-  finished,
-}: {
-  day: StudyDay;
-  goalId: string;
-  today: string;
-  showHeading: boolean;
-  finished: boolean;
-}) {
+function StartAPlan({ plans }: { plans: Goal[] }) {
+  return (
+    <Notice title="No plan in progress">
+      <p>Start a plan to get a daily list.</p>
+      <ul className="today-list">
+        {plans.map((g) => (
+          <li key={g.id} className="today-item">
+            <div className="today-main">
+              <Link to={paths.plan(g.id)}>{g.name}</Link>
+            </div>
+            <button
+              type="button"
+              className="btn sm primary"
+              aria-label={`Start ${g.name}`}
+              onClick={() => useStore.getState().openOverlay({ kind: 'start', goalId: g.id })}
+            >
+              Start plan
+            </button>
+          </li>
+        ))}
+      </ul>
+    </Notice>
+  );
+}
+
+/** One plan's share of the day. Only today's rows can be acted on. */
+function PlanDay({ goal, day, isToday }: { goal: Goal; day: StudyDay; isToday: boolean }) {
   // Only items that appear after the page opened slide in, not ones already there.
   const seen = useRef(new Set(day.studiedItems.map((x) => x.resource.id)));
+  const empty = !goal.resources.length;
+  const finished = planStatus(goal) === 'completed';
+  // A passed deadline gives no pace either, but the plan does have one.
+  const overdue = goal.targetDate != null && goal.targetDate < day.date;
+  const headingId = `today-plan-${goal.id}`;
   return (
-    <section
-      className={`card today-day${showHeading && day.date === today ? ' is-today' : ''}`}
-      aria-label={relDay(day.date, today)}
-    >
-      {showHeading && (
-        <h2>
-          {relDay(day.date, today)}
-          <span className="muted">
-            <span className="sep"> · </span>
-            {day.slices.length
-              ? fmtHours(day.minutes)
-              : day.studied > 0
-                ? 'Done for today'
-                : 'Nothing planned'}
-          </span>
+    <section className="card today-day" aria-labelledby={headingId}>
+      <div className="today-plan-head">
+        <h2 id={headingId}>
+          <Link to={paths.plan(goal.id)}>{goal.name}</Link>
         </h2>
+        {day.budget != null && <span className="muted small">{fmtHours(day.budget)} a day</span>}
+      </div>
+      {empty && <p className="muted">Add resources to this plan to fill your day.</p>}
+      {finished && <p className="muted">All done. Every resource in this plan is complete.</p>}
+      {isToday && day.budget == null && !empty && !finished && (
+        <p className="muted small">
+          {overdue ? 'The deadline has passed' : 'No daily hours or deadline'}, so this shows what
+          to work on next.{' '}
+          <button
+            type="button"
+            className="btn sm ghost"
+            aria-label={`${overdue ? 'Pick a new date' : 'Set daily hours'} for ${goal.name}`}
+            onClick={() => useStore.getState().openOverlay({ kind: 'goal', goalId: goal.id })}
+          >
+            {overdue ? 'Pick a new date' : 'Set daily hours'}
+          </button>
+        </p>
       )}
       {day.studied > 0 && (
         <p className="today-studied">
@@ -175,44 +240,17 @@ function DaySection({
           {day.budget != null && day.studied >= day.budget && !finished && ' · goal reached'}
         </p>
       )}
-      {!day.slices.length && !showHeading && day.studied === 0 && !finished && (
-        <p className="muted">Nothing planned.</p>
-      )}
-      <ul className={showHeading ? 'wk-list' : 'today-list'}>
-        {day.slices.map((s) =>
-          showHeading ? (
-            <WeekCell
-              key={`${s.resource.id}:${s.from}`}
-              goalId={goalId}
-              slice={s}
-              actions={day.date === today}
-            />
-          ) : (
-            <SliceRow
-              key={`${s.resource.id}:${s.from}`}
-              goalId={goalId}
-              slice={s}
-              actions={day.date === today}
-            />
-          ),
-        )}
+      <ul className="today-list">
+        {day.slices.map((s) => (
+          <SliceRow
+            key={`${s.resource.id}:${s.from}`}
+            goalId={goal.id}
+            slice={s}
+            actions={isToday}
+          />
+        ))}
       </ul>
-      {showHeading && day.studiedItems.length > 0 && (
-        <ul className="wk-list wk-done">
-          {day.studiedItems.map(({ resource: r, minutes }) => (
-            <li key={r.id} className={`wk-cell wk-${r.type} is-done`}>
-              <strong className="wk-title">{r.title}</strong>
-              <span className="wk-meta">
-                {fmtHours(minutes)} done{r.done && ' · completed'}
-              </span>
-              <div className="wk-actions">
-                <DoneTick r={r} />
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-      {!showHeading && day.studiedItems.length > 0 && (
+      {day.studiedItems.length > 0 && (
         <>
           <h3 className="today-sub-h">Done today</h3>
           <ul className="today-list">
@@ -243,72 +281,6 @@ function DaySection({
         </p>
       )}
     </section>
-  );
-}
-
-/**
- * One slice in the week grid. No icon column: the title takes the whole cell width, the type is a
- * coloured edge and a word in the meta line, and today's actions are a row of small icon buttons.
- */
-function WeekCell({
-  goalId,
-  slice,
-  actions,
-}: {
-  goalId: string;
-  slice: StudySlice;
-  actions: boolean;
-}) {
-  const { setStatus, openOverlay } = useStore.getState();
-  const r = slice.resource;
-  const active = resStatus(r) === 'in_progress';
-  const partial = slice.minutes < r.minutes;
-
-  return (
-    <li className={`wk-cell wk-${r.type}`}>
-      <strong className="wk-title">{r.title}</strong>
-      <span className="wk-meta">
-        <span className="wk-type">{TYPES[r.type]}</span> · {fmtHours(slice.minutes)}
-        {partial && ` of ${fmtHours(r.minutes)}`}
-        {slice.from > 0 && ` · ${fmtHours(slice.from)} done`}
-        {slice.finishes && partial && ' · finishes it'}
-      </span>
-      {actions && (
-        <div className="wk-actions">
-          <DoneTick r={r} />
-          <TimerButton goalId={goalId} r={r} compact />
-          {active ? (
-            <button
-              className="btn sm icon-only"
-              aria-label={`Update progress on ${r.title}`}
-              title="Update progress"
-              onClick={() => openOverlay({ kind: 'details', resourceId: r.id })}
-            >
-              <Gauge size={15} aria-hidden="true" />
-            </button>
-          ) : (
-            !r.url && (
-              <button
-                className="btn sm icon-only"
-                aria-label={`Start ${r.title}`}
-                title="Start"
-                onClick={() => setStatus(r.id, 'in_progress')}
-              >
-                <Play size={15} aria-hidden="true" />
-              </button>
-            )
-          )}
-          <ResourceLink
-            r={r}
-            className="btn sm primary icon-only"
-            onOpen={() => !active && setStatus(r.id, 'in_progress')}
-          >
-            <ExternalLink size={15} aria-hidden="true" />
-            <span className="sr-only">{active ? 'Continue' : 'Open'}</span>
-          </ResourceLink>
-        </div>
-      )}
-    </li>
   );
 }
 

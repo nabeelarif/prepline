@@ -183,6 +183,7 @@ export interface SharingJson {
   tags: string[] | null;
   hidden?: boolean;
   copy_count?: number;
+  favorite_count?: number;
 }
 
 export const toSharing = (j: SharingJson): PlanSharing => ({
@@ -191,6 +192,7 @@ export const toSharing = (j: SharingJson): PlanSharing => ({
   tags: j.tags ?? [],
   hidden: !!j.hidden,
   copyCount: Number(j.copy_count) || 0,
+  favoriteCount: Number(j.favorite_count) || 0,
 });
 
 export const toShared = (j: SharedPlanJson): SharedPlan => ({

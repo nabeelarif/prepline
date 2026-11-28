@@ -1,4 +1,4 @@
-/* Today and This week */
+/* Today */
 .today-sub {
   margin: 2px 0 0;
 }
@@ -6,38 +6,6 @@
 .today-notice {
   margin-top: 16px;
 }
-/* Wide screens show the week as a row of day columns. */
-.today-days.week {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 12px;
-  align-items: start;
-  margin-top: 16px;
-}
-.week .today-day {
-  margin-top: 0;
-  padding: 12px;
-  min-width: 0;
-}
-.week .today-day h2 {
-  font-size: var(--fs-md);
-}
-.week .today-day h2 .muted {
-  display: block;
-  font-family: var(--f-body);
-  font-size: var(--fs-xs);
-  font-weight: 400;
-}
-.week .today-day h2 .sep {
-  display: none;
-}
-.week .today-day.is-today {
-  border-color: var(--accent);
-  box-shadow:
-    0 0 0 1px var(--accent),
-    var(--shadow);
-}
-.today-day h2,
 .today-notice h2 {
   margin: 0 0 8px;
   font-size: var(--fs-lg);
@@ -119,87 +87,36 @@
   margin-top: 0;
 }
 
-/* Week cells: no icon column, so the title gets the full width of the day. */
-.wk-list {
-  list-style: none;
+/* Stepping through the days */
+.day-nav {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.today-assume {
+  margin: 12px 0 0;
+}
+
+/* One card per plan: its name, then what it holds that day. */
+.today-plan-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-bottom: 8px;
+}
+.today-plan-head h2 {
   margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.wk-done {
-  margin-top: 8px;
-}
-.wk-cell {
-  --edge: var(--muted);
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 8px 10px;
-  border-radius: var(--r-sm);
-  border: 1px solid color-mix(in srgb, var(--edge) 35%, var(--line));
-  background: color-mix(in srgb, var(--edge) 6%, var(--surface));
+  font-size: var(--fs-lg);
   min-width: 0;
-}
-.wk-read {
-  --edge: var(--t-read);
-}
-.wk-watch {
-  --edge: var(--t-watch);
-}
-.wk-listen {
-  --edge: var(--t-listen);
-}
-.wk-course {
-  --edge: var(--t-course);
-}
-.wk-practice {
-  --edge: var(--t-practice);
-}
-.wk-project {
-  --edge: var(--t-project);
-}
-.wk-workout {
-  --edge: var(--t-workout);
-}
-.wk-habit {
-  --edge: var(--t-habit);
-}
-.wk-task {
-  --edge: var(--t-task);
-}
-.wk-other {
-  --edge: var(--t-other);
-}
-.wk-title {
-  font-size: var(--fs-sm);
-  line-height: 1.3;
   overflow-wrap: anywhere;
 }
-.wk-meta {
-  font-size: var(--fs-xs);
-  color: var(--muted);
+.today-plan-head h2 a {
+  color: inherit;
+  text-decoration: none;
 }
-.wk-type {
-  color: var(--edge);
-  font-weight: 700;
-}
-.wk-cell.is-done .wk-title {
-  opacity: 0.7;
-}
-.wk-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  margin-top: 4px;
-}
-.wk-actions .done-tick {
-  margin-top: 0;
-  width: 26px;
-  height: 26px;
-}
-.btn.icon-only {
-  padding-inline: 8px;
+.today-plan-head h2 a:hover {
+  text-decoration: underline;
 }

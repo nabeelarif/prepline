@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { App } from './App';
+import type { Goal } from './domain/types';
 import { useStore } from './state/store';
 import { goal, res } from './test/fixtures';
 import { renderApp } from './test/renderApp';
@@ -210,80 +211,138 @@ describe('routes', () => {
 });
 
 describe('Today', () => {
-  it('lays the week out as seven day sections and marks today', async () => {
-    await resetApp({
+  const plan = (id: string, name: string, titles: string[], o: Partial<Goal> = {}) =>
+    goal(
+      titles.map((t) => res({ id: t, title: t, minutes: 60 })),
+      { id, name, hoursPerDay: 1, targetDate: null, ...o },
+    );
+  /** Two plans in progress and one not started; the first is the current plan. */
+  const three = () =>
+    resetApp({
       version: 1,
       activeGoalId: 'a',
       goals: [
-        goal([res({ id: 'a', title: 'Intro', minutes: 90 })], {
-          id: 'a',
-          hoursPerDay: 1,
-          targetDate: null,
-        }),
+        plan('a', 'Alpha plan', ['Alpha one', 'Alpha two']),
+        plan('b', 'Beta plan', ['Beta one', 'Beta two']),
+        plan('c', 'Gamma plan', ['Gamma one'], { startDate: null }),
       ],
     });
-    const { container } = renderApp('/today?range=week');
-    await screen.findByRole('heading', { level: 1, name: 'This week' });
-    const grid = container.querySelector('.today-days.week');
-    expect(grid?.querySelectorAll('section.today-day')).toHaveLength(7);
-    expect(grid?.querySelectorAll('.is-today')).toHaveLength(1);
-  });
+  const section = (name: string) => screen.getByRole('region', { name });
 
-  it('fills the day from the plan, and switches to the week', async () => {
-    await resetApp({
-      version: 1,
-      activeGoalId: 'a',
-      goals: [
-        goal(
-          [res({ id: 'a', title: 'Intro', minutes: 90 }), res({ id: 'b', title: 'Deep dive' })],
-          {
-            id: 'a',
-            hoursPerDay: 1,
-            targetDate: null,
-          },
-        ),
-      ],
-    });
+  it('lists every plan in progress with its own tasks, and one total', async () => {
+    await three();
     renderApp('/today');
     expect(await screen.findByRole('heading', { level: 1, name: 'Today' })).toBeVisible();
     expect(screen.getByRole('link', { name: 'Today' })).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByText('Intro')).toBeVisible();
-    expect(screen.queryByText('Deep dive')).toBeNull();
-
-    fireEvent.click(screen.getByRole('button', { name: 'This week' }));
-    expect(screen.getByRole('heading', { level: 1, name: 'This week' })).toBeVisible();
-    expect(screen.getAllByText('Deep dive')).toHaveLength(2);
+    expect(screen.getByText(/2 plans in progress/)).toHaveTextContent('2h a day');
+    expect(within(section('Alpha plan')).getByText('Alpha one')).toBeVisible();
+    expect(within(section('Beta plan')).getByText('Beta one')).toBeVisible();
+    expect(screen.queryByRole('region', { name: 'Gamma plan' })).toBeNull();
+    expect(screen.getByRole('img', { name: '0h of 2h studied today' })).toBeVisible();
   });
 
-  it('opens on the week from the address, and shows the day ring and a tick on each item', async () => {
+  it('records progress in a plan that is not the current one', async () => {
+    await three();
+    renderApp('/today');
+    fireEvent.click(await screen.findByRole('button', { name: 'Mark Beta one done' }));
+    expect(await screen.findByRole('button', { name: 'Reopen Beta one' })).toBeVisible();
+    expect(screen.getByRole('img', { name: '1h of 2h studied today' })).toBeVisible();
+    await waitFor(() => expect(serverData().goals[1]!.resources[0]!.done).toBe(true));
+    expect(useStore.getState().data.activeGoalId).toBe('a');
+  });
+
+  it('opens Update progress for a resource in another plan, and saves it there', async () => {
+    await three();
+    renderApp('/today');
+    const beta = await screen.findByRole('region', { name: 'Beta plan' });
+    fireEvent.click(within(beta).getByRole('button', { name: 'Start' }));
+    fireEvent.click(await within(beta).findByRole('button', { name: 'Update progress' }));
+    const dialog = screen.getByRole('dialog', { name: 'Beta one' });
+    fireEvent.change(within(dialog).getByLabelText(/Hours completed/), {
+      target: { value: '0.5' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Update progress' }));
+    await waitFor(() => expect(serverData().goals[1]!.resources[0]!.doneMinutes).toBe(30));
+  });
+
+  it('steps through the days, read-only after today, and keeps the day in the address', async () => {
+    await three();
+    renderApp('/today');
+    expect(await screen.findByText('Alpha one')).toBeVisible();
+    const previous = screen.getByRole('button', { name: 'Previous day' });
+    expect(previous).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.queryByText('Alpha two')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next day' }));
+    expect(screen.getByRole('heading', { level: 1, name: 'Tomorrow' })).toBeVisible();
+    expect(screen.getByText('Alpha two')).toBeVisible();
+    expect(screen.getByText('Beta two')).toBeVisible();
+    expect(screen.queryByText('Alpha one')).toBeNull();
+    expect(screen.getByText('Assumes you finish the days before.')).toBeVisible();
+    expect(screen.queryByRole('button', { name: /^Mark/ })).toBeNull();
+    expect(screen.queryByRole('img', { name: /studied today/ })).toBeNull();
+
+    // Both plans are finished by the day after.
+    fireEvent.click(screen.getByRole('button', { name: 'Next day' }));
+    expect(screen.getByRole('heading', { name: 'Nothing planned for this day' })).toBeVisible();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back to today' }));
+    expect(screen.getByRole('heading', { level: 1, name: 'Today' })).toBeVisible();
+  });
+
+  it('opens on the day in the address, and treats anything else as today', async () => {
+    await three();
+    const first = renderApp('/today?day=1');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Tomorrow' })).toBeVisible();
+    first.unmount();
+    for (const at of ['/today?day=7', '/today?day=x', '/today?range=week']) {
+      const view = renderApp(at);
+      expect(await screen.findByRole('heading', { level: 1, name: 'Today' })).toBeVisible();
+      view.unmount();
+    }
+  });
+
+  it('stops at six days ahead', async () => {
     await resetApp({
       version: 1,
       activeGoalId: 'a',
       goals: [
-        goal([res({ id: 'a', title: 'Intro', minutes: 120 })], {
-          id: 'a',
-          hoursPerDay: 1,
-          targetDate: null,
-        }),
+        goal([res({ id: 'a', minutes: 6000 })], { id: 'a', hoursPerDay: 1, targetDate: null }),
       ],
+    });
+    renderApp('/today?day=6');
+    const next = await screen.findByRole('button', { name: 'Next day' });
+    expect(next).toHaveAttribute('aria-disabled', 'true');
+    const heading = screen.getByRole('heading', { level: 1 }).textContent;
+    fireEvent.click(next);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(heading!);
+  });
+
+  it('keeps a plan finished today on the list', async () => {
+    await resetApp({
+      version: 1,
+      activeGoalId: 'a',
+      goals: [plan('a', 'Alpha plan', ['Alpha one'])],
+    });
+    renderApp('/today');
+    fireEvent.click(await screen.findByRole('button', { name: 'Mark Alpha one done' }));
+    expect(await screen.findByText(/Every resource in this plan is complete/)).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Reopen Alpha one' })).toBeVisible();
+  });
+
+  it('shows the day ring and a tick on each item', async () => {
+    await resetApp({
+      version: 1,
+      activeGoalId: 'a',
+      goals: [plan('a', 'Alpha plan', ['Intro'])],
     });
     renderApp('/today');
     expect(await screen.findByText('Intro')).toBeVisible();
     expect(screen.getByRole('img', { name: '0h of 1h studied today' })).toBeVisible();
-    act(() => useStore.getState().setProgress('a', 30));
+    act(() => useStore.getState().setProgress('Intro', 30));
     expect(await screen.findByRole('img', { name: '30m of 1h studied today' })).toBeVisible();
     fireEvent.click(screen.getAllByRole('button', { name: 'Mark Intro done' })[0]!);
     expect(await screen.findByRole('button', { name: 'Reopen Intro' })).toBeVisible();
-  });
-
-  it('keeps the week range in the address', async () => {
-    await resetApp({
-      version: 1,
-      activeGoalId: 'a',
-      goals: [goal([res({ id: 'a', title: 'Intro', minutes: 60 })], { id: 'a', hoursPerDay: 1 })],
-    });
-    renderApp('/today?range=week');
-    expect(await screen.findByRole('heading', { level: 1, name: 'This week' })).toBeVisible();
   });
 
   it('counts progress recorded today and stops filling the day once the goal is met', async () => {
@@ -307,14 +366,110 @@ describe('Today', () => {
     expect(screen.queryByRole('link', { name: /Open|Continue/ })).toBeNull();
   });
 
-  it('asks to start a plan that has not started', async () => {
+  it('offers to start a plan when none is in progress', async () => {
     await resetApp({
       version: 1,
       activeGoalId: 'a',
-      goals: [goal([res({ id: 'a' })], { id: 'a', startDate: null, targetDate: null })],
+      goals: [plan('a', 'Alpha plan', ['Intro'], { startDate: null })],
     });
     renderApp('/today');
-    expect(await screen.findByText('This plan has not started')).toBeVisible();
+    expect(await screen.findByRole('heading', { name: 'No plan in progress' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Next day' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Start Alpha plan' }));
+    expect(screen.getByRole('dialog')).toBeVisible();
+  });
+
+  it('tells a passed deadline apart from having none', async () => {
+    await resetApp({
+      version: 1,
+      activeGoalId: 'a',
+      goals: [
+        plan('a', 'Alpha plan', ['Alpha one'], { hoursPerDay: null, targetDate: '2026-01-31' }),
+        plan('b', 'Beta plan', ['Beta one'], { hoursPerDay: null }),
+      ],
+    });
+    renderApp('/today');
+    const alpha = await screen.findByRole('region', { name: 'Alpha plan' });
+    expect(alpha).toHaveTextContent('The deadline has passed');
+    expect(
+      within(alpha).getByRole('button', { name: 'Pick a new date for Alpha plan' }),
+    ).toBeVisible();
+    expect(screen.getByRole('region', { name: 'Beta plan' })).toHaveTextContent(
+      'No daily hours or deadline',
+    );
+  });
+
+  it('says all is done when every plan is complete', async () => {
+    await resetApp({
+      version: 1,
+      activeGoalId: 'a',
+      goals: [goal([res({ id: 'a', done: true, doneAt: '2026-01-01' })], { id: 'a' })],
+    });
+    renderApp('/today');
+    expect(await screen.findByText('Every plan is complete.')).toBeVisible();
+  });
+});
+
+describe('My Plans', () => {
+  const card = (name: string) => screen.getByRole('heading', { name }).closest('li')!;
+
+  it('shows where each plan stands instead of a current one', async () => {
+    await resetApp({
+      version: 1,
+      activeGoalId: 'a',
+      goals: [
+        goal([res({ id: 'a' })], { id: 'a', name: 'Alpha plan' }),
+        goal([res({ id: 'b' })], { id: 'b', name: 'Beta plan' }),
+        goal([res({ id: 'c' })], {
+          id: 'c',
+          name: 'Gamma plan',
+          startDate: null,
+          targetDate: null,
+        }),
+        goal([res({ id: 'd', done: true })], { id: 'd', name: 'Delta plan' }),
+      ],
+    });
+    renderApp('/plans');
+    await screen.findByRole('heading', { level: 1, name: 'My Plans' });
+    expect(screen.queryByText('Current')).toBeNull();
+    for (const name of ['Alpha plan', 'Beta plan']) {
+      expect(within(card(name)).getByText('In progress')).toBeVisible();
+    }
+    expect(within(card('Gamma plan')).queryByText('In progress')).toBeNull();
+    expect(within(card('Delta plan')).getByText('Completed')).toBeVisible();
+    expect(within(card('Delta plan')).queryByText('Complete')).toBeNull();
+  });
+
+  it('shows forks and favorites on public plans only', async () => {
+    await resetApp({
+      version: 1,
+      activeGoalId: 'a',
+      goals: [
+        goal([res({ id: 'a' })], { id: 'a', name: 'Alpha plan' }),
+        goal([res({ id: 'b' })], { id: 'b', name: 'Beta plan' }),
+      ],
+    });
+    const { setPlanSharing } = useStore.getState();
+    await vi.waitFor(() => expect(useStore.getState().sharing.status).toBe('ready'));
+    expect(await setPlanSharing('a', 'public', [])).toBeNull();
+    expect(await setPlanSharing('b', 'unlisted', [])).toBeNull();
+    renderApp('/plans');
+    await screen.findByRole('heading', { level: 1, name: 'My Plans' });
+    expect(within(card('Alpha plan')).getByText('0 forks · 0 favorites')).toBeVisible();
+    expect(within(card('Beta plan')).queryByText(/forks/)).toBeNull();
+  });
+
+  it('reads the counts again when the page opens', async () => {
+    await resetApp({
+      version: 1,
+      activeGoalId: 'a',
+      goals: [goal([res({ id: 'a' })], { id: 'a', name: 'Alpha plan' })],
+    });
+    await vi.waitFor(() => expect(useStore.getState().sharing.status).toBe('ready'));
+    // Shared behind the store's back, as a change made elsewhere would be.
+    await memory().sharing.setSharing('a', 'public', []);
+    renderApp('/plans');
+    expect(await screen.findByText('0 forks · 0 favorites')).toBeVisible();
   });
 });
 

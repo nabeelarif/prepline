@@ -583,6 +583,18 @@ language sql stable security definer set search_path = '' as $$
   ) t
 $$;
 
+-- How many people starred each of the signed-in user's shared plans, as {goal_id: count};
+-- a plan nobody starred is left out. The owner learns the number, never who.
+create function public.my_favorite_counts() returns jsonb
+language sql stable security definer set search_path = '' as $$
+  select coalesce(jsonb_object_agg(t.goal_id, t.n), '{}')
+  from (
+    select f.goal_id, count(*) as n from public.plan_favorites f
+    where f.owner_id = auth.uid()
+    group by f.goal_id
+  ) t
+$$;
+
 -- The tags used by public plans, most used first, for the Explore topic row.
 create function public.list_popular_tags(p_limit integer default 20) returns jsonb
 language sql stable security definer set search_path = '' as $$
@@ -683,8 +695,12 @@ begin
   values (uid, p_goal_id, p_visibility, substr(replace(gen_random_uuid()::text, '-', ''), 1, 12), tags)
   on conflict (user_id, goal_id) do update set visibility = excluded.visibility, tags = excluded.tags
   returning * into share;
+  -- The same fields the owner loads, so the app can show the answer as it is.
   return jsonb_build_object(
-    'visibility', share.visibility, 'slug', share.slug, 'tags', to_jsonb(share.tags));
+    'visibility', share.visibility, 'slug', share.slug, 'tags', to_jsonb(share.tags),
+    'hidden', share.hidden, 'copy_count', share.copy_count,
+    'favorite_count', (select count(*) from public.plan_favorites f
+      where f.owner_id = uid and f.goal_id = p_goal_id));
 end $$;
 
 -- A friendly name like 'Curious Pathfinder 42' (adjective, noun, 00-99) for accounts that do
@@ -811,7 +827,8 @@ revoke all on function
   public.list_popular_tags(integer), public.similar_plans(text, integer),
   public.set_plan_sharing(text, text, text[]), public.set_display_name(text),
   public.record_plan_copy(text), public.report_plan(text, text), public.plan_origin(text, text),
-  public.set_plan_favorite(text, boolean), public.list_my_favorites(integer, integer)
+  public.set_plan_favorite(text, boolean), public.list_my_favorites(integer, integer),
+  public.my_favorite_counts()
   from public, anon, authenticated;
 grant execute on function
   public.get_shared_plan(text), public.list_public_plans(text, text, integer, integer, text),
@@ -820,7 +837,8 @@ grant execute on function
 grant execute on function
   public.set_plan_sharing(text, text, text[]), public.set_display_name(text),
   public.record_plan_copy(text), public.report_plan(text, text),
-  public.set_plan_favorite(text, boolean), public.list_my_favorites(integer, integer)
+  public.set_plan_favorite(text, boolean), public.list_my_favorites(integer, integer),
+  public.my_favorite_counts()
   to authenticated;
 
 -- Permanently deletes the signed-in user's account. Every table references auth.users with

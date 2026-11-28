@@ -87,11 +87,6 @@ export function ShareDialog({ goal }: { goal: Goal }) {
           </button>
         </div>
       )}
-      {current?.hidden && (
-        <p className="msg err" role="alert">
-          This plan was taken down after a report, so nobody can open it right now.
-        </p>
-      )}
       <p className="msg err" role="alert">
         {error}
       </p>

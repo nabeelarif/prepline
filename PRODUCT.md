@@ -14,7 +14,7 @@ People preparing for a defined goal on their own time: job interviews, exams, ce
 
 ## Product Purpose
 
-Road to Goals is a study planner. A plan holds resources with time estimates, optionally grouped into phases, followed along a "preparation journey". Progress is weighted by estimated hours, never by resource count. A plan can have a start date, a deadline and daily hours, and the app reports whether the pace is on track. A study timer, a Today list and a streak heatmap support daily use. Plans can be shared (private, unlisted or public in Explore) and copied; only plan content is ever shared, never progress or dates.
+Road to Goals is a study planner. A plan holds resources with time estimates, optionally grouped into phases, followed along a "preparation journey". Progress is weighted by estimated hours, never by resource count. A plan can have a start date, a deadline and daily hours, and the app reports whether the pace is on track. A study timer, a Today list covering every plan in progress (with the next few days to look ahead) and a streak heatmap support daily use. Plans can be shared (private, unlisted or public in Explore) and copied; only plan content is ever shared, never progress or dates.
 
 ## Positioning
 

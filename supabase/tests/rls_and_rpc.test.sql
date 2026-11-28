@@ -1,7 +1,7 @@
 -- pgTAP tests. Run with: supabase test db   (needs the local stack: supabase start)
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(116);
+select plan(121);
 
 -- Two users and some data for each, created as the table owner.
 insert into auth.users (id, instance_id, aud, role, email)
@@ -199,6 +199,14 @@ select lives_ok($$ select public.set_plan_favorite((select slug from shared_slug
 reset role;
 select is((select count(*)::int from public.plan_favorites), 1, 'and is not counted');
 set local role anon;
+select throws_ok($$ select public.my_favorite_counts() $$, '42501', null, 'anon cannot read favorite counts');
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
+select is(public.my_favorite_counts(), '{"g1": 1}'::jsonb, 'the owner sees how many starred each plan');
+select is((public.set_plan_sharing('g1', 'public', array['ios', 'swift']) ->> 'favorite_count')::int, 1, 'and saving sharing answers with the count');
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000b');
+select is(public.my_favorite_counts(), '{}'::jsonb, 'and nobody sees the counts of plans they do not own');
+reset role;
+set local role anon;
 select is(public.get_shared_plan((select slug from shared_slug)) -> 'favorited', 'false'::jsonb, 'anyone else sees it as not favorited');
 select is((public.list_public_plans(null, null, 24, 0, 'favorites') -> 0 ->> 'favorite_count')::int, 1, 'a plan can be listed most favorited first');
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000b');
@@ -213,6 +221,7 @@ reset role;
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
 select lives_ok($$ select public.set_plan_sharing('g1', 'private', '{}') $$, 'the owner of a taken-down plan can set it private');
 select lives_ok($$ select public.set_plan_sharing('g1', 'public', '{}') $$, 'and share it again');
+select is(public.set_plan_sharing('g1', 'public', '{}') -> 'hidden', 'true'::jsonb, 'but is told it stays taken down');
 select is((select hidden from public.plan_shares where goal_id = 'g1'), true, 'but it stays taken down');
 reset role;
 update public.plan_shares set hidden = false where goal_id = 'g1';

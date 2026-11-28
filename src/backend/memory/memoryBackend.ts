@@ -84,6 +84,8 @@ export interface MemoryBackend extends Backend {
   userId(): string | null;
   /** Registers what a link lookup returns (tests and the e2e build have no network). */
   setUrlInfo(url: string, info: UrlInfo): void;
+  /** Hides a shared plan, as a moderator does in SQL. */
+  takeDown(slug: string): void;
 }
 
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
@@ -321,6 +323,7 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
     tags: s.tags,
     hidden: s.hidden,
     copyCount: s.copiedBy.length,
+    favoriteCount: favoriteCount(s),
   });
   const favoriteCount = (s: Share) => Object.keys(s.favoritedBy).length;
   const isFavorited = (s: Share) => !!current && current in s.favoritedBy;
@@ -461,7 +464,9 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
     loadSharing: () =>
       shared('loadSharing', true, (me) => ({
         plans: Object.fromEntries(
-          Object.entries(shares[me] ?? {}).map(([id, s]) => [id, toSettings(s)]),
+          Object.entries(shares[me] ?? {})
+            .filter(([, s]) => !s.hidden)
+            .map(([id, s]) => [id, toSettings(s)]),
         ),
         displayName: names[me] ?? null,
       })),
@@ -472,7 +477,14 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
         const mine = (shares[me] ??= {});
         if (visibility === 'private') {
           delete mine[goalId];
-          return { visibility: 'private', slug: null, tags: [], hidden: false, copyCount: 0 };
+          return {
+            visibility: 'private',
+            slug: null,
+            tags: [],
+            hidden: false,
+            copyCount: 0,
+            favoriteCount: 0,
+          };
         }
         if (visibility === 'public') {
           if (!names[me]) {
@@ -637,6 +649,10 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
     enricher,
     setUrlInfo: (url: string, info: UrlInfo) => void urlInfo.set(url, info),
     calls,
+    takeDown(slug) {
+      const found = findShare(slug);
+      if (found) found.share.hidden = true;
+    },
     failNext(count = 1, code = 'network') {
       failures = count;
       failCode = code;

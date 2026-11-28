@@ -49,17 +49,23 @@ export function createSupabaseSharing(client: SupabaseClient): PlanSharingReposi
       await call(client.rpc('set_plan_favorite', { p_slug: slug, p_on: on }));
     },
     async loadSharing() {
-      const [rows, profile] = await Promise.all([
+      const [rows, favorites, profile] = await Promise.all([
         call(
           client.from('plan_shares').select('goal_id, visibility, slug, tags, hidden, copy_count'),
         ),
+        // Favorites have no read policy, so the owner's counts come from a function.
+        call(client.rpc('my_favorite_counts')),
         call(client.from('profiles').select('display_name').maybeSingle()),
       ]);
+      const counts = (favorites ?? {}) as Record<string, number>;
       const plans: Record<string, PlanSharing> = {};
       // A taken-down plan reads as not shared: the owner has nothing to switch off, and
       // sharing it again cannot bring it back (the row keeps `hidden`).
       for (const r of rows ?? []) {
-        if (!r.hidden) plans[r.goal_id as string] = toSharing(r as SharingJson);
+        const id = r.goal_id as string;
+        if (!r.hidden) {
+          plans[id] = toSharing({ ...(r as SharingJson), favorite_count: counts[id] });
+        }
       }
       return { plans, displayName: (profile?.display_name as string | null) ?? null };
     },

@@ -64,7 +64,14 @@ describe('planToJson', () => {
   it('adds sharing only for a shared plan', () => {
     const text = planToJson(
       plan,
-      { visibility: 'public', slug: 's', tags: ['ios'], hidden: false, copyCount: 0 },
+      {
+        visibility: 'public',
+        slug: 's',
+        tags: ['ios'],
+        hidden: false,
+        copyCount: 0,
+        favoriteCount: 0,
+      },
       new Date(),
     );
     expect(JSON.parse(text).goals[0].sharing).toEqual({ visibility: 'public', tags: ['ios'] });

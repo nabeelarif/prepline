@@ -1,4 +1,5 @@
 import { todayISO } from '../domain/dates';
+import { progressOf } from '../domain/resources';
 import type { AppData } from '../domain/types';
 import { createMemoryBackend, type MemoryBackend } from '../backend/memory/memoryBackend';
 import { createAppStore, type ResourceInput } from './store';
@@ -111,6 +112,74 @@ describe('store', () => {
     expect(s().data.goals[1]!.resources).toEqual([]);
     s().selectGoal(first);
     expect(s().data.activeGoalId).toBe(first);
+  });
+
+  it('changes a resource in a plan that is not the current one, and saves it', async () => {
+    const { s, g, add, saved, flush } = await setup();
+    const r = add({ title: 'A' });
+    const first = g().id;
+    s().createGoal({ name: 'Other', description: '', targetDate: null, hoursPerDay: null });
+    const mine = () => s().data.goals.find((x) => x.id === first)!.resources;
+    const stored = () => saved().goals.find((x) => x.id === first)!.resources;
+    const other = s().data.activeGoalId;
+
+    s().setStatus(r.id, 'in_progress');
+    expect(mine()[0]!.startedAt).toBe(todayISO());
+    s().setProgress(r.id, 30);
+    const before = progressOf(mine()[0]!);
+    s().toggleResource(r.id);
+    expect(mine()[0]!.done).toBe(true);
+    s().restoreProgress(r.id, progressOf(mine()[0]!), before);
+    s().updateResource(r.id, input({ title: 'Renamed' }));
+    await flush();
+    expect(stored()[0]).toMatchObject({ title: 'Renamed', done: false, doneMinutes: 30 });
+
+    s().deleteResource(r.id);
+    await flush();
+    expect(stored()).toEqual([]);
+    expect(s().data.activeGoalId).toBe(other);
+  });
+
+  it('refreshes sharing counts quietly, and keeps the old ones when it cannot', async () => {
+    const { s, g, backend, flush } = await setup();
+    await flush();
+    await vi.waitFor(() => expect(s().sharing.status).toBe('ready'));
+    await backend.sharing.setSharing(g().id, 'public', []);
+    await s().refreshSharing();
+    expect(s().sharing.plans[g().id]).toMatchObject({ copyCount: 0, favoriteCount: 0 });
+    const kept = s().sharing;
+    backend.failNext(1);
+    await s().refreshSharing();
+    expect(s().sharing).toBe(kept);
+  });
+
+  it('says when a shared plan was taken down, and shows it as not shared', async () => {
+    const { s, g, backend, flush } = await setup();
+    await flush();
+    await vi.waitFor(() => expect(s().sharing.status).toBe('ready'));
+    expect(await s().setPlanSharing(g().id, 'public', [])).toBeNull();
+    backend.takeDown(s().sharing.plans[g().id]!.slug!);
+    expect(await s().setPlanSharing(g().id, 'public', [])).toMatch(/taken down/);
+    expect(s().sharing.plans[g().id]).toBeUndefined();
+    await s().refreshSharing();
+    expect(s().sharing.plans[g().id]).toBeUndefined();
+  });
+
+  it('never takes one saved plan for all of sharing when it cannot be read', async () => {
+    const { s, g, store, backend, flush } = await setup();
+    await flush();
+    await vi.waitFor(() => expect(s().sharing.status).toBe('ready'));
+    // As before the first load finishes.
+    store.setState({ sharing: { status: 'idle', plans: {}, displayName: null } });
+    const save = backend.sharing.setSharing.bind(backend.sharing);
+    vi.spyOn(backend.sharing, 'setSharing').mockImplementation(async (...args) => {
+      const result = await save(...args);
+      backend.failNext(1);
+      return result;
+    });
+    expect(await s().setPlanSharing(g().id, 'public', [])).toBeNull();
+    await vi.waitFor(() => expect(s().sharing.status).toBe('error'));
+    expect(s().sharing.plans).toEqual({});
   });
 
   it('duplicates a plan with fresh ids and remapped phases', async () => {

@@ -5,7 +5,7 @@ export const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
 export const paths = {
   home: '/',
   dashboard: '/dashboard',
-  /** What to study today and this week, for the current plan. */
+  /** What to study today, or on one of the next days (`?day=`), in every plan in progress. */
   today: '/today',
   /** The sign-in screen; it works signed out and goes back to the page asked for. */
   signIn: '/signin',

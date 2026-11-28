@@ -120,10 +120,16 @@ describe('Use your own AI', () => {
     expect(within(dialog()).getByLabelText('Goal or topic')).toHaveValue('Learn Git');
   });
 
+  it('starts at ten days', async () => {
+    await openFromMyPlans('Use my own AI');
+    expect(within(dialog()).getByLabelText('Duration (days)')).toHaveValue(10);
+  });
+
   it('says a later start date does not delay the plan', async () => {
     await openFromMyPlans('Use my own AI');
     expect(dialog()).toHaveTextContent('The plan starts as soon as you add it.');
     expect(dialog()).not.toHaveTextContent('rather than');
+    type('Duration (days)', '30');
     const start = addDays(todayISO(), 60);
     expect(within(dialog()).getByLabelText(/Start date/)).toHaveAttribute('min', todayISO());
     type(/Start date/, start);

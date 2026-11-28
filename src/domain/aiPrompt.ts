@@ -43,7 +43,7 @@ export interface AiForm {
 
 export const emptyAiForm = (): AiForm => ({
   goal: '',
-  days: '30',
+  days: '10',
   hoursPerDay: '1',
   level: 'beginner',
   startDate: '',

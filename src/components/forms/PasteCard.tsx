@@ -15,10 +15,12 @@ export function PasteCard({
   flow,
   text,
   onText,
+  takeFocus,
 }: {
   flow: RestoreFlow;
   text: string;
   onText: (text: string) => void;
+  takeFocus: boolean;
 }) {
   const { state, checkText, reset } = flow;
   const box = useRef<HTMLTextAreaElement>(null);
@@ -62,6 +64,7 @@ export function PasteCard({
         <span>Your AI’s reply</span>
         <textarea
           ref={box}
+          autoFocus={takeFocus}
           className="paste-box"
           rows={10}
           value={text}

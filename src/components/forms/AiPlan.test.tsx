@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import skill from '../../../public/ai/skill-v1.md?raw';
 import example from '../../../public/ai/example-plan-v1.json?raw';
 import { addDays, fmtDate, todayISO } from '../../domain/dates';
@@ -62,6 +62,20 @@ describe('Use your own AI', () => {
     await waitFor(() => expect(within(dialog()).getByLabelText('Goal or topic')).toHaveFocus());
     press('Copy prompt');
     expect(clipboard.writeText).not.toHaveBeenCalled();
+  });
+
+  it('checks and copies on a middle click too', async () => {
+    await openFromMyPlans('Use my own AI');
+    const middle = () =>
+      fireEvent(
+        link('Gemini'),
+        new MouseEvent('auxclick', { bubbles: true, cancelable: true, button: 1 }),
+      );
+    expect(middle()).toBe(false);
+    expect(clipboard.writeText).not.toHaveBeenCalled();
+    type('Goal or topic', 'Learn Git');
+    expect(middle()).toBe(true);
+    await waitFor(() => expect(clipboard.writeText).toHaveBeenCalledOnce());
   });
 
   it('prefills ChatGPT and Claude, and copies for the others', async () => {
@@ -259,6 +273,41 @@ describe('Paste plan', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Git Basics in 5 Days' }),
     ).toBeVisible();
+  });
+
+  it('keeps the result of a file import on screen, even from a plan’s own page', async () => {
+    renderApp('/plans/c');
+    fireEvent.click(await screen.findByRole('button', { name: 'Account menu' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Import plans' }));
+    const file = new File([reply], 'plan.json', { type: 'application/json' });
+    fireEvent.change(screen.getByLabelText('Plan file'), { target: { files: [file] } });
+    await screen.findByRole('region', { name: 'File contents' });
+    press('Add to My Plans');
+    expect(await screen.findByText('Plans added successfully')).toBeVisible();
+    // The page behind has gone back to its own plan, and the result is still there.
+    await waitFor(() => expect(useStore.getState().data.activeGoalId).toBe('c'));
+    expect(screen.getByText('Plans added successfully')).toBeVisible();
+  });
+
+  it('stays closed when it is closed during the save, and says how it went', async () => {
+    await openFromMyPlans('Paste plan');
+    type('Your AI’s reply', reply);
+    press('Import');
+    const release = memory().hold();
+    press('Add to My Plans');
+    act(() => useStore.getState().closeOverlay());
+    await act(async () => release());
+    expect(await screen.findByText('Plans added to My Plans')).toBeVisible();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByRole('heading', { level: 1, name: 'My Plans' })).toBeVisible();
+  });
+
+  it('gives the paste box focus back after a review is cancelled', async () => {
+    await openFromMyPlans('Paste plan');
+    type('Your AI’s reply', reply);
+    press('Import');
+    press('Cancel');
+    expect(box()).toHaveFocus();
   });
 
   it('runs a chosen file through the same repairs', async () => {

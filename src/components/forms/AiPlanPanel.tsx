@@ -318,6 +318,8 @@ export function AiPlanPanel() {
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(e) => openAi(e, p)}
+                  // A middle click opens the tab without a click event.
+                  onAuxClick={(e) => e.button === 1 && openAi(e, p)}
                 >
                   Generate with {p.name}
                   <ExternalLink size={15} aria-hidden="true" />

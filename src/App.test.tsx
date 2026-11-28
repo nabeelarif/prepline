@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { App } from './App';
+import { todayISO } from './domain/dates';
 import type { Goal } from './domain/types';
 import { useStore } from './state/store';
 import { goal, res } from './test/fixtures';
@@ -241,6 +242,24 @@ describe('Today', () => {
     expect(screen.getByRole('img', { name: '0h of 2h studied today' })).toBeVisible();
   });
 
+  it('shows 100% on the ring only once the target is met', async () => {
+    const studied = { doneMinutes: 598, loggedOn: todayISO(), loggedMinutes: 598 };
+    await resetApp({
+      version: 1,
+      activeGoalId: 'a',
+      goals: [
+        goal([res({ id: 'long', minutes: 1000, ...studied })], {
+          id: 'a',
+          hoursPerDay: 10,
+          targetDate: null,
+        }),
+      ],
+    });
+    renderApp('/today');
+    const ring = await screen.findByRole('img', { name: /studied today/ });
+    expect(ring).toHaveTextContent('99%');
+  });
+
   it('records progress in a plan that is not the current one', async () => {
     await three();
     renderApp('/today');
@@ -440,13 +459,14 @@ describe('My Plans', () => {
     expect(within(card('Delta plan')).queryByText('Complete')).toBeNull();
   });
 
-  it('shows forks and favorites on public plans only', async () => {
+  it('labels each plan private, shared or public, with counts on public ones only', async () => {
     await resetApp({
       version: 1,
       activeGoalId: 'a',
       goals: [
         goal([res({ id: 'a' })], { id: 'a', name: 'Alpha plan' }),
         goal([res({ id: 'b' })], { id: 'b', name: 'Beta plan' }),
+        goal([res({ id: 'c' })], { id: 'c', name: 'Gamma plan' }),
       ],
     });
     const { setPlanSharing } = useStore.getState();
@@ -456,7 +476,30 @@ describe('My Plans', () => {
     renderApp('/plans');
     await screen.findByRole('heading', { level: 1, name: 'My Plans' });
     expect(within(card('Alpha plan')).getByText('0 forks · 0 favorites')).toBeVisible();
+    expect(within(card('Alpha plan')).getByText('Public')).toBeVisible();
+    expect(within(card('Beta plan')).getByText('Shared')).toBeVisible();
+    expect(within(card('Gamma plan')).getByText('Private')).toBeVisible();
     expect(within(card('Beta plan')).queryByText(/forks/)).toBeNull();
+    expect(within(card('Gamma plan')).queryByText(/forks/)).toBeNull();
+  });
+
+  it('says when sharing cannot load, calls no plan private, and recovers on Retry', async () => {
+    await resetApp({
+      version: 1,
+      activeGoalId: 'a',
+      goals: [goal([res({ id: 'a' })], { id: 'a', name: 'Alpha plan' })],
+    });
+    await vi.waitFor(() => expect(useStore.getState().sharing.status).toBe('ready'));
+    const load = vi.spyOn(memory().sharing, 'loadSharing').mockRejectedValue(new Error('down'));
+    // A failed first load, as opposed to a failed refresh, which keeps what was read.
+    useStore.setState({ sharing: { status: 'error', plans: {}, displayName: null } });
+    renderApp('/plans');
+    expect(await screen.findByText('Sharing info couldn’t load.')).toBeVisible();
+    expect(within(card('Alpha plan')).queryByText('Private')).toBeNull();
+    load.mockRestore();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(await within(card('Alpha plan')).findByText('Private')).toBeVisible();
+    expect(screen.queryByText('Sharing info couldn’t load.')).toBeNull();
   });
 
   it('reads the counts again when the page opens', async () => {

@@ -27,6 +27,9 @@ export function DataPanel({ initial = 'file' }: { initial?: ImportTab }) {
   const { step } = flow.state;
   // Once a plan checks out, the import steps take the whole modal.
   const importing = !['idle', 'validating', 'invalid'].includes(step);
+  // The card that comes back after those steps takes focus, as the button used is gone.
+  const [returning, setReturning] = useState(false);
+  if (importing && !returning) setReturning(true);
 
   return (
     <>
@@ -56,6 +59,8 @@ export function DataPanel({ initial = 'file' }: { initial?: ImportTab }) {
                   if (id === tab) return;
                   flow.reset();
                   setTab(id);
+                  // Focus stays on the tab just picked.
+                  setReturning(false);
                 }}
               >
                 {label}
@@ -63,9 +68,9 @@ export function DataPanel({ initial = 'file' }: { initial?: ImportTab }) {
             ))}
           </div>
           {tab === 'paste' ? (
-            <PasteCard flow={flow} text={pasted} onText={setPasted} />
+            <PasteCard flow={flow} text={pasted} onText={setPasted} takeFocus={returning} />
           ) : (
-            <RestoreCard flow={flow} />
+            <RestoreCard flow={flow} takeFocus={returning} />
           )}
         </>
       )}

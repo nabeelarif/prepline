@@ -58,9 +58,12 @@ describe('backup', () => {
     });
   });
 
-  it('reads an empty app', () => {
-    const r = previewImport(JSON.parse(JSON.stringify(createEmptyAppData())));
-    expect(r.ok && r.preview).toMatchObject({ data: createEmptyAppData(), plans: 0 });
+  it('refuses a file with no plans in it, as there is nothing to add', () => {
+    expect(previewImport(JSON.parse(JSON.stringify(createEmptyAppData())))).toEqual({
+      ok: false,
+      kind: 'invalid',
+      errors: ['The "goals" list is empty, so there is no plan to add.'],
+    });
   });
 
   it('has one empty state that round-trips through parsing', () => {

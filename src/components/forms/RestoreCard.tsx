@@ -28,7 +28,7 @@ const REASON: Record<RestoreFailure, string> = {
 };
 
 /** The import card: pick or drop a file, then see it checked or turned away. */
-export function RestoreCard({ flow }: { flow: RestoreFlow }) {
+export function RestoreCard({ flow, takeFocus }: { flow: RestoreFlow; takeFocus: boolean }) {
   const { state, check, reset } = flow;
   const input = useRef<HTMLInputElement>(null);
   const chooseBtn = useRef<HTMLButtonElement>(null);
@@ -122,6 +122,7 @@ export function RestoreCard({ flow }: { flow: RestoreFlow }) {
           {fileInput}
           <button
             ref={chooseBtn}
+            autoFocus={takeFocus}
             type="button"
             className="btn outline"
             onClick={(e) => {

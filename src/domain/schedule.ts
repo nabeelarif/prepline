@@ -28,11 +28,6 @@ export interface StudyDay {
   studiedItems: { resource: Resource; minutes: number }[];
 }
 
-/** Minutes of these resources credited today. */
-function studiedOn(resources: Resource[], today: ISODate): number {
-  return resources.reduce((a, r) => a + studiedToday(r, today), 0);
-}
-
 /**
  * Minutes to study each day: the plan's daily hours, else the pace its deadline requires.
  * That pace is for the work left when today began, so studying today does not shrink the
@@ -42,7 +37,8 @@ function studiedOn(resources: Resource[], today: ISODate): number {
 export function dailyBudget(g: Goal, today: ISODate = todayISO()): number | null {
   if (g.hoursPerDay != null && g.hoursPerDay > 0) return Math.round(g.hoursPerDay * 60);
   const m = metrics(g.resources);
-  const p = pace(g, { ...m, remaining: m.remaining + studiedOn(g.resources, today) }, today);
+  const studied = g.resources.reduce((a, r) => a + studiedToday(r, today), 0);
+  const p = pace(g, { ...m, remaining: m.remaining + studied }, today);
   return p.kind === 'no_capacity' && p.requiredPerDay > 0 ? Math.ceil(p.requiredPerDay) : null;
 }
 
@@ -63,7 +59,7 @@ export function studyPlan(g: Goal, days = 1, today: ISODate = todayISO()): Study
   const studiedItems = g.resources
     .map((resource) => ({ resource, minutes: studiedToday(resource, today) }))
     .filter((x) => x.minutes > 0);
-  const studied = studiedOn(g.resources, today);
+  const studied = studiedItems.reduce((a, x) => a + x.minutes, 0);
 
   const out: StudyDay[] = [];
   const last = g.targetDate && g.targetDate >= today ? diffDays(today, g.targetDate) : Infinity;

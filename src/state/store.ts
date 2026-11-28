@@ -363,7 +363,8 @@ export function createAppStore({ repo, auth, sharing, enricher }: Backend) {
     const replaceData = async (
       save: (clean: AppData) => Promise<void>,
       next: AppData,
-      ui?: Partial<UiState>,
+      /** A function is given the UI as it is once the save is confirmed. */
+      ui?: Partial<UiState> | ((now: UiState) => Partial<UiState>),
       /** True when old plans go away, which also removes their share rows. */
       dropsPlans = false,
     ): Promise<boolean> => {
@@ -376,7 +377,10 @@ export function createAppStore({ repo, auth, sharing, enricher }: Backend) {
         await queue.exclusive(() => save(clean));
         // The user signed out or changed meanwhile: the result belongs to someone else.
         if (userId !== startedFor) return false;
-        set((s) => ({ data: clean, ui: { ...s.ui, ...planUi(), ...ui } }));
+        set((s) => ({
+          data: clean,
+          ui: { ...s.ui, ...planUi(), ...(typeof ui === 'function' ? ui(s.ui) : ui) },
+        }));
         if (dropsPlans) void loadSharing();
         return true;
       } catch (e) {
@@ -533,14 +537,13 @@ export function createAppStore({ repo, auth, sharing, enricher }: Backend) {
           const result = await sharing.setSharing(goalId, visibility, tags);
           if (userId !== startedFor) return null;
           // As in a load, a plan that was taken down reads as not shared.
-          const takenDown = result.visibility !== 'private' && result.hidden;
           patchSharing((s) => {
             const plans = { ...s.plans };
-            if (result.visibility === 'private' || takenDown) delete plans[goalId];
+            if (result.visibility === 'private' || result.hidden) delete plans[goalId];
             else plans[goalId] = result;
             return { plans };
           });
-          return takenDown ? TAKEN_DOWN : null;
+          return result.hidden ? TAKEN_DOWN : null;
         } catch (e) {
           return sharingError(e);
         }
@@ -625,9 +628,17 @@ export function createAppStore({ repo, auth, sharing, enricher }: Backend) {
       deleteAccount: () => attempt(() => queue.exclusive(() => auth.deleteAccount())),
 
       selectGoal: (id) =>
-        commit((d) => {
-          d.activeGoalId = id;
-        }, planUi()),
+        commit(
+          (d) => {
+            d.activeGoalId = id;
+          },
+          () => {
+            // The import dialog belongs to no plan. Closing it here would lose its result when
+            // a plan page switches back to its own plan after an import.
+            const { overlay } = get().ui;
+            return { ...planUi(), overlay: overlay?.kind === 'import' ? overlay : null };
+          },
+        ),
 
       createGoal: (input) =>
         commit(
@@ -871,7 +882,8 @@ export function createAppStore({ repo, auth, sharing, enricher }: Backend) {
         const ok = await replaceData(
           (clean) => repo.addGoals(clean.goals.slice(existing), clean.activeGoalId),
           merged,
-          { overlay: { kind: 'import' } },
+          // The import dialog stays as the user left it, open or closed.
+          (now) => ({ overlay: now.overlay }),
         );
         if (!ok) return null;
         // The plans are saved; sharing is a separate step that may fail without undoing them.

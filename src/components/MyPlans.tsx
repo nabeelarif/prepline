@@ -1,10 +1,14 @@
 import {
   Bot,
   CalendarDays,
+  CircleAlert,
   ClipboardPaste,
   Copy,
   Ellipsis,
   FileUp,
+  Globe,
+  Link2,
+  Lock,
   Pencil,
   Plus,
   Share2,
@@ -17,6 +21,7 @@ import { fmtHours, shareCounts } from '../domain/format';
 import { metrics } from '../domain/metrics';
 import { pace } from '../domain/pace';
 import { planStatus } from '../domain/schedule';
+import type { Visibility } from '../domain/share';
 import { Link } from 'react-router-dom';
 import { paths } from '../routes';
 import { useStore } from '../state/store';
@@ -26,9 +31,25 @@ import { Menu } from './Menu';
 import { daysLeftText, paceText } from './paceText';
 import { ProgressRing } from './ProgressRing';
 
+const VISIBILITY: Record<Visibility, { label: string; Icon: typeof Lock }> = {
+  private: { label: 'Private', Icon: Lock },
+  unlisted: { label: 'Shared', Icon: Link2 },
+  public: { label: 'Public', Icon: Globe },
+};
+
+function VisibilityBadge({ visibility }: { visibility: Visibility }) {
+  const { label, Icon } = VISIBILITY[visibility];
+  return (
+    <span className={`badge vis-${visibility}`}>
+      <Icon size={13} aria-hidden="true" /> {label}
+    </span>
+  );
+}
+
 export function MyPlans() {
   const goals = useStore((s) => s.data.goals);
   const shared = useStore((s) => s.sharing.plans);
+  const sharingStatus = useStore((s) => s.sharing.status);
   const { openOverlay, duplicateGoal, deleteGoal } = useStore.getState();
   const today = todayISO();
   const newPlan = () => openOverlay({ kind: 'goal', goalId: null });
@@ -56,6 +77,18 @@ export function MyPlans() {
           </button>
         </div>
       </header>
+      {sharingStatus === 'error' && goals.length > 0 && (
+        <div className="banner warn" role="alert">
+          <CircleAlert size={18} aria-hidden="true" />
+          <p>
+            <strong>Sharing info couldn’t load.</strong> Private, shared and public labels are
+            hidden until it does.
+          </p>
+          <button className="btn sm" onClick={() => void useStore.getState().refreshSharing()}>
+            Retry
+          </button>
+        </div>
+      )}
       {!goals.length ? (
         <section className="card">
           <EmptyState
@@ -87,17 +120,17 @@ export function MyPlans() {
                   </ProgressRing>
                   <div className="plan-title">
                     <h2>{g.name}</h2>
-                    {status === 'in_progress' && (
-                      <span className="status s-in_progress">In progress</span>
-                    )}
-                    {status === 'completed' && (
-                      <span className="status s-completed">Completed</span>
-                    )}
-                    {share && share.visibility !== 'private' && (
-                      <span className="badge">
-                        {share.visibility === 'public' ? 'Public' : 'Shared'}
-                      </span>
-                    )}
+                    <div className="plan-badges">
+                      {status !== 'not_started' && (
+                        <span className={`status s-${status}`}>
+                          {status === 'completed' ? 'Completed' : 'In progress'}
+                        </span>
+                      )}
+                      {/* Until sharing has loaded, a public plan must not pass for private. */}
+                      {sharingStatus === 'ready' && (
+                        <VisibilityBadge visibility={share?.visibility ?? 'private'} />
+                      )}
+                    </div>
                   </div>
                   <Menu
                     label={`Actions for ${g.name}`}

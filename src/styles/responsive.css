@@ -257,8 +257,8 @@
   .seg button,
   .chips button,
   .status-btn,
-  .badge,
-  .explore-tags .badge {
+  button.badge,
+  a.badge {
     min-height: 40px;
   }
   .seg button {

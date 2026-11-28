@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { readPlanText } from '../../domain/planText';
 import type { ImportErrorKind, ImportPreview } from '../../domain/schema';
 import { useStore, type ImportTab } from '../../state/store';
@@ -28,11 +28,24 @@ export type RestoreFlow = ReturnType<typeof useRestoreFlow>;
 const isJsonFile = (f: File) =>
   f.name.toLowerCase().endsWith('.json') || f.type === 'application/json';
 
+const closedOutcome = (unshared: string[]) =>
+  unshared.length
+    ? `Plans added, but sharing could not be turned on for ${unshared.map((n) => `"${n}"`).join(', ')}. Still private.`
+    : 'Plans added to My Plans';
+
 /** `onPasted` runs after a pasted plan is saved and fully shared, with the new plan's id. */
 export function useRestoreFlow(onPasted: (planId: string) => void) {
   const [state, setState] = useState<RestoreState>({ step: 'idle' });
   // Ignores a slow read when another file was picked, or the flow was cancelled, meanwhile.
   const readSeq = useRef(0);
+  // False once the dialog is closed, which can happen while the plans are being saved.
+  const open = useRef(true);
+  useEffect(() => {
+    open.current = true;
+    return () => {
+      open.current = false;
+    };
+  }, []);
 
   const fail = (source: ImportSource, reason: RestoreFailure, errors: string[]) =>
     setState({ step: 'invalid', source, reason, errors });
@@ -72,6 +85,12 @@ export function useRestoreFlow(onPasted: (planId: string) => void) {
     const { source, preview } = state;
     setState({ step: 'restoring', source, preview });
     const result = await useStore.getState().addPlans(preview.data, preview.shares);
+    if (!open.current) {
+      // Nobody is on this dialog now, so a toast says how it went and no page changes. A
+      // failed save has already shown its own.
+      if (result) useStore.getState().showToast(closedOutcome(result.unshared));
+      return;
+    }
     if (!result) return setState({ step: 'error', source, preview });
     const { addedIds, unshared } = result;
     const [first] = addedIds;

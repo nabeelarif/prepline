@@ -476,7 +476,8 @@ export function createMemoryBackend(opts: MemoryOptions = {}): MemoryBackend {
         if (!g) throw new RepositoryError('notFound', 'plan not found');
         const mine = (shares[me] ??= {});
         if (visibility === 'private') {
-          delete mine[goalId];
+          // As in the SQL, a taken-down share is kept, so sharing again cannot undo it.
+          if (!mine[goalId]?.hidden) delete mine[goalId];
           return {
             visibility: 'private',
             slug: null,

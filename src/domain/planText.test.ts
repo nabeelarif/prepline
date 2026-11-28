@@ -25,6 +25,11 @@ const errors = (text: string) => {
 };
 
 describe('extractPlanJson', () => {
+  it('is not put off by a brace in a sentence before a plan with no "goals" list', () => {
+    const bare = { name: 'Git', resources: [{ title: 'A' }] };
+    expect(raw(`Replace {topic} later. ${JSON.stringify(bare)}`)).toEqual(bare);
+  });
+
   it('reads plain JSON', () => {
     expect(raw(json)).toEqual(plan);
     expect(raw(`\ufeff  ${json}\n`)).toEqual(plan);

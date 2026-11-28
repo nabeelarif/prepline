@@ -57,7 +57,8 @@ export function TodayView() {
   const waiting = goals.filter((g) => planStatus(g) === 'not_started');
   const streak = log.ready ? currentStreak(log.days, today) : 0;
   const { budget, target, credited } = agenda;
-  const dayPct = target ? Math.round((credited / target) * 100) : 0;
+  // Rounded down, so 100% means the target is met. The nudge absorbs float error.
+  const dayPct = target ? Math.floor((credited / target) * 100 + 1e-6) : 0;
   const planned = agenda.plans.reduce((a, p) => a + p.day.minutes, 0);
   // Today lists every plan in progress, so an empty list means there is none.
   const nothingStarted = isToday && !agenda.plans.length;
@@ -100,7 +101,7 @@ export function TodayView() {
                 <strong>{dayPct}%</strong>
               </ProgressRing>
             )}
-            <div className="day-nav" role="group" aria-label="Day">
+            <div className="btn-row" role="group" aria-label="Day">
               {!isToday && (
                 <button
                   type="button"
@@ -151,18 +152,27 @@ export function TodayView() {
             />
           ))}
         </>
-      ) : !isToday ? (
-        <Notice title="Nothing planned for this day">
-          <p>Later days fill from plans with daily study hours or a deadline.</p>
-        </Notice>
-      ) : waiting.length ? (
-        <StartAPlan plans={waiting} />
       ) : (
-        <Notice title="All done">
-          <p>Every plan is complete.</p>
-        </Notice>
+        <EmptyDay isToday={isToday} waiting={waiting} />
       )}
     </>
+  );
+}
+
+/** Says why a day has no plan to list. */
+function EmptyDay({ isToday, waiting }: { isToday: boolean; waiting: Goal[] }) {
+  if (!isToday) {
+    return (
+      <Notice title="Nothing planned for this day">
+        <p>Later days fill from plans with daily study hours or a deadline.</p>
+      </Notice>
+    );
+  }
+  if (waiting.length) return <StartAPlan plans={waiting} />;
+  return (
+    <Notice title="All done">
+      <p>Every plan is complete.</p>
+    </Notice>
   );
 }
 
@@ -208,6 +218,7 @@ function PlanDay({ goal, day, isToday }: { goal: Goal; day: StudyDay; isToday: b
   const finished = planStatus(goal) === 'completed';
   // A passed deadline gives no pace either, but the plan does have one.
   const overdue = goal.targetDate != null && goal.targetDate < day.date;
+  const paceFix = overdue ? 'Pick a new date' : 'Set daily hours';
   const headingId = `today-plan-${goal.id}`;
   return (
     <section className="card today-day" aria-labelledby={headingId}>
@@ -226,10 +237,10 @@ function PlanDay({ goal, day, isToday }: { goal: Goal; day: StudyDay; isToday: b
           <button
             type="button"
             className="btn sm ghost"
-            aria-label={`${overdue ? 'Pick a new date' : 'Set daily hours'} for ${goal.name}`}
+            aria-label={`${paceFix} for ${goal.name}`}
             onClick={() => useStore.getState().openOverlay({ kind: 'goal', goalId: goal.id })}
           >
-            {overdue ? 'Pick a new date' : 'Set daily hours'}
+            {paceFix}
           </button>
         </p>
       )}

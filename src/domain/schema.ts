@@ -321,6 +321,12 @@ export function previewImport(raw: unknown): ImportResult {
         `This was made for a different version of Road to Goals: "version" must be the number 1, not ${shortValue(version)}.`,
       ],
     };
+  if ((raw as { goals: unknown[] }).goals.length === 0)
+    return {
+      ok: false,
+      kind: 'invalid',
+      errors: ['The "goals" list is empty, so there is no plan to add.'],
+    };
   const checked = BackupShape.safeParse(raw);
   if (!checked.success)
     return { ok: false, kind: 'invalid', errors: describeIssues(raw, checked.error.issues) };

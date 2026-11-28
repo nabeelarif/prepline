@@ -27,6 +27,15 @@
   justify-items: start;
   gap: 4px;
 }
+.plan-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.badge.vis-private {
+  color: var(--muted);
+  background: var(--surface-2);
+}
 .plan-counts {
   margin: 0;
 }

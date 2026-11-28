@@ -153,7 +153,7 @@ export function extractPlanJson(text: string): ExtractResult {
     return { ok: false, error: 'This is too large to be a plan. It should hold only the JSON.' };
 
   const plans: unknown[] = [];
-  let other: object | undefined;
+  let other: { value: object; size: number } | undefined;
   const broken = { size: 0, error: '' };
   let cutOff = false;
   /** A plan that can't be read, which matters even when another one can. */
@@ -187,7 +187,7 @@ export function extractPlanJson(text: string): ExtractResult {
     if (!result.ok) {
       if (looksLikePlan(block)) lostPlan = true;
     } else if (hasGoalsList(result.value)) plans.push(result.value);
-    else other ??= result.value as object;
+    else other ??= { value: result.value as object, size: block.length };
     i = end;
   }
 
@@ -210,8 +210,10 @@ export function extractPlanJson(text: string): ExtractResult {
       error:
         'The JSON is cut off: it ends before its last closing bracket. Copy the whole code box, or ask your AI to send the complete plan again.',
     };
-  if (broken.size) return { ok: false, error: broken.error };
-  if (other) return { ok: true, raw: other, notes: [] };
+  // A small brace in a sentence, like {topic}, must not hide the object that does parse.
+  if (broken.size && (lostPlan || broken.size > (other?.size ?? 0)))
+    return { ok: false, error: broken.error };
+  if (other) return { ok: true, raw: other.value, notes: [] };
   return {
     ok: false,
     error: clean

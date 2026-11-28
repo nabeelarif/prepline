@@ -76,7 +76,10 @@ export interface PlanSharing {
   visibility: Visibility;
   slug: string | null;
   tags: string[];
-  /** A moderator took the plan down. The owner still sees it as shared. */
+  /**
+   * A moderator took the plan down. Only a `setSharing` answer is ever true here: the app
+   * then treats the plan as not shared.
+   */
   hidden: boolean;
   copyCount: number;
   /** How many people starred it; the owner sees the count, never who. */

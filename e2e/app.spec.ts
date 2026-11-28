@@ -683,3 +683,79 @@ test('exports a plan as JSON and imports that file back', async ({ page }) => {
   await page.getByRole('link', { name: 'My Plans' }).click();
   await expect(page.locator('.plan-card')).toHaveCount(2);
 });
+
+test('use my own AI: fill the form, paste the reply, land on the new plan', async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await signIn(page);
+  await page.getByRole('button', { name: 'Use my own AI' }).click();
+  const sheet = page.getByRole('dialog');
+  await sheet.getByLabel('Goal or topic').fill('Learn Git');
+  await expect(sheet.getByRole('link', { name: 'Generate with ChatGPT' })).toHaveAttribute(
+    'href',
+    /^https:\/\/chatgpt\.com\/\?q=Read%20the%20Road/,
+  );
+
+  // The help at the bottom is the last stop of the dialog's focus trap, in both directions.
+  const help = sheet.getByText('Having trouble?');
+  const close = sheet.getByRole('button', { name: 'Close' });
+  await sheet.getByRole('button', { name: 'Paste plan' }).focus();
+  await page.keyboard.press('Tab');
+  await expect(help).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(close).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(help).toBeFocused();
+
+  // The full instructions come from the file the site serves to AI assistants.
+  await sheet.getByRole('button', { name: /copy full instructions/ }).click();
+  await expect(sheet.getByText(/Full instructions copied/)).toBeVisible();
+  const copied = await page.evaluate(() => navigator.clipboard.readText());
+  expect(copied).toContain('# Road to Goals Plan Skill (v1)');
+  expect(copied).toContain('- Goal: Learn Git');
+
+  const json = readFileSync('public/ai/example-plan-v1.json', 'utf8');
+  await page.evaluate(
+    (text) => navigator.clipboard.writeText(text),
+    `Sure!\n\`\`\`json\n${json}\`\`\`\nClick Copy on the box above.`,
+  );
+  await sheet.getByRole('button', { name: 'Paste plan' }).click();
+  await sheet.getByRole('button', { name: 'Paste from clipboard' }).click();
+  await sheet.getByRole('button', { name: 'Import', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Plan preview' })).toContainText('6 resources');
+  await page.getByRole('button', { name: 'Add to My Plans' }).click();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Git Basics in 5 Days');
+  await expect(page).toHaveURL(/\/plans\//);
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Git Basics in 5 Days');
+});
+
+test('serves the AI files as plain text', async ({ request }) => {
+  for (const [path, start] of [
+    ['ai/skill-v1.md', '# Road to Goals Plan Skill'],
+    ['ai/skill.md', '# Road to Goals Plan Skill'],
+    ['ai/plan-schema-v1.json', '{'],
+    ['ai/example-plan-v1.json', '{'],
+    ['robots.txt', '# AI assistants'],
+  ] as const) {
+    const res = await request.get(path, { headers: { 'User-Agent': 'ChatGPT-User' } });
+    expect(res.status(), path).toBe(200);
+    expect((await res.text()).startsWith(start), path).toBe(true);
+  }
+});
+
+test('on a phone the AI and paste dialogs have no sideways scrolling', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 740 });
+  await signIn(page);
+  const overflow = () => page.getByRole('dialog').evaluate((el) => el.scrollWidth - el.clientWidth);
+  await page.getByRole('button', { name: 'Use my own AI' }).click();
+  await page.getByText('More options').click();
+  expect(await overflow()).toBeLessThanOrEqual(0);
+  await page.getByRole('dialog').getByRole('button', { name: 'Paste plan' }).click();
+  await page.getByLabel('Your AI’s reply').fill(`{"goals": [{"name": "${'x'.repeat(300)}"`);
+  await page.getByRole('dialog').getByRole('button', { name: 'Import', exact: true }).click();
+  await expect(page.getByRole('dialog').getByRole('alert')).toContainText('cut off');
+  expect(await overflow()).toBeLessThanOrEqual(0);
+});

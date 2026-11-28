@@ -199,7 +199,7 @@ describe('previewImport', () => {
     expect(previewImport({ version: 2, goals: [] })).toMatchObject({
       ok: false,
       kind: 'version',
-      error: expect.stringContaining('version 2'),
+      errors: [expect.stringContaining('not 2')],
     });
     expect(previewImport({ goals: [{ foo: 1 }] })).toMatchObject({ ok: false, kind: 'invalid' });
   });
@@ -228,28 +228,22 @@ describe('previewImport', () => {
   it('rejects malformed backups, naming the first problem', () => {
     const err = (raw: unknown) => {
       const r = previewImport(raw);
-      return r.ok ? null : r.error;
+      return r.ok ? null : r.errors[0];
     };
-    expect(err({ goals: [{ foo: 1 }] })).toBe(
-      "Plan 1 has no name, so this file can't be imported.",
-    );
-    expect(err({ goals: [{ name: 'Prep' }, { name: '  ' }] })).toBe(
-      "Plan 2 has no name, so this file can't be imported.",
-    );
+    expect(err({ goals: [{ foo: 1 }] })).toBe('Plan 1 has no name.');
+    expect(err({ goals: [{ name: 'Prep' }, { name: '  ' }] })).toBe('Plan 2 has no name.');
     expect(err({ goals: [{ name: 'Prep', resources: [{ title: 'a' }, { url: 'x' }] }] })).toBe(
-      'Resource 2 in Plan 1 "Prep" has no title, so this file can\'t be imported.',
+      'Resource 2 in Plan 1 "Prep" has no title.',
     );
     expect(err({ goals: [{ name: 'Prep', resources: 'none' }] })).toBe(
-      'Plan 1 "Prep" has "resources" that is not a list, so this file can\'t be imported.',
+      'Plan 1 "Prep" has "resources" that is not a list.',
     );
     expect(err({ goals: [{ name: 'Prep', resources: [{ title: 'a', minutes: '45' }] }] })).toBe(
-      'Resource 1 "a" in Plan 1 "Prep" has an invalid "minutes", so this file can\'t be imported.',
+      'Resource 1 "a" in Plan 1 "Prep" has an invalid "minutes" (it must be a number without quotes).',
     );
-    expect(err({ goals: ['junk'] })).toBe(
-      "Plan 1 is not a valid entry, so this file can't be imported.",
-    );
+    expect(err({ goals: ['junk'] })).toBe('Plan 1 is not a valid entry.');
     expect(err({ goals: [{ name: 'Prep', phases: [{ name: 'P' }, null] }] })).toBe(
-      'Phase 2 in Plan 1 "Prep" is not a valid entry, so this file can\'t be imported.',
+      'Phase 2 in Plan 1 "Prep" is not a valid entry.',
     );
   });
 
@@ -311,7 +305,7 @@ describe('previewImport', () => {
 describe('agent plan format (docs/agent-plan-format.md)', () => {
   it('has an example that imports cleanly, with nothing repaired', () => {
     const r = previewImport(JSON.parse(example));
-    if (!r.ok) throw new Error(r.error);
+    if (!r.ok) throw new Error(r.errors.join(' '));
     expect(r.preview.notes).toEqual([]);
     expect(r.preview).toMatchObject({ plans: 1, phases: 3, resources: 8 });
     const minutes = r.preview.data.goals[0]!.resources.reduce((a, x) => a + x.minutes, 0);
@@ -320,7 +314,7 @@ describe('agent plan format (docs/agent-plan-format.md)', () => {
 
   it('shows who made the example and when', () => {
     const r = previewImport(JSON.parse(example));
-    if (!r.ok) throw new Error(r.error);
+    if (!r.ok) throw new Error(r.errors.join(' '));
     expect(r.preview.exportedAt).toBe('2026-11-18T14:32:05-05:00');
     expect(r.preview.generatedBy).toEqual({
       tool: 'Claude',
@@ -337,7 +331,7 @@ describe('agent plan format (docs/agent-plan-format.md)', () => {
 
   it('reads who can open the example plan, with its tags', () => {
     const r = previewImport(JSON.parse(example));
-    if (!r.ok) throw new Error(r.error);
+    if (!r.ok) throw new Error(r.errors.join(' '));
     expect(r.preview.shares).toEqual([
       { visibility: 'unlisted', tags: ['interview', 'ios', 'swift'] },
     ]);
@@ -357,7 +351,7 @@ describe('sharing in a plan file', () => {
   const file = (sharing: unknown) => ({ version: 1, goals: [{ name: 'Plan', sharing }] });
   const read = (sharing: unknown) => {
     const r = previewImport(file(sharing));
-    if (!r.ok) throw new Error(r.error);
+    if (!r.ok) throw new Error(r.errors.join(' '));
     return r.preview;
   };
 

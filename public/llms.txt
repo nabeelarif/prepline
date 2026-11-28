@@ -1,0 +1,10 @@
+# Road to Goals
+
+> A study planner. Plans are resources in study order, with time estimates, optionally grouped into phases. Users can have their own AI write a plan and paste it into the app.
+
+## Writing a plan
+
+- [Plan skill, version 1](https://roadtogoals.com/ai/skill-v1.md): how to write a plan, with output rules and an example
+- [Latest plan skill](https://roadtogoals.com/ai/skill.md): always a copy of the newest version
+- [Plan JSON Schema, version 1](https://roadtogoals.com/ai/plan-schema-v1.json)
+- [Example plan, version 1](https://roadtogoals.com/ai/example-plan-v1.json)

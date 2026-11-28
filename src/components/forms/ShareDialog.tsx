@@ -4,6 +4,7 @@ import { sharingArgs, type SharingValue } from '../../domain/share';
 import type { Goal } from '../../domain/types';
 import { appUrl, paths } from '../../routes';
 import { useStore } from '../../state/store';
+import { copyText } from '../copyText';
 import { DIALOG_TITLE } from '../Overlay';
 import { SharingFields } from './SharingFields';
 
@@ -37,12 +38,8 @@ export function ShareDialog({ goal }: { goal: Goal }) {
 
   const copy = async () => {
     if (!link) return;
-    try {
-      await navigator.clipboard.writeText(link);
-      setCopied(true);
-    } catch {
-      setError('Could not copy. Select the link and copy it.');
-    }
+    if (await copyText(link)) setCopied(true);
+    else setError('Could not copy. Select the link and copy it.');
   };
 
   if (sharing.status === 'error') {

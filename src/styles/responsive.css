@@ -198,8 +198,15 @@
     border-radius: var(--r-lg) var(--r-lg) 0 0;
     padding: 20px 16px max(20px, env(safe-area-inset-bottom, 0px));
   }
-  .row2 {
+  .row2,
+  .row3 {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .ai-providers {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .paste-actions .btn {
+    flex: 1;
   }
   .type-cards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -266,6 +273,17 @@
   }
   .brand {
     min-height: var(--hit);
+  }
+  .ai-more summary,
+  .ai-help summary,
+  .ai-copies .link-btn,
+  .paste-actions .link-btn,
+  .ai-offer .link-btn {
+    min-height: var(--hit);
+  }
+  .ai-more summary,
+  .ai-help summary {
+    padding-block: 12px;
   }
   .choice {
     min-height: var(--hit);

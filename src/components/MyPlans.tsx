@@ -1,5 +1,7 @@
 import {
+  Bot,
   CalendarDays,
+  ClipboardPaste,
   Copy,
   Ellipsis,
   FileUp,
@@ -30,6 +32,7 @@ export function MyPlans() {
   const today = todayISO();
   const newPlan = () => openOverlay({ kind: 'goal', goalId: null });
   const importPlan = () => openOverlay({ kind: 'import' });
+  const pastePlan = () => openOverlay({ kind: 'import', source: 'paste' });
 
   return (
     <>
@@ -38,6 +41,12 @@ export function MyPlans() {
         <div className="btn-row">
           <button className="btn primary" onClick={newPlan}>
             <Plus size={18} aria-hidden="true" /> New plan
+          </button>
+          <button className="btn" onClick={() => openOverlay({ kind: 'ai' })}>
+            <Bot size={18} aria-hidden="true" /> Use my own AI
+          </button>
+          <button className="btn" onClick={pastePlan}>
+            <ClipboardPaste size={18} aria-hidden="true" /> Paste plan
           </button>
           <button className="btn" onClick={importPlan}>
             <FileUp size={18} aria-hidden="true" /> Import plan

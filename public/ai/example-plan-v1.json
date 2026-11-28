@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "goals": [
+    {
+      "name": "Git Basics in 5 Days",
+      "description": "Learn to track changes, branch and merge, then publish a small project. For beginners.",
+      "hoursPerDay": 1,
+      "phases": [
+        {
+          "id": "basics",
+          "name": "First Commits",
+          "description": "What version control is for, and the everyday commands. About 2 hours.",
+          "color": "blue"
+        },
+        {
+          "id": "branches",
+          "name": "Branches and Sharing",
+          "description": "Branching, merging and putting work online. About 2 hours.",
+          "color": "green"
+        }
+      ],
+      "resources": [
+        {
+          "title": "About Version Control (Pro Git)",
+          "url": "https://git-scm.com/book/en/v2/Getting-Started-About-Version-Control",
+          "type": "read",
+          "minutes": 20,
+          "notes": "Know what problem version control solves and why Git is distributed.",
+          "phaseId": "basics"
+        },
+        {
+          "title": "Recording Changes to the Repository (Pro Git)",
+          "url": "https://git-scm.com/book/en/v2/Git-Basics-Recording-Changes-to-the-Repository",
+          "type": "read",
+          "minutes": 45,
+          "notes": "Type each command as you read: status, add, diff and commit.",
+          "phaseId": "basics"
+        },
+        {
+          "title": "Practice: a repository with ten small commits",
+          "url": "",
+          "type": "practice",
+          "minutes": 40,
+          "notes": "Offline exercise. Write a clear message for each commit, then read them back with git log.",
+          "phaseId": "basics"
+        },
+        {
+          "title": "Basic Branching and Merging (Pro Git)",
+          "url": "https://git-scm.com/book/en/v2/Git-Branching-Basic-Branching-and-Merging",
+          "type": "read",
+          "minutes": 40,
+          "notes": "Create a merge conflict on purpose and resolve it.",
+          "phaseId": "branches"
+        },
+        {
+          "title": "Learn Git Branching",
+          "url": "https://learngitbranching.js.org/",
+          "type": "practice",
+          "minutes": 60,
+          "notes": "Free, interactive. Finish the introductory levels.",
+          "phaseId": "branches"
+        },
+        {
+          "title": "Hello World (GitHub Docs)",
+          "url": "https://docs.github.com/en/get-started/start-your-journey/hello-world",
+          "type": "project",
+          "minutes": 30,
+          "notes": "Make a repository, a branch and a pull request of your own.",
+          "phaseId": "branches"
+        }
+      ]
+    }
+  ]
+}

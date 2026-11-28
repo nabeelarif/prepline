@@ -1,0 +1,6 @@
+# Cloudflare static asset headers. /ai/ files are read by AI assistants, without JavaScript.
+/ai/*
+  Access-Control-Allow-Origin: *
+
+/ai/*.md
+  Content-Type: text/markdown; charset=utf-8

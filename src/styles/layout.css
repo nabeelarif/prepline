@@ -570,6 +570,9 @@
   margin-top: 6vh;
   padding-block: 40px;
 }
+.welcome .btn-row {
+  justify-content: center;
+}
 
 /* Continue learning: the summit marker, pointing at the one next step. */
 .focus {

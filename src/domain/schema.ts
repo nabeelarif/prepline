@@ -1,6 +1,12 @@
 import { z } from 'zod';
 import { exportedAtOf, generatedByOf, type GeneratedBy } from './backup';
-import { LEGACY_TYPES, PHASE_COLORS, TYPES } from './constants';
+import {
+  LEGACY_TYPES,
+  MAX_HOURS_PER_DAY,
+  MIN_HOURS_PER_DAY,
+  PHASE_COLORS,
+  TYPES,
+} from './constants';
 import { todayISO, validISO } from './dates';
 import { num, uid } from './format';
 import { readImportSharing, type ImportShare } from './share';
@@ -85,7 +91,9 @@ export const GoalSchema: z.ZodType<Goal, unknown> = z
     description: text(() => '', 1000),
     startDate: optDate,
     targetDate: optDate,
-    hoursPerDay: field((v) => (v == null || v === '' ? null : num(v, 0.25, 16, 2))),
+    hoursPerDay: field((v) =>
+      v == null || v === '' ? null : num(v, MIN_HOURS_PER_DAY, MAX_HOURS_PER_DAY, 2),
+    ),
     source: field((v) => {
       const o = v as { slug?: unknown; name?: unknown } | null;
       return o && typeof o.slug === 'string' && o.slug && typeof o.name === 'string'
@@ -122,9 +130,13 @@ const AppDataSchema = z
     return { version: 1, activeGoalId: active, goals };
   });
 
+/** Whether this has the one thing every Road to Goals file has: a `goals` list. */
+export const hasGoalsList = (v: unknown): v is { goals: unknown[] } & object =>
+  isObject(v) && Array.isArray((v as { goals?: unknown }).goals);
+
 /** Returns cleaned data, or null when the input is not a Road to Goals backup (no `goals` array). */
 export function parseAppData(raw: unknown): AppData | null {
-  if (!isObject(raw) || !Array.isArray((raw as { goals?: unknown }).goals)) return null;
+  if (!hasGoalsList(raw)) return null;
   return AppDataSchema.parse(raw);
 }
 
@@ -146,6 +158,25 @@ export interface ImportPreview {
 
 const arr = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
 
+/** How many problems are listed; a badly wrong file would otherwise list hundreds. */
+const MAX_ERRORS = 10;
+
+/**
+ * Like `z.array`, but stops once one entry more than can be listed has failed. `z.array`
+ * collects every problem and passes a nested list's up in a single function call, which
+ * overflows the stack when a large list is badly wrong.
+ */
+const entries = (item: z.ZodType) =>
+  z.array(z.unknown()).superRefine((list, ctx) => {
+    let failed = 0;
+    for (let i = 0; i < list.length && failed <= MAX_ERRORS; i++) {
+      const result = item.safeParse(list[i]);
+      if (result.success) continue;
+      failed++;
+      for (const issue of result.error.issues) ctx.addIssue({ ...issue, path: [i, ...issue.path] });
+    }
+  });
+
 /*
  * Strict shape of a backup, checked before anything is repaired. Unknown keys are
  * allowed (older and newer fields), but every plan, resource and phase must be an
@@ -155,37 +186,33 @@ const named = z.string().trim().min(1);
 const BackupShape = z.looseObject({
   version: z.literal(1).optional(),
   activeGoalId: z.string().nullable().optional(),
-  goals: z.array(
+  goals: entries(
     z.looseObject({
       name: named,
       description: z.string().optional(),
       startDate: z.string().nullable().optional(),
       targetDate: z.string().nullable().optional(),
       hoursPerDay: z.number().nullable().optional(),
-      resources: z
-        .array(
-          z.looseObject({
-            title: named,
-            url: z.string().optional(),
-            notes: z.string().optional(),
-            type: z.string().optional(),
-            phaseId: z.string().nullable().optional(),
-            minutes: z.number().optional(),
-            doneMinutes: z.number().optional(),
-            done: z.boolean().optional(),
-            sections: z.array(z.looseObject({ minutes: z.number().optional() })).optional(),
-          }),
-        )
-        .optional(),
-      phases: z
-        .array(
-          z.looseObject({
-            name: named,
-            description: z.string().optional(),
-            color: z.string().optional(),
-          }),
-        )
-        .optional(),
+      resources: entries(
+        z.looseObject({
+          title: named,
+          url: z.string().optional(),
+          notes: z.string().optional(),
+          type: z.string().optional(),
+          phaseId: z.string().nullable().optional(),
+          minutes: z.number().optional(),
+          doneMinutes: z.number().optional(),
+          done: z.boolean().optional(),
+          sections: entries(z.looseObject({ minutes: z.number().optional() })).optional(),
+        }),
+      ).optional(),
+      phases: entries(
+        z.looseObject({
+          name: named,
+          description: z.string().optional(),
+          color: z.string().optional(),
+        }),
+      ).optional(),
     }),
   ),
 });
@@ -201,14 +228,23 @@ const NOUN: Record<string, string> = {
 function labelOf(v: unknown): string {
   const o = isObject(v) ? (v as { name?: unknown; title?: unknown }) : {};
   const n = typeof o.name === 'string' ? o.name : typeof o.title === 'string' ? o.title : '';
-  return n.trim() ? ` "${n.trim()}"` : '';
+  // Cut, because the name is repeated in every message about the entry.
+  return n.trim() ? ` "${n.trim().slice(0, 80)}"` : '';
 }
 
+const MUST_BE: Record<string, string> = {
+  string: 'text in quotes',
+  number: 'a number without quotes',
+  boolean: 'true or false',
+  array: 'a list',
+  object: 'an object',
+};
+
 /**
- * Turns the first schema failure into a sentence naming the entry and the field,
+ * Turns one schema failure into a clause naming the entry and the field,
  * e.g. 'Resource 3 in Plan 1 "Prep" has no title'.
  */
-function describeIssue(raw: unknown, path: PropertyKey[]): string {
+function describeIssue(raw: unknown, path: PropertyKey[], expected?: string): string {
   const where: string[] = [];
   let node: unknown = raw;
   let field = '';
@@ -221,48 +257,73 @@ function describeIssue(raw: unknown, path: PropertyKey[]): string {
   });
   const subject = where.join(' in ') || 'This backup';
   const blank = node === undefined || (typeof node === 'string' && !node.trim());
+  const must = expected ? MUST_BE[expected] : undefined;
   const problem = !field
     ? 'is not a valid entry'
     : (field === 'name' || field === 'title') && blank
       ? `has no ${field}`
       : NOUN[field]
         ? `has "${field}" that is not a list`
-        : `has an invalid "${field}"`;
-  return `${subject} ${problem}, so this file can't be imported.`;
+        : `has an invalid "${field}"${must ? ` (it must be ${must})` : ''}`;
+  return `${subject} ${problem}`;
+}
+
+function describeIssues(raw: unknown, issues: z.core.$ZodIssue[]): string[] {
+  const shown = new Set<string>();
+  let used = 0;
+  // Only as many are worded as will be shown: a bad file can have a huge number of them.
+  for (; used < issues.length && shown.size < MAX_ERRORS; used++) {
+    const { code, path, ...rest } = issues[used]!;
+    const expected = code === 'invalid_type' ? (rest as { expected?: string }).expected : undefined;
+    shown.add(`${describeIssue(raw, path, expected)}.`);
+  }
+  // `entries` stops early, so how many more there are is not known.
+  return used < issues.length ? [...shown, 'There are more problems like these.'] : [...shown];
 }
 
 /** Why a backup was rejected: not a Road to Goals file, another version, or malformed entries. */
 export type ImportErrorKind = 'not-backup' | 'version' | 'invalid';
 
+/** A wrong value as it can be quoted in a message: short, and never walking into a list. */
+const shortValue = (v: unknown): string =>
+  typeof v === 'object' && v !== null
+    ? Array.isArray(v)
+      ? 'a list'
+      : 'an object'
+    : JSON.stringify(typeof v === 'string' ? v.slice(0, 20) : v);
+
+export type ImportResult =
+  | { ok: true; preview: ImportPreview }
+  /** `errors` lists the problems as sentences, to show and to hand back to an AI. */
+  | { ok: false; kind: ImportErrorKind; errors: string[] };
+
 /**
- * Checks a backup before it replaces saved data. Anything that is not a well-formed
- * Road to Goals backup is rejected with the first problem found. A valid backup from an
- * older version is converted as on load, and the conversions are listed so the user
- * can decide before confirming.
+ * Checks a plan before it is added. Anything that is not a well-formed Road to Goals
+ * file is rejected, listing the problems found. A valid file from an older version is
+ * converted as on load, and the conversions are listed so the user can decide before
+ * confirming.
  */
-export function previewImport(
-  raw: unknown,
-): { ok: true; preview: ImportPreview } | { ok: false; kind: ImportErrorKind; error: string } {
-  if (!isObject(raw) || !Array.isArray((raw as { goals?: unknown }).goals))
+export function previewImport(raw: unknown): ImportResult {
+  if (!hasGoalsList(raw))
     return {
       ok: false,
       kind: 'not-backup',
-      error: 'This file has no "goals" list, so it is not a Road to Goals backup.',
+      errors: [
+        'There is no "goals" list at the top level, so this is not a Road to Goals plan. One looks like {"version": 1, "goals": [{"name": "…", "resources": [{"title": "…"}]}]}.',
+      ],
     };
   const version = (raw as { version?: unknown }).version;
   if (version !== undefined && version !== 1)
     return {
       ok: false,
       kind: 'version',
-      error: `This backup was made by a different version of Road to Goals (version ${String(version)}) and cannot be imported here.`,
+      errors: [
+        `This was made for a different version of Road to Goals: "version" must be the number 1, not ${shortValue(version)}.`,
+      ],
     };
   const checked = BackupShape.safeParse(raw);
   if (!checked.success)
-    return {
-      ok: false,
-      kind: 'invalid',
-      error: describeIssue(raw, checked.error.issues[0]?.path ?? []),
-    };
+    return { ok: false, kind: 'invalid', errors: describeIssues(raw, checked.error.issues) };
 
   const notes: string[] = [];
   const goals = (raw as { goals: Record<string, unknown>[] }).goals;
@@ -290,7 +351,8 @@ export function previewImport(
   // One entry per plan, in file order: `BackupShape` has already rejected any non-object plan, so
   // `data.goals` has the same plans in the same order.
   const shared = goals.map((g, i) => readImportSharing(g.sharing, data.goals[i]!.name));
-  notes.push(...shared.flatMap((x) => x.notes));
+  // One at a time: spreading a very long list into `push` overflows the stack.
+  for (const x of shared) for (const note of x.notes) notes.push(note);
 
   const count = (f: (g: Goal) => number) => data.goals.reduce((a, g) => a + f(g), 0);
   return {

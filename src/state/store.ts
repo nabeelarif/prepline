@@ -1,5 +1,6 @@
 import { produce, type Draft } from 'immer';
 import { create } from 'zustand';
+import { emptyAiForm, type AiForm } from '../domain/aiPrompt';
 import { createEmptyAppData, mergePlans } from '../domain/backup';
 import { todayISO } from '../domain/dates';
 import { uid } from '../domain/format';
@@ -42,6 +43,9 @@ import {
 import { diffData } from './syncOps';
 import { IDLE_SYNC, WriteQueue, type SyncState } from './writeQueue';
 
+/** The two ways into the import dialog. */
+export type ImportTab = 'paste' | 'file';
+
 export type Overlay =
   | { kind: 'goal'; goalId: string | null }
   | { kind: 'start'; goalId: string }
@@ -50,7 +54,10 @@ export type Overlay =
   | { kind: 'phase'; phaseId: string | null }
   | { kind: 'details'; resourceId: string }
   | { kind: 'viewer'; resourceId: string }
-  | { kind: 'import' }
+  /** `source` picks the tab the import dialog opens on; a file unless it says paste. */
+  | { kind: 'import'; source?: ImportTab }
+  /** "Use your own AI": build a prompt to take to an AI chat. */
+  | { kind: 'ai' }
   | { kind: 'account' };
 
 /** Fields set on the plan form. The deadline is only edited once a plan has started. */
@@ -74,6 +81,8 @@ export interface UiState {
   selectedResourceId: string | null;
   showFullJourney: boolean;
   overlay: Overlay | null;
+  /** What was typed in "Use your own AI", kept while the user goes off to paste. */
+  aiForm: AiForm;
   toast: { id: number; text: string; undo?: () => void } | null;
 }
 
@@ -212,6 +221,7 @@ export interface Store {
   selectResource(id: string | null): void;
   toggleFullJourney(): void;
   openOverlay(o: Overlay): void;
+  setAiForm(form: AiForm): void;
   closeOverlay(): void;
   /** `undo`, when given, adds an Undo button to the toast. */
   showToast(text: string, undo?: () => void): void;
@@ -220,14 +230,13 @@ export interface Store {
   /**
    * Adds the plans from a checked file next to the saved ones (see `mergePlans`), in one
    * atomic backend call. Memory changes only after the backend confirms, so a failure
-   * changes nothing. Returns whether it worked. Keeps the import overlay open for the result.
+   * changes nothing and returns null. Otherwise returns the new plans' ids, and the names of
+   * those whose sharing failed. Keeps the import overlay open for the result.
    */
   addPlans(
     data: AppData,
     shares?: (ImportShare | null)[],
-    /** Called with the names of plans whose sharing failed, once the plans themselves are saved. */
-    onUnshared?: (names: string[]) => void,
-  ): Promise<boolean>;
+  ): Promise<{ addedIds: string[]; unshared: string[] } | null>;
   /** Deletes all saved data, the same way. Closes overlays on success. */
   deleteAllData(): Promise<boolean>;
 }
@@ -242,6 +251,7 @@ const freshUi = (): UiState => ({
   selectedResourceId: null,
   showFullJourney: false,
   overlay: null,
+  aiForm: emptyAiForm(),
   toast: null,
 });
 
@@ -814,24 +824,24 @@ export function createAppStore({ repo, auth, sharing, enricher }: Backend) {
         ),
       toggleFullJourney: () => setUi({ showFullJourney: !get().ui.showFullJourney }),
       openOverlay: (overlay) => setUi({ overlay }),
+      setAiForm: (aiForm) => setUi({ aiForm }),
       closeOverlay: () => setUi({ overlay: null }),
       showToast: (text, undo) => setUi(toast(text, undo)),
       dismissToast: () => setUi({ toast: null }),
 
       // Appends only the new plans, so plans another device saved meanwhile stay untouched.
-      addPlans: async (data, shares = [], onUnshared) => {
+      addPlans: async (data, shares = []) => {
         const merged = mergePlans(get().data, data);
-        // Pair each new plan with its share now, by id, so nothing later depends on position.
-        const wanted = merged.goals
-          .slice(get().data.goals.length)
-          .flatMap((g, i) => (shares[i] ? [{ goal: g, share: shares[i]! }] : []));
         const existing = get().data.goals.length;
+        const added = merged.goals.slice(existing);
+        // Pair each new plan with its share now, by id, so nothing later depends on position.
+        const wanted = added.flatMap((g, i) => (shares[i] ? [{ goal: g, share: shares[i]! }] : []));
         const ok = await replaceData(
           (clean) => repo.addGoals(clean.goals.slice(existing), clean.activeGoalId),
           merged,
           { overlay: { kind: 'import' } },
         );
-        if (!ok) return false;
+        if (!ok) return null;
         // The plans are saved; sharing is a separate step that may fail without undoing them.
         const results = await Promise.all(
           wanted.map(async ({ goal, share }) =>
@@ -840,8 +850,10 @@ export function createAppStore({ repo, auth, sharing, enricher }: Backend) {
               : goal.name,
           ),
         );
-        onUnshared?.(results.filter((n) => n !== null));
-        return true;
+        return {
+          addedIds: added.map((g) => g.id),
+          unshared: results.filter((n) => n !== null),
+        };
       },
 
       deleteAllData: async () => {

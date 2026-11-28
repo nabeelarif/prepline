@@ -618,6 +618,169 @@ textarea:focus {
   background: var(--surface);
 }
 
+/* Pasting a plan */
+.import-tabs {
+  margin-bottom: 14px;
+}
+.paste-card .field {
+  margin-bottom: 8px;
+}
+/* The pasted reply is code, so it reads in the code face. */
+.paste-box {
+  font-family: var(--f-mono);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+  min-height: 180px;
+  overflow-wrap: anywhere;
+}
+.paste-card .restore-invalid {
+  margin-top: 8px;
+}
+.restore-invalid > div {
+  min-width: 0;
+  flex: 1;
+}
+.error-list {
+  margin: 0 0 10px;
+  padding-left: 18px;
+  overflow-wrap: anywhere;
+}
+.copy-fallback textarea {
+  font-family: var(--f-mono);
+  font-size: var(--fs-xs);
+}
+.plan-preview {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+.plan-preview > li {
+  padding: 12px 0;
+  overflow-wrap: anywhere;
+}
+.plan-preview > li + li {
+  border-top: 1px solid var(--line);
+}
+.sheet.wide .plan-preview h4 {
+  font-family: var(--f-display);
+  font-size: var(--fs-lg);
+  line-height: 1.25;
+}
+.sheet .plan-preview p {
+  margin: 0;
+  font-size: var(--fs-sm);
+}
+.plan-preview ol {
+  margin: 6px 0 4px;
+  padding-left: 20px;
+  font-size: var(--fs-sm);
+}
+.sheet .plan-preview .plan-preview-empty {
+  color: var(--warn-fg);
+}
+
+/* Use your own AI: two steps, in order */
+.sheet .ai-offer {
+  margin: -8px 0 16px;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.ai-steps {
+  list-style: none;
+  counter-reset: ai-step;
+  margin: 18px 0 0;
+  padding: 0;
+}
+.ai-steps > li {
+  counter-increment: ai-step;
+}
+.ai-steps > li + li {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+.sheet .ai-steps h3 {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  margin: 0 0 14px;
+  text-wrap: pretty;
+}
+.ai-steps h3::before {
+  content: counter(ai-step) '.';
+  flex: none;
+  color: var(--accent-text);
+  font-variant-numeric: tabular-nums;
+}
+.row3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+.ai-more {
+  margin-bottom: 16px;
+}
+.ai-more summary,
+.ai-help summary {
+  width: fit-content;
+  min-height: 32px;
+  padding: 4px 0;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--accent-text);
+  cursor: pointer;
+}
+.ai-more[open] summary {
+  margin-bottom: 10px;
+}
+.ai-prefs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 18px;
+}
+.ai-providers {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 4px;
+}
+.ai-providers .btn {
+  white-space: normal;
+  text-align: center;
+  font-size: var(--fs-sm);
+  padding-inline: 10px;
+}
+.ai-providers svg {
+  flex: none;
+}
+.ai-copies {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin: 12px 0 8px;
+}
+.ai-copies .link-btn {
+  text-align: left;
+}
+.ai-help {
+  margin: 20px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.ai-help ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: var(--fs-sm);
+}
+.ai-help li + li {
+  margin-top: 4px;
+}
+
 /* In-app resource viewer */
 .sheet.viewer {
   width: min(1100px, 100%);

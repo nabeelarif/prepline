@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://roadtogoals.com/ai/plan-schema-v1.json",
+  "title": "Road to Goals plan file, version 1",
+  "description": "A file Road to Goals can import. Plans are resources in study order, optionally grouped into phases. The app ignores unknown keys.",
+  "type": "object",
+  "required": ["version", "goals"],
+  "properties": {
+    "version": { "const": 1 },
+    "exportedAt": {
+      "type": "string",
+      "description": "Local time with its UTC offset, such as 2026-11-18T14:32:05-05:00."
+    },
+    "generatedBy": {
+      "type": "object",
+      "properties": {
+        "tool": { "type": "string", "maxLength": 60 },
+        "model": { "type": "string", "maxLength": 60 },
+        "skill": { "type": "string", "maxLength": 60 }
+      }
+    },
+    "goals": {
+      "type": "array",
+      "description": "The plans. Usually one.",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/plan" }
+    }
+  },
+  "$defs": {
+    "plan": {
+      "type": "object",
+      "required": ["name", "resources"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "description": { "type": "string", "maxLength": 1000 },
+        "targetDate": { "type": ["string", "null"], "format": "date" },
+        "hoursPerDay": { "type": ["number", "null"], "minimum": 0.25, "maximum": 16 },
+        "sharing": {
+          "type": "object",
+          "required": ["visibility"],
+          "properties": {
+            "visibility": { "enum": ["private", "unlisted", "public"] },
+            "tags": {
+              "type": "array",
+              "maxItems": 5,
+              "items": { "type": "string", "maxLength": 24 }
+            }
+          }
+        },
+        "phases": { "type": "array", "items": { "$ref": "#/$defs/phase" } },
+        "resources": {
+          "type": "array",
+          "description": "In the order they should be done.",
+          "items": { "$ref": "#/$defs/resource" }
+        }
+      }
+    },
+    "phase": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "description": { "type": "string", "maxLength": 500 },
+        "color": { "enum": ["blue", "purple", "green", "orange", "red", "pink", "gray"] }
+      }
+    },
+    "resource": {
+      "type": "object",
+      "required": ["title"],
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string", "minLength": 1 },
+        "url": { "type": "string" },
+        "type": {
+          "enum": [
+            "read",
+            "watch",
+            "listen",
+            "course",
+            "practice",
+            "project",
+            "workout",
+            "habit",
+            "task",
+            "other"
+          ]
+        },
+        "minutes": { "type": "integer", "minimum": 1, "maximum": 100000 },
+        "notes": { "type": "string" },
+        "phaseId": { "type": ["string", "null"] }
+      }
+    }
+  }
+}

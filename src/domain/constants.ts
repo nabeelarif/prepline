@@ -97,5 +97,9 @@ export const PHASE_COLORS: PhaseColor[] = [
   'gray',
 ];
 
+/** The range a plan's daily study hours are kept in. */
+export const MIN_HOURS_PER_DAY = 0.25;
+export const MAX_HOURS_PER_DAY = 16;
+
 /** Roadmap steps shown before "View full journey". */
 export const JOURNEY_LIMIT = 10;

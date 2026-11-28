@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Target } from 'lucide-react';
+import { MAX_HOURS_PER_DAY, MIN_HOURS_PER_DAY } from '../../domain/constants';
 import { validISO } from '../../domain/dates';
 import type { Goal } from '../../domain/types';
 import { useMatch, useNavigate } from 'react-router-dom';
@@ -56,7 +57,8 @@ export function GoalForm({ goal }: { goal: Goal | null }) {
       name: trimmed,
       description: description.trim(),
       ...(goal?.startDate ? { targetDate: date || null } : {}),
-      hoursPerDay: hrs === null ? null : Math.min(16, Math.max(0.25, hrs)),
+      hoursPerDay:
+        hrs === null ? null : Math.min(MAX_HOURS_PER_DAY, Math.max(MIN_HOURS_PER_DAY, hrs)),
     };
     if (goal) updateGoal(goal.id, input);
     else {
@@ -80,6 +82,18 @@ export function GoalForm({ goal }: { goal: Goal | null }) {
         <Target aria-hidden="true" />
         {goal ? 'Edit Plan' : 'Create New Plan'}
       </h2>
+      {!goal && (
+        <p className="ai-offer">
+          Want a draft to start from?{' '}
+          <button
+            type="button"
+            className="link-btn"
+            onClick={() => useStore.getState().openOverlay({ kind: 'ai' })}
+          >
+            Use my own AI
+          </button>
+        </p>
+      )}
       <label className="field">
         <span>Plan Title</span>
         <input
@@ -122,8 +136,8 @@ export function GoalForm({ goal }: { goal: Goal | null }) {
               id="gHours"
               type="number"
               inputMode="decimal"
-              min={0.25}
-              max={16}
+              min={MIN_HOURS_PER_DAY}
+              max={MAX_HOURS_PER_DAY}
               step={0.25}
               value={hours}
               placeholder="1.5"

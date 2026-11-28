@@ -1,4 +1,5 @@
 import { Target } from 'lucide-react';
+import { AiPlanPanel } from './components/forms/AiPlanPanel';
 import { DataPanel } from './components/forms/DataPanel';
 import { GoalForm } from './components/forms/GoalForm';
 import { PhaseForm } from './components/forms/PhaseForm';
@@ -88,7 +89,9 @@ function OverlayContent() {
     if (!g) return null;
     content = <ShareDialog goal={g} />;
   } else if (overlay.kind === 'import') {
-    content = <DataPanel />;
+    content = <DataPanel initial={overlay.source} />;
+  } else if (overlay.kind === 'ai') {
+    content = <AiPlanPanel />;
   } else if (overlay.kind === 'account') {
     content = <AccountPanel />;
   } else {
@@ -131,6 +134,15 @@ function NoPlans() {
               onClick={() => openOverlay({ kind: 'goal', goalId: null })}
             >
               Create Your First Plan
+            </button>
+            <button className="btn" onClick={() => openOverlay({ kind: 'ai' })}>
+              Use my own AI
+            </button>
+            <button
+              className="btn ghost"
+              onClick={() => openOverlay({ kind: 'import', source: 'paste' })}
+            >
+              Paste plan
             </button>
             <button className="btn ghost" onClick={() => openOverlay({ kind: 'import' })}>
               Import a plan

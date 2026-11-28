@@ -9,8 +9,13 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { formatGeneratedBy } from '../../domain/backup';
+import { fmtHours, pl } from '../../domain/format';
+import { metrics } from '../../domain/metrics';
+import type { Goal } from '../../domain/types';
+import { useStepFocus } from '../../hooks/useStepFocus';
 import { paths } from '../../routes';
 import { useStore } from '../../state/store';
+import { ErrorList } from './ErrorList';
 import type { RestoreFailure, RestoreFlow } from './useRestoreFlow';
 
 const REASON: Record<RestoreFailure, string> = {
@@ -21,13 +26,6 @@ const REASON: Record<RestoreFailure, string> = {
   invalid: 'Missing or invalid data',
   read: 'File could not be read',
 };
-
-/** Moves focus to a step's heading when the step changes, so screen readers follow along. */
-function useStepFocus(step: string) {
-  const ref = useRef<HTMLHeadingElement>(null);
-  useEffect(() => ref.current?.focus(), [step]);
-  return ref;
-}
 
 /** The import card: pick or drop a file, then see it checked or turned away. */
 export function RestoreCard({ flow }: { flow: RestoreFlow }) {
@@ -85,10 +83,11 @@ export function RestoreCard({ flow }: { flow: RestoreFlow }) {
             <h4 ref={heading} tabIndex={-1}>
               This file couldn't be opened.
             </h4>
-            <p className="file-name">{state.fileName}</p>
+            {state.source.kind === 'file' && <p className="file-name">{state.source.fileName}</p>}
             <p>
-              <strong>{REASON[state.reason]}.</strong> {state.detail}
+              <strong>{REASON[state.reason]}.</strong>
             </p>
+            <ErrorList errors={state.errors} />
             <p className="muted">Nothing was changed.</p>
             <div className="btn-row">
               <button type="button" className="btn primary" onClick={pick}>
@@ -143,6 +142,42 @@ const noun = (n: number, word: string) => (n === 1 ? word : `${word}s`);
 const fmtExported = (s: string) =>
   new Date(s).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 
+/** How many resources the preview names for each plan. */
+const FIRST_RESOURCES = 3;
+
+/** One plan as it will arrive: its size, and the first things to do. */
+function PlanPreview({ goal, pasted }: { goal: Goal; pasted: boolean }) {
+  const { count, total } = metrics(goal.resources);
+  const more = count - FIRST_RESOURCES;
+  return (
+    <li>
+      <h4>{goal.name}</h4>
+      {count ? (
+        <>
+          <p className="muted">
+            {pl(count, 'resource')} · {fmtHours(total)} estimated
+            {goal.phases.length > 0 && ` · ${pl(goal.phases.length, 'phase')}`}
+          </p>
+          <ol>
+            {goal.resources.slice(0, FIRST_RESOURCES).map((r) => (
+              <li key={r.id}>
+                {r.title} <span className="muted">({fmtHours(r.minutes)})</span>
+              </li>
+            ))}
+          </ol>
+          {more > 0 && <p className="muted">and {more} more</p>}
+        </>
+      ) : (
+        <p className="plan-preview-empty">
+          No resources.
+          {pasted &&
+            ' If your AI made up its own format, open Use my own AI, choose “copy full instructions” and ask again.'}
+        </p>
+      )}
+    </li>
+  );
+}
+
 /** Review, confirm, and the outcome, shown full width in place of the cards. */
 export function RestoreFlowPanel({ flow }: { flow: RestoreFlow }) {
   const { state, reset, add } = flow;
@@ -176,7 +211,8 @@ export function RestoreFlowPanel({ flow }: { flow: RestoreFlow }) {
     );
   }
   if (!('preview' in state)) return null;
-  const { preview, fileName } = state;
+  const { preview, source } = state;
+  const fromFile = source.kind === 'file';
 
   if (state.step === 'error')
     return (
@@ -205,16 +241,20 @@ export function RestoreFlowPanel({ flow }: { flow: RestoreFlow }) {
     );
 
   return (
-    <div className="flow-panel" role="region" aria-label="File contents">
+    <div
+      className="flow-panel"
+      role="region"
+      aria-label={fromFile ? 'File contents' : 'Plan preview'}
+    >
       <div className="confirm-head">
         <span className="tile good" aria-hidden="true">
           <FileCheck size={22} />
         </span>
         <div>
           <h3 ref={heading} tabIndex={-1}>
-            File ready to import
+            {fromFile ? 'File ready to import' : 'Plan ready to import'}
           </h3>
-          <p className="file-name">{fileName}</p>
+          {fromFile && <p className="file-name">{source.fileName}</p>}
         </div>
       </div>
       <dl className="backup-stats">
@@ -231,6 +271,11 @@ export function RestoreFlowPanel({ flow }: { flow: RestoreFlow }) {
           <dd>{preview.resources}</dd>
         </div>
       </dl>
+      <ul className="plan-preview">
+        {preview.data.goals.map((g) => (
+          <PlanPreview key={g.id} goal={g} pasted={!fromFile} />
+        ))}
+      </ul>
       <dl className="backup-meta">
         {preview.exportedAt && (
           <div>
@@ -279,7 +324,8 @@ export function RestoreFlowPanel({ flow }: { flow: RestoreFlow }) {
         </div>
       )}
       <p className="muted">
-        Add to My Plans keeps everything saved in your account and adds the plans from this file.
+        Add to My Plans keeps everything saved in your account and adds{' '}
+        {fromFile ? 'the plans from this file' : preview.plans === 1 ? 'this plan' : 'these plans'}.
       </p>
       <div className="btn-row confirm-actions">
         <button type="button" className="btn" onClick={reset}>
